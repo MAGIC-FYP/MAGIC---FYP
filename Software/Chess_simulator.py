@@ -1,3 +1,3 @@
-import Pieces
+from pieces import Board, King, Pawn, Knight, Bishop, Rook, Queen
 
-king = Pieces.King('white', 'e1')
+king = King('white', 'e1')
