@@ -43,7 +43,7 @@ class Board:
 
     def move(self, position: tuple, target: tuple, legal_required: bool = True):
         if legal_required:
-            legal = self.state[position[0]][position[1]].is_legal(target)
+            legal = self.state[position[0]][position[1]].is_legal(position, target, self.state)
             if not legal:
                 return False
         self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
