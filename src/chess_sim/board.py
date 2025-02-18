@@ -35,9 +35,18 @@ class Board:
                 self.state[6] = self.black_pawns
                 self.state[7] = [self.r, self.n, self.b, self.q, self.k, self.b, self.n, self.r]
         
-
     def print_ascii(self):
         for row in self.state:
             # Convert None to '-' and join elements with spaces
             row_str = ' '.join('-' if piece is None else str(piece.get_symbol()) for piece in row)
             print(row_str)
+
+    def move(self, position: tuple, target: tuple, legal_required: bool = True):
+        if legal_required:
+            legal = self.state[position[0]][position[1]].is_legal(target)
+            if not legal:
+                return False
+        self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
+        self.state[position[0]][position[1]] = None
+        return True
+    
