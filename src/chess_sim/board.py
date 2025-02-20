@@ -1,9 +1,11 @@
+from typing import Optional, List, Union
 from pieces import King, Pawn, Knight, Bishop, Rook, Queen, Piece
 
 class Board:
-    def __init__(self, extended: bool = False, state: list[list[str]] = None):
+    def __init__(self, extended: bool = False, state: Optional[List[List[Optional[Piece]]]] = None):
         self.state = state
         if self.state is None:
+
             self.K = King('w')
             self.Q = Queen('w')
             self.R = Rook('w')
@@ -22,6 +24,7 @@ class Board:
             self.n2 = Knight('b')
             self.white_pawns = [Pawn('w') for _ in range(8)]
             self.black_pawns = [Pawn('b') for _ in range(8)]
+
             if extended:
                 self.state = [[None for _ in range(12)] for _ in range(8)]
                 self.state[0] = [None, None, self.R, self.N, self.B, self.Q, self.K, self.B2, self.N2, self.R2, None, None]
@@ -34,8 +37,9 @@ class Board:
                 self.state[1] = self.white_pawns
                 self.state[6] = self.black_pawns
                 self.state[7] = [self.r, self.n, self.b, self.q, self.k, self.b, self.n, self.r]
-        
+
     def print_ascii(self):
+        print("\n")
         for row in self.state:
             # Convert None to '-' and join elements with spaces
             row_str = ' '.join('-' if piece is None else str(piece.get_symbol()) for piece in row)
@@ -43,10 +47,17 @@ class Board:
 
     def move(self, position: tuple, target: tuple, legal_required: bool = True):
         if legal_required:
-            legal = self.state[position[0]][position[1]].is_legal(position, target, self.state)
+            # Get the piece at the starting position
+            piece = self.state[position[0]][position[1]]
+            # Check if there's actually a piece at the starting position
+            if piece is None:
+                return False
+            # Use the piece's is_legal method
+            legal = piece.is_legal(position, target, self.state)
             if not legal:
+                print("\n Non-legal move")
                 return False
         self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
         self.state[position[0]][position[1]] = None
         return True
-    
+

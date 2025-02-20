@@ -3,7 +3,8 @@ from board import Board
 def main():
     board = Board()
     board.print_ascii()
-    board.move((0, 0), (1, 1), legal_required=False)
+    board.move((6, 0), (5, 0), legal_required=True)
     board.print_ascii()
+
 if __name__ == "__main__":
     main()
