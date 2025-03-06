@@ -7,7 +7,7 @@ def main():
     gameRunning = True
     while gameRunning:
         display.disp_board(board)
-        gameRunning = display.handle_events()
+        gameRunning = display.handle_events(board)
         nextMove = display.get_next_move_from_click(board)
         board.move(nextMove[0], nextMove[1], legal_required=True)
 

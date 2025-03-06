@@ -55,7 +55,8 @@ class Board:
             # Use the piece's is_legal method
             legal = piece.is_legal(position, target, self.state)
             if not legal:
-                print("\n Non-legal move")
+                if check_move == False:
+                    print("\n Non-legal move")
                 return False
         if check_move == False:
             self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
