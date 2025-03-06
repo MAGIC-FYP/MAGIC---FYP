@@ -40,23 +40,23 @@ class Display:
                     if self.selected_square != False and self.selected_square == (row, col):
                         pygame.draw.rect(self.screen, (195, 195, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
 
-                    # Highlights squares of legal moves
-                    if self.legal_moves and (row, col) in self.legal_moves:
-                        if piece:
-                            pygame.draw.rect(self.screen, (165, 165, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
-                        else:
-                            gray = 60
-                            colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
-                            pygame.draw.circle(self.screen, colour, (col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)), self.screen_size // 40)
+                # Highlights squares of legal moves
+                if self.legal_moves and (row, col) in self.legal_moves:
+                    if piece:
+                        pygame.draw.rect(self.screen, (165, 165, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
+                    else:
+                        gray = 60
+                        colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
+                        pygame.draw.circle(self.screen, colour, (col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)), self.screen_size // 40)
                         
                 # Draw pieces
                 piece = board.state[row][col]
                 if piece:
                     font = pygame.font.Font(None, 64)
                     if piece.colour == 'w':
-                        text = font.render(piece.get_symbol(), True, (255, 255, 255))
+                        text = font.render(piece.get_symbol(), True, (250, 250, 250))
                     else:
-                        text = font.render(piece.get_symbol(), True, (0, 0, 0))
+                        text = font.render(piece.get_symbol(), True, (5, 5, 5))
                     text_rect = text.get_rect(center=(col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)))
                     self.screen.blit(text, text_rect)
 
@@ -119,14 +119,16 @@ class Display:
         """
         while True:
             position = self.handle_mouse_click(board)
-            if board.state[position[0]][position[1]]:
+            piece = board.state[position[0]][position[1]]
+            if piece:
                 self.selected_square = position
-                self.legal_moves = self.get_all_legal_moves(position, board)
-                self.disp_board(board)
-                target = self.handle_mouse_click(board)
-                self.selected_square = False
-                self.legal_moves = []
-                return(position, target)
+                if piece.colour == board.turn:
+                    self.legal_moves = self.get_all_legal_moves(position, board)
+                    self.disp_board(board)
+                    target = self.handle_mouse_click(board)
+                    self.selected_square = False
+                    self.legal_moves = []
+                    return(position, target)
     
     def get_all_legal_moves(self, position, board):
         """

@@ -70,6 +70,7 @@ class Board:
                 else:
                     self.turn  = 'w'
             else:
-                print(f"\n Not {piece.colour} turn")
+                #print(f"\n Not {piece.colour} turn")
+                pass
         return True
 
