@@ -43,7 +43,9 @@ class Display:
                 # Highlights squares of legal moves
                 if self.legal_moves and (row, col) in self.legal_moves:
                     if piece:
-                        pygame.draw.rect(self.screen, (165, 165, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
+                        gray = 80
+                        colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
+                        pygame.draw.rect(self.screen, colour, (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
                     else:
                         gray = 60
                         colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
@@ -54,7 +56,7 @@ class Display:
                 if piece:
                     font = pygame.font.Font(None, 64)
                     if piece.colour == 'w':
-                        text = font.render(piece.get_symbol(), True, (250, 250, 250))
+                        text = font.render(piece.get_symbol(), True, (255, 255, 255))
                     else:
                         text = font.render(piece.get_symbol(), True, (5, 5, 5))
                     text_rect = text.get_rect(center=(col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)))
