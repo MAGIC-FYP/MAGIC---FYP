@@ -24,6 +24,7 @@ class Board:
             self.n2 = Knight('b')
             self.white_pawns = [Pawn('w') for _ in range(8)]
             self.black_pawns = [Pawn('b') for _ in range(8)]
+            self.turn = 'w'
 
             if extended:
                 self.state = [[None for _ in range(12)] for _ in range(8)]
@@ -53,13 +54,22 @@ class Board:
             if piece is None:
                 return False
             # Use the piece's is_legal method
+            
             legal = piece.is_legal(position, target, self.state)
             if not legal:
                 if check_move == False:
                     print("\n Non-legal move")
                 return False
+        
         if check_move == False:
-            self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
-            self.state[position[0]][position[1]] = None
+            if self.turn == piece.colour:
+                self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
+                self.state[position[0]][position[1]] = None
+                if self.turn == 'w':
+                    self.turn  = 'b'
+                else:
+                    self.turn  = 'w'
+            else:
+                print(f"\n Not {piece.colour} turn")
         return True
 

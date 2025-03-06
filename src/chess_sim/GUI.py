@@ -34,20 +34,21 @@ class Display:
                 colour = (119, 149, 86) if (row + col) % 2 == 0 else (235, 236, 208)
                 pygame.draw.rect(self.screen, colour, (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
 
-                # Highlight selected position square yellow if selected_square is not empty
-                if self.selected_square != False and self.selected_square == (row, col):
-                    pygame.draw.rect(self.screen, (195, 195, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
+                piece = board.state[row][col]
+                if piece and piece.colour == board.turn:
+                    # Highlight selected position square yellow if selected_square is not empty
+                    if self.selected_square != False and self.selected_square == (row, col):
+                        pygame.draw.rect(self.screen, (195, 195, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
 
-                # Highlights squares of legal moves
-                if self.legal_moves and (row, col) in self.legal_moves:
-                    piece = board.state[row][col]
-                    if piece:
-                        pygame.draw.rect(self.screen, (165, 165, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
-                    else:
-                        gray = 60
-                        colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
-                        pygame.draw.circle(self.screen, colour, (col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)), self.screen_size // 40)
-                    
+                    # Highlights squares of legal moves
+                    if self.legal_moves and (row, col) in self.legal_moves:
+                        if piece:
+                            pygame.draw.rect(self.screen, (165, 165, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
+                        else:
+                            gray = 60
+                            colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
+                            pygame.draw.circle(self.screen, colour, (col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)), self.screen_size // 40)
+                        
                 # Draw pieces
                 piece = board.state[row][col]
                 if piece:
@@ -59,11 +60,11 @@ class Display:
                     text_rect = text.get_rect(center=(col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)))
                     self.screen.blit(text, text_rect)
 
-        # Add text that says "Click piece or target"
+        # Add text at top
         font = pygame.font.Font(None, 36)
-        self.message = "Select Target"
-        if self.selected_square == False:
-            self.message = "Select Piece"
+        self.message = "White's Turn"
+        if board.turn == 'b':
+            self.message = "Black's Turn"
         text = font.render(f"{self.message}", True, (0, 0, 0))
         text_rect = text.get_rect(center=(self.screen_size // 2, (self.screen_size/9)/2))
         self.screen.blit(text, text_rect)
