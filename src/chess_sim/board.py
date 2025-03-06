@@ -110,11 +110,15 @@ class Board:
         if check_move == False:
             if self.turn == piece.colour:
                 
+                # Handels castling
                 if piece.symbol in ['K'] and piece.castle_rook:
+                    direction = 1 if target[1] > position[1] else -1
                     self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
                     self.state[position[0]][position[1]] = None
-                    self.state[position[0]][position[1]+1] = self.state[piece.castle_rook[0]][piece.castle_rook[1]]
+                    self.state[position[0]][position[1]+direction] = self.state[piece.castle_rook[0]][piece.castle_rook[1]]
                     self.state[piece.castle_rook[0]][piece.castle_rook[1]] = None
+                
+                # Handels all other cases
                 else:
                     self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
                     self.state[position[0]][position[1]] = None

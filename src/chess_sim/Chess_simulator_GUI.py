@@ -3,8 +3,8 @@ from GUI import Display
 
 def main():
     board = Board()
-    #state = "RNBQKBNR/-PPPP-PP/P-------/-----P--/--------/--------/pppppppp/rnbqkbnr/"
-    #board.load_from_url(state)
+    state = "R---K--R/PPP-BPPP/--NQ---N/---PPB--/---p----/--p-pppp/pp------/rnbqkbnr/"
+    board.load_from_url(state)
     display = Display()
     gameRunning = True
     while gameRunning:

@@ -153,24 +153,29 @@ class King(Piece):
 
     def can_castle(self, position: tuple, target: tuple, state: list[list['Piece']]) -> tuple:
         # Ensure the king is moving two squares horizontally
-        if abs(target[1] - position[1]) != 2 or position[0] != target[0]:
+        target_piece = state[target[0]][target[1]]
+
+        if target != (position[0], 2) and target != (position[0], 6):
             return None
         
-        # Determine the direction of castling
         direction = 1 if target[1] > position[1] else -1
-        
-        # Check if the king and rook have moved
-        if (self.has_moved or state[position[0]][position[1] + direction * 3] is None or 
-            state[position[0]][position[1] + direction * 2] is not None):
-            return None
-        
-        # Check the squares between the king and rook
-        for col in range(position[1] + direction, target[1], direction):
-            if state[position[0]][col] is not None:
-                return None
-        
-        # Check if the king is in check or would move through check
-        # (This requires additional logic to check for threats)
+
+        if direction == 1:
+            target_piece = state[position[0]][7]
+            if target_piece:
+                if target_piece.symbol == 'R':
+                    if target_piece.colour == self.colour:
+                        if state[position[0]][5] is None and state[position[0]][6] is None:
+                            print("kingside")
+                            return (position[0], 7)
+        else:
+            target_piece = state[position[0]][0]
+            if target_piece:
+                if target_piece.symbol == 'R':
+                    if target_piece.colour == self.colour:
+                        if state[position[0]][3] is None and state[position[0]][2] is None and state[position[0]][1] is None:
+                            print("queenside")
+                            return (position[0], 0)
         
         # Return the position of the rook if castling is possible
-        return (position[0], position[1] + direction * 3)
+        return None
