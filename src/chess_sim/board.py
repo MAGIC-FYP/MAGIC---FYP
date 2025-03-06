@@ -63,8 +63,18 @@ class Board:
         
         if check_move == False:
             if self.turn == piece.colour:
-                self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
-                self.state[position[0]][position[1]] = None
+                
+                if piece.symbol in ['K'] and piece.castle_rook:
+                    self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
+                    self.state[position[0]][position[1]] = None
+                    self.state[position[0]][position[1]+1] = self.state[piece.castle_rook[0]][piece.castle_rook[1]]
+                    self.state[piece.castle_rook[0]][piece.castle_rook[1]] = None
+                else:
+                    self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
+                    self.state[position[0]][position[1]] = None
+                if piece.symbol in ['K', 'R']:
+                    piece.has_moved = True
+                
                 if self.turn == 'w':
                     self.turn  = 'b'
                 else:

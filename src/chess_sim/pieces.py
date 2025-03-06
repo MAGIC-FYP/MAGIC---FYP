@@ -89,6 +89,10 @@ class Bishop(Piece):
 
 class Rook(Piece):
     symbol = 'R'
+
+    def __init__(self, colour: str):
+        super().__init__(colour)
+        self.has_moved = False
     
     def is_legal(self, position: tuple, target: tuple, state: list[list['Piece']]) -> bool:
         row_diff = target[0] - position[0]
@@ -115,7 +119,7 @@ class Rook(Piece):
 
 class Queen(Piece):
     symbol = 'Q'
-    
+
     def is_legal(self, position: tuple, target: tuple, state: list[list['Piece']]) -> bool:
         # Queen combines Rook and Bishop movements
         rook = Rook(self.colour)
@@ -124,7 +128,11 @@ class Queen(Piece):
 
 class King(Piece):
     symbol = 'K'
-    
+    def __init__(self, colour: str):
+        super().__init__(colour)
+        self.has_moved = False
+        self.castle_rook = False
+
     def is_legal(self, position: tuple, target: tuple, state: list[list['Piece']]) -> bool:
         row_diff = abs(target[0] - position[0])
         col_diff = abs(target[1] - position[1])
@@ -133,4 +141,36 @@ class King(Piece):
         if row_diff <= 1 and col_diff <= 1:
             target_piece = state[target[0]][target[1]]
             return target_piece is None or not self.is_friendly(target_piece)
+        
+        # Check for castling
+        can_castle = self.can_castle(position, target, state)
+        if can_castle:
+            self.castle_rook = can_castle
+            return True
+        else:
+            self.castle_rook = False
         return False
+
+    def can_castle(self, position: tuple, target: tuple, state: list[list['Piece']]) -> tuple:
+        # Ensure the king is moving two squares horizontally
+        if abs(target[1] - position[1]) != 2 or position[0] != target[0]:
+            return None
+        
+        # Determine the direction of castling
+        direction = 1 if target[1] > position[1] else -1
+        
+        # Check if the king and rook have moved
+        if (self.has_moved or state[position[0]][position[1] + direction * 3] is None or 
+            state[position[0]][position[1] + direction * 2] is not None):
+            return None
+        
+        # Check the squares between the king and rook
+        for col in range(position[1] + direction, target[1], direction):
+            if state[position[0]][col] is not None:
+                return None
+        
+        # Check if the king is in check or would move through check
+        # (This requires additional logic to check for threats)
+        
+        # Return the position of the rook if castling is possible
+        return (position[0], position[1] + direction * 3)
