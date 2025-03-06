@@ -110,7 +110,7 @@ class Display:
                     return (board_y, board_x)  # Return the board coordinates of the mouse click
                 elif self.output_button.collidepoint(mouse_x, mouse_y):
                     # Output board state functionality
-                    board.print_ascii()
+                    board.print_url()
                     
                 
     def get_next_move_from_click(self, board):

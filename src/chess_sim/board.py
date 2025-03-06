@@ -45,6 +45,52 @@ class Board:
             # Convert None to '-' and join elements with spaces
             row_str = ' '.join('-' if piece is None else str(piece.get_symbol()) for piece in row)
             print(row_str)
+    
+    def print_url(self):
+        """
+        prints url or board like same as from chess.com e.g. "RNBQKBNR/-PPPP-PP/P-------/--------/----pP--/--------/pppp-ppp/rnbqkbnr/"
+        """
+        for row in self.state:
+            # Convert None to '-' and join elements with spaces
+            row_str = ''.join('-' if piece is None else str(piece.get_symbol()) for piece in row)
+            print(row_str, end="/")
+        print("\n")
+
+    def load_from_url(self, ascii_string: str):
+        """
+        loads state into board from url "RNBQKBNR/-PPPP-PP/P-------/--------/----pP--/--------/pppp-ppp/rnbqkbnr/"
+        """
+        # Clear the current state
+        self.state = [[None for _ in range(8)] for _ in range(8)]  # Fixed to 8x8 board
+        
+        ascii_rows = ascii_string.split("/")  # Split the input string into rows
+        for i, row in enumerate(ascii_rows):
+            row = list(row)
+            j = 0  # Initialize column index
+            for j in range(len(row)):
+                if row[j].isdigit():
+                    j += 1  # Skip empty squares
+                elif row[j] != '-':
+                    self.state[i][j] = self.get_piece_from_symbol(row[j])  # Corrected indexing
+                    j += 1  # Move to the next column
+
+    def get_piece_from_symbol(self, symbol: str) -> Optional[Piece]:
+        # Map symbols to piece classes
+        piece_map = {
+            'K': King('w'),  # White King
+            'k': King('b'),  # Black King
+            'Q': Queen('w'),  # White Queen
+            'q': Queen('b'),  # Black Queen
+            'R': Rook('w'),  # White Rook
+            'r': Rook('b'),  # Black Rook
+            'B': Bishop('w'),  # White Bishop
+            'b': Bishop('b'),  # Black Bishop
+            'N': Knight('w'),  # White Knight
+            'n': Knight('b'),  # Black Knight
+            'P': Pawn('w'),  # White Pawn
+            'p': Pawn('b')   # Black Pawn
+        }
+        return piece_map.get(symbol, None)  # Return None if symbol is not found
 
     def move(self, position: tuple, target: tuple, legal_required: bool = True, check_move: bool = False):
         if legal_required:
