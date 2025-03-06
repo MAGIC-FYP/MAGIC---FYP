@@ -45,7 +45,7 @@ class Board:
             row_str = ' '.join('-' if piece is None else str(piece.get_symbol()) for piece in row)
             print(row_str)
 
-    def move(self, position: tuple, target: tuple, legal_required: bool = True):
+    def move(self, position: tuple, target: tuple, legal_required: bool = True, check_move: bool = False):
         if legal_required:
             # Get the piece at the starting position
             piece = self.state[position[0]][position[1]]
@@ -57,7 +57,8 @@ class Board:
             if not legal:
                 print("\n Non-legal move")
                 return False
-        self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
-        self.state[position[0]][position[1]] = None
+        if check_move == False:
+            self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
+            self.state[position[0]][position[1]] = None
         return True
 

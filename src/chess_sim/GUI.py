@@ -22,7 +22,7 @@ class Display:
         # Draw the board
         for row in range(8):
             for col in range(8):
-                color = (105, 105, 105) if (row + col) % 2 == 0 else (255, 255, 255)
+                color = (105, 105, 105) if (row + col) % 2 == 0 else (200, 200, 200)
                 pygame.draw.rect(self.screen, color, (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
 
                 # Highlight selected position square yellow if selected_square is not empty
@@ -33,7 +33,10 @@ class Display:
                 piece = board.state[row][col]
                 if piece:
                     font = pygame.font.Font(None, 64)
-                    text = font.render(piece.get_symbol(), True, (0, 0, 0))
+                    if piece.colour == 'w':
+                        text = font.render(piece.get_symbol(), True, (255, 255, 255))
+                    else:
+                        text = font.render(piece.get_symbol(), True, (0, 0, 0))
                     text_rect = text.get_rect(center=(col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)))
                     self.screen.blit(text, text_rect)
 
