@@ -125,22 +125,22 @@ class Display:
             if piece:
                 self.selected_square = position
                 if piece.colour == board.turn:
-                    self.legal_moves = self.get_all_legal_moves(position, board)
+                    self.legal_moves = board.get_all_legal_moves(position)
                     self.disp_board(board)
                     target = self.handle_mouse_click(board)
                     self.selected_square = False
                     self.legal_moves = []
                     return(position, target)
     
-    def get_all_legal_moves(self, position, board):
-        """
-        This method calculates all the legal moves for a given position on the board.
-        It iterates over all the squares on the board and checks if the move is legal.
-        If it is, it adds the square to the list of legal moves.
-        """
-        legal_moves = []
-        for row in range(8):
-            for col in range(8):
-                if board.move(position, (row, col), check_move=True):
-                    legal_moves.append((row, col))
-        return legal_moves
+    # def get_all_legal_moves(self, position, board):
+    #     """
+    #     This method calculates all the legal moves for a given position on the board.
+    #     It iterates over all the squares on the board and checks if the move is legal.
+    #     If it is, it adds the square to the list of legal moves.
+    #     """
+    #     legal_moves = []
+    #     for row in range(8):
+    #         for col in range(8):
+    #             if board.move(position, (row, col), check_move=True):
+    #                 legal_moves.append((row, col))
+    #     return legal_moves

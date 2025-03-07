@@ -25,6 +25,8 @@ class Board:
             self.white_pawns = [Pawn('w') for _ in range(8)]
             self.black_pawns = [Pawn('b') for _ in range(8)]
             self.turn = 'w'
+            self.w_king_pos = (0,4)
+            self.b_king_pos = (7,4)
 
             if extended:
                 self.state = [[None for _ in range(12)] for _ in range(8)]
@@ -72,8 +74,28 @@ class Board:
                     j += 1  # Skip empty squares
                 elif row[j] != '-':
                     self.state[i][j] = self.get_piece_from_symbol(row[j])  # Corrected indexing
+                    if self.state[i][j].symbol == 'K':
+                        if self.state[i][j].colour == 'w':
+                            self.w_king_pos = (i,j)
+                        else:
+                            self.b_king_pos = (i,j)
                     j += 1  # Move to the next column
 
+    def get_all_legal_moves(self, position: tuple):
+        """
+        This method calculates all the legal moves for a given position on the board.
+        It iterates over all the squares on the board and checks if the move is legal.
+        If it is, it adds the square to the list of legal moves.
+        """
+        legal_moves = []
+        # Ensure position is a tuple
+        if isinstance(position, tuple) and len(position) == 2:
+            for row in range(8):
+                for col in range(8):
+                    if self.move(position, (row, col), check_move=True):
+                        legal_moves.append((row, col))
+        return legal_moves
+    
     def get_piece_from_symbol(self, symbol: str) -> Optional[Piece]:
         # Map symbols to piece classes
         piece_map = {
@@ -122,12 +144,26 @@ class Board:
                 else:
                     self.state[target[0]][target[1]] = self.state[position[0]][position[1]]
                     self.state[position[0]][position[1]] = None
-                if piece.symbol in ['K', 'R']:
+
+                if piece.symbol == 'K':
                     piece.has_moved = True
+
+                if piece.symbol == 'R':
+                    piece.has_moved = True
+
                 
+
                 if self.turn == 'w':
+                    if self.b_king_pos in self.get_all_legal_moves(self.state[target[0]][target[1]]):
+                        self.state[self.b_king_pos[0]][self.b_king_pos[1]].in_check = True
+                    else:
+                        self.state[self.b_king_pos[0]][self.b_king_pos[1]].in_check = False
                     self.turn  = 'b'
                 else:
+                    if self.w_king_pos in self.get_all_legal_moves(self.state[target[0]][target[1]]):
+                        self.state[self.w_king_pos[0]][self.w_king_pos[1]].in_check = True
+                    else:
+                        self.state[self.w_king_pos[0]][self.w_king_pos[1]].in_check = False
                     self.turn  = 'w'
             else:
                 #print(f"\n Not {piece.colour} turn")

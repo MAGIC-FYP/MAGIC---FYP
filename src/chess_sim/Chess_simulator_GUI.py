@@ -3,7 +3,7 @@ from GUI import Display
 
 def main():
     board = Board()
-    state = "R---K--R/PPP-BPPP/--NQ---N/---PPB--/---p----/--p-pppp/pp------/rnbqkbnr/"
+    state = "R---K--R/PPP--PPP/--NQ--qN/---PPB--/---p----/--p-pppp/pp------/rnbqkbnr/"
     board.load_from_url(state)
     display = Display()
     gameRunning = True

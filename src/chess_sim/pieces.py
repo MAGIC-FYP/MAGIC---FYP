@@ -132,6 +132,7 @@ class King(Piece):
         super().__init__(colour)
         self.has_moved = False
         self.castle_rook = False
+        self.in_check = False
 
     def is_legal(self, position: tuple, target: tuple, state: list[list['Piece']]) -> bool:
         row_diff = abs(target[0] - position[0])
@@ -153,29 +154,29 @@ class King(Piece):
 
     def can_castle(self, position: tuple, target: tuple, state: list[list['Piece']]) -> tuple:
         # Ensure the king is moving two squares horizontally
-        target_piece = state[target[0]][target[1]]
+        if self.in_check:
 
-        if target != (position[0], 2) and target != (position[0], 6):
-            return None
-        
-        direction = 1 if target[1] > position[1] else -1
+            if target != (position[0], 2) and target != (position[0], 6):
+                return None
+            
+            direction = 1 if target[1] > position[1] else -1
 
-        if direction == 1:
-            target_piece = state[position[0]][7]
-            if target_piece:
-                if target_piece.symbol == 'R':
-                    if target_piece.colour == self.colour:
-                        if state[position[0]][5] is None and state[position[0]][6] is None:
-                            print("kingside")
-                            return (position[0], 7)
-        else:
-            target_piece = state[position[0]][0]
-            if target_piece:
-                if target_piece.symbol == 'R':
-                    if target_piece.colour == self.colour:
-                        if state[position[0]][3] is None and state[position[0]][2] is None and state[position[0]][1] is None:
-                            print("queenside")
-                            return (position[0], 0)
+            if direction == 1:
+                target_piece = state[position[0]][7]
+                if target_piece:
+                    if target_piece.symbol == 'R':
+                        if target_piece.colour == self.colour:
+                            if state[position[0]][5] is None and state[position[0]][6] is None:
+                                #print("kingside")
+                                return (position[0], 7)
+            else:
+                target_piece = state[position[0]][0]
+                if target_piece:
+                    if target_piece.symbol == 'R':
+                        if target_piece.colour == self.colour:
+                            if state[position[0]][3] is None and state[position[0]][2] is None and state[position[0]][1] is None:
+                                #print("queenside")
+                                return (position[0], 0)
         
         # Return the position of the rook if castling is possible
         return None
