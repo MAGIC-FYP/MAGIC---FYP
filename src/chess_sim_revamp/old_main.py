@@ -1,5 +1,5 @@
 from board import Board
-from GUI import Display
+from src.chess_sim_revamp.GUI import Display
 
 def main():
     board = Board()
