@@ -4,6 +4,7 @@ This file contains all functions for chess GUI handling
 
 import pygame
 import sys
+import chess
 
 # Initialize Pygame once
 pygame.init()
@@ -21,7 +22,7 @@ class Display:
         self.output_button = pygame.Rect(self.screen_size - 150, (self.screen_size/8)/2 - 20, 140, 30)
         pygame.display.set_caption('Chess Simulator')
 
-    def disp_board(self, board):
+    def disp_board(self, board, current_player):
         """
         Display the chess board.
         """
@@ -34,14 +35,16 @@ class Display:
                 colour = (119, 149, 86) if (row + col) % 2 == 0 else (235, 236, 208)
                 pygame.draw.rect(self.screen, colour, (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
 
-                piece = board.state[row][col]
-                if piece and piece.colour == board.turn:
+                square = chess.square(col, row)
+                piece = board.piece_at(square)
+
+                if piece and piece.color == current_player.colour:
                     # Highlight selected position square yellow if selected_square is not empty
                     if self.selected_square != False and self.selected_square == (row, col):
                         pygame.draw.rect(self.screen, (195, 195, 0), (col * (self.screen_size // 8), row * (self.screen_size // 8) + (self.screen_size // 8), self.screen_size // 8, self.screen_size // 8))
 
-                # Highlights squares of legal moves
-                if self.legal_moves and (row, col) in self.legal_moves:
+                # # Highlights squares of legal moves
+                if square in self.legal_moves:
                     if piece:
                         gray = 80
                         colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
@@ -51,21 +54,19 @@ class Display:
                         colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
                         pygame.draw.circle(self.screen, colour, (col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)), self.screen_size // 40)
                         
-                # Draw pieces
-                piece = board.state[row][col]
                 if piece:
                     font = pygame.font.Font(None, 64)
-                    if piece.colour == 'w':
-                        text = font.render(piece.get_symbol(), True, (255, 255, 255))
+                    if piece.color == chess.WHITE:
+                        text = font.render(piece.symbol(), True, (255, 255, 255))
                     else:
-                        text = font.render(piece.get_symbol(), True, (5, 5, 5))
+                        text = font.render(piece.symbol(), True, (5, 5, 5))
                     text_rect = text.get_rect(center=(col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)))
                     self.screen.blit(text, text_rect)
 
         # Add text at top
         font = pygame.font.Font(None, 36)
         self.message = "White's Turn"
-        if board.turn == 'b':
+        if current_player.colour == chess.BLACK:
             self.message = "Black's Turn"
         text = font.render(f"{self.message}", True, (0, 0, 0))
         text_rect = text.get_rect(center=(self.screen_size // 2, (self.screen_size/9)/2))
@@ -107,13 +108,13 @@ class Display:
                     # Convert mouse position to board coordinates
                     board_x = mouse_x // (self.screen_size // 8)
                     board_y = (mouse_y - (self.screen_size // 8)) // (self.screen_size // 8)
-                    return (board_y, board_x)  # Return the board coordinates of the mouse click
+                    return (board_x, board_y)  # Return the board coordinates of the mouse click
                 elif self.output_button.collidepoint(mouse_x, mouse_y):
                     # Output board state functionality
-                    board.print_url()
+                    print(board.fen)
                     
                 
-    def get_next_move_from_click(self, board):
+    def get_next_move_from_click(self, board, current_player):
         """
         This method handles the mouse click events and returns the next move.
         It first waits for a click on a piece, then highlights the legal moves for that piece.
@@ -121,26 +122,16 @@ class Display:
         """
         while True:
             position = self.handle_mouse_click(board)
-            piece = board.state[position[0]][position[1]]
+            from_square = chess.square(position[0], position[1])
+            piece = board.piece_at(from_square)
             if piece:
                 self.selected_square = position
-                if piece.colour == board.turn:
-                    self.legal_moves = board.get_all_legal_moves(position)
-                    self.disp_board(board)
+                if piece.color == current_player.colour:
+                    self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == from_square]
+                    self.disp_board(board,current_player)
                     target = self.handle_mouse_click(board)
+                    to_square = chess.square(target[0], target[1])
                     self.selected_square = False
                     self.legal_moves = []
-                    return(position, target)
+                    return(from_square, to_square)
     
-    # def get_all_legal_moves(self, position, board):
-    #     """
-    #     This method calculates all the legal moves for a given position on the board.
-    #     It iterates over all the squares on the board and checks if the move is legal.
-    #     If it is, it adds the square to the list of legal moves.
-    #     """
-    #     legal_moves = []
-    #     for row in range(8):
-    #         for col in range(8):
-    #             if board.move(position, (row, col), check_move=True):
-    #                 legal_moves.append((row, col))
-    #     return legal_moves

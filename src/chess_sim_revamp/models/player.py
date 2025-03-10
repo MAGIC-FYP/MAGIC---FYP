@@ -10,8 +10,8 @@ class PlayerType(Enum):
 class BasePlayer(ABC):
     '''Abstract base class for chess players.'''
     
-    def __init__(self, color: chess.Color):
-        self.color = color
+    def __init__(self, colour: chess.Color):
+        self.colour = colour
         self.time_left = None
         self.captured_pieces: List[chess.Piece] = []
     

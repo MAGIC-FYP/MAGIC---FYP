@@ -14,7 +14,7 @@ def main():
     
     # Start the game
     try:
-        chess_board.play_game()
+        chess_board.play_game_gui()
     except KeyboardInterrupt:
         print("\nGame interrupted by user. Exiting...")
     except Exception as e:
