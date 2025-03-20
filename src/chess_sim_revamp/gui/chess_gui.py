@@ -63,6 +63,20 @@ class Display:
                     text_rect = text.get_rect(center=(col * (self.screen_size // 8) + (self.screen_size // 16), row * (self.screen_size // 8) + (self.screen_size // 16) + (self.screen_size // 8)))
                     self.screen.blit(text, text_rect)
 
+        # Draw letters (a-h) at the bottom row
+        for col in range(8):
+            letter = chr(ord('A') + col)  # Convert to 'A' - 'H'
+            text = font.render(letter, True, (0, 0, 0))  # Black text
+            text_rect = text.get_rect(bottomleft=((col * (self.screen_size // 8)) + 5, self.screen_size - 5))
+            self.screen.blit(text, text_rect)
+
+        # Draw numbers (8-1) on the first column
+        for row in range(8):
+            number = str(8 - row)  # Convert to '8' - '1'
+            text = font.render(number, True, (0, 0, 0))  # Black text
+            text_rect = text.get_rect(topright=(5, (row * (self.screen_size // 8)) + (self.screen_size // 8) - 5))
+            self.screen.blit(text, text_rect)
+
         # Add text at top
         font = pygame.font.Font(None, 36)
         self.message = "White's Turn"
