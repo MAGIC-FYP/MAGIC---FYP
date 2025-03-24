@@ -60,7 +60,7 @@ class Graveyard():
         self.occupied_position = {} # Set up a dictionary for the pieces
         for sq in GraveyardSquare:
             self.occupied_position[sq] = False  # Set each spot to False as they are empty at the start
-    
+#Pushing
     def get_lowest_available(self, piece):
         """Finds the lowest available spot within the correct category"""
         if piece in GraveyardSquare:
