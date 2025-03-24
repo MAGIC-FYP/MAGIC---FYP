@@ -13,6 +13,7 @@ class Board:
         self.black_player: Optional[BasePlayer] = None
         self.current_player: Optional[BasePlayer] = None
         self.move_history: List[chess.Move] = []
+        self.dead_pieces: List[chess.Piece] = [] 
     
     def setup_players(self, white_player: BasePlayer, black_player: BasePlayer) -> None:
         '''Set up the players for this game'''
@@ -26,6 +27,8 @@ class Board:
 
     def make_move(self, move: chess.Move) -> bool:
         if move in self.board.legal_moves:
+            if self.board.piece_at(move.to_square):
+                self.dead_pieces.append(self.board.piece_at(move.to_square))
             self.board.push(move)
             self.move_history.append(move)
             return True
