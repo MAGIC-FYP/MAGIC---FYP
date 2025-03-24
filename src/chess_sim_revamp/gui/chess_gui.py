@@ -43,6 +43,7 @@ class Display:
             pygame.draw.rect(self.screen, (0, 0, 0), square, 3)  # Black border
         white_gy_pos = graveyard.get_white_pieces_positions()
         black_gy_pos = graveyard.get_black_pieces_positions()
+        print(black_gy_pos)
         
         # Loop through each piece in the white graveyard positions
         for piece in white_gy_pos:
