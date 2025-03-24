@@ -5,6 +5,7 @@ This file contains all functions for chess GUI handling
 import pygame
 import sys
 import chess
+from models.graveyard import Graveyard
 
 # Initialize Pygame once
 pygame.init()
@@ -26,7 +27,7 @@ class Display:
         self.graveyard_squares = self.graveyard_squares_white + self.graveyard_squares_black
         pygame.display.set_caption('Chess Simulator')
 
-    def disp_board(self, board, current_player):
+    def disp_board(self, board: chess.Board, graveyard: Graveyard, current_player):
         """
         Display the chess board.
         """
@@ -34,10 +35,31 @@ class Display:
         self.screen.fill((220, 220, 220))
 
         # Draw graveyard squares
+        white_gy_pos = graveyard.get_white_pieces_positions()
+        black_gy_pos = graveyard.get_black_pieces_positions()
+        
         for square in self.graveyard_squares_white:
             pygame.draw.rect(self.screen, (255, 255, 255), square, 3)  # White border
+            
         for square in self.graveyard_squares_black:
             pygame.draw.rect(self.screen, (0, 0, 0), square, 3)  # Black border
+        
+        #print(self.screen_size)
+        for piece in white_gy_pos:
+            font = pygame.font.Font(None, 64)
+            text = font.render(piece[1].symbol(), True, (255, 255, 255))
+            center_x = (piece[0][0] * (self.board_size // 8)-(self.board_size / 16))
+            center_y = (piece[0][1] * (self.board_size // 8)+(self.board_size / 16))
+            text_rect = text.get_rect(center=(center_x, center_y))
+            self.screen.blit(text, text_rect)
+
+        for piece in black_gy_pos:
+            font = pygame.font.Font(None, 64)
+            text = font.render(piece[1].symbol(), True, (5, 5, 5))
+            center_x = (piece[0][0] * (self.board_size // 8)-(self.board_size / 16))
+            center_y = (piece[0][1] * (self.board_size // 8)+(self.board_size / 16))
+            text_rect = text.get_rect(center=(center_x, center_y))
+            self.screen.blit(text, text_rect)
 
         # Draw the board
         for row in range(8):
@@ -94,7 +116,7 @@ class Display:
         # Update the display
         pygame.display.update()  # Update the display after drawing the board
 
-    def handle_events(self, board):
+    def handle_events(self, board: chess.Board):
         """
         Handle the events in the game.
         """
@@ -105,7 +127,7 @@ class Display:
                 sys.exit()
         return True  # Return True to keep the game running
     
-    def handle_mouse_click(self, board):
+    def handle_mouse_click(self, board: chess.Board):
         """
         Handle the mouse click events.
         """
@@ -129,7 +151,7 @@ class Display:
                     print(f"Board State: {board.fen()}")
                     
                 
-    def get_next_move_from_click(self, board, current_player):
+    def get_next_move_from_click(self, board: chess.Board, graveyard: Graveyard, current_player):
         """
         This method handles the mouse click events and returns the next move.
         It first waits for a click on a piece, then highlights the legal moves for that piece.
@@ -142,7 +164,7 @@ class Display:
                 self.selected_square = position
                 if piece.color == current_player.colour:
                     self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == position]
-                    self.disp_board(board,current_player)
+                    self.disp_board(board, graveyard, current_player)
                     target = self.handle_mouse_click(board)
                     self.selected_square = False
                     self.legal_moves = []

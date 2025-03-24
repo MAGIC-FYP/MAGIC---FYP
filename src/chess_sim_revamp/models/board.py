@@ -2,13 +2,14 @@ import chess
 from typing import List, Optional, Tuple
 from models.player import BasePlayer, HumanPlayer
 from models.controller import Controller
-from models.graveyard import GraveyardSquare
+from models.graveyard import Graveyard
 from gui.chess_gui import Display
 
 class Board:
     def __init__(self, controller: Controller):
         self.board = chess.Board()
         self.controller = controller
+        self.graveyard = Graveyard()
         self.white_player: Optional[BasePlayer] = None
         self.black_player: Optional[BasePlayer] = None
         self.current_player: Optional[BasePlayer] = None
@@ -27,8 +28,11 @@ class Board:
 
     def make_move(self, move: chess.Move) -> bool:
         if move in self.board.legal_moves:
-            if self.board.piece_at(move.to_square):
+            if self.board.piece_at(move.to_square): #piece has been captured
                 self.dead_pieces.append(self.board.piece_at(move.to_square))
+                piece = self.board.piece_at(move.to_square)
+                self.graveyard.place_piece(piece)
+
             self.board.push(move)
             self.move_history.append(move)
             return True
@@ -83,10 +87,10 @@ class Board:
         while not self.is_game_over():
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
-            display.disp_board(self.board, self.current_player)
+            display.disp_board(self.board, self.graveyard, self.current_player)
 
             if type(self.current_player) == HumanPlayer:
-                move = display.get_next_move_from_click(self.board, self.current_player)
+                move = display.get_next_move_from_click(self.board, self.graveyard ,self.current_player)
                 
             else:
                 move = self.current_player.get_move(self.board)

@@ -1,4 +1,5 @@
 from enum import Enum
+import chess
 
 class GraveyardSquare(Enum):
     '''
@@ -60,36 +61,68 @@ class Graveyard():
         self.occupied_position = {} # Set up a dictionary for the pieces
         for sq in GraveyardSquare:
             self.occupied_position[sq] = False  # Set each spot to False as they are empty at the start
+        # Add one queen for each color
+        self.occupied_position[GraveyardSquare.W_Q1] = chess.Piece(chess.QUEEN, chess.WHITE)
+        self.occupied_position[GraveyardSquare.B_Q1] = chess.Piece(chess.QUEEN, chess.BLACK)
 #Pushing
-    def get_lowest_available(self, piece):
+    def get_lowest_available(self, piece: chess.Piece):
         """Finds the lowest available spot within the correct category"""
-        if piece in GraveyardSquare:
-            base_type = piece.name.split("_")[1]  # Extract type (P, N, B, etc.)
-            color = "WHITE" if "W" in piece.name else "BLACK"
+        #if piece in GraveyardSquare:
+        base_type = piece.symbol().upper() 
+        color = "W" if piece.color else "B"
 
-            # Get all spots of this type and color
-            possible_spots = []
+        # Get all spots of this type and color
+        possible_spots = []
 
-            for sq in GraveyardSquare:
-                if base_type in sq.name and color in sq.name:
-                    possible_spots.append(sq)  # Add valid spots to the list
-            
-            # Find the lowest available one
-            for spot in possible_spots:
-                if not self.occupied_position[spot]:  
-                    return spot  
+        for sq in GraveyardSquare:
+            if base_type in sq.name and color in sq.name:
+                possible_spots.append(sq)  # Add valid spots to the list
+        
+        # Find the lowest available one
+        for spot in possible_spots:
+            if not self.occupied_position[spot]:  
+                return spot  
         return None  # No available spot left
 
-    def place_piece(self, piece):
+    def place_piece(self, piece: chess.Piece):
         """Places a captured piece in the lowest available spot within its category."""
         lowest_spot = self.get_lowest_available(piece)
         if lowest_spot is None:
-            print(f"No available graveyard spot for {piece.name}")
+            print(f"No available graveyard spot for {piece.symbol()}")
             return None
         
         self.occupied_position[lowest_spot] = piece  # Mark as occupied
         return self.gy_coords[lowest_spot]  # Return the new position
+    
+    def get_coord_column_row(self, graveyard_square: GraveyardSquare):
+        """
+        Converts the graveyard square to column-row format.
+        """
+        if graveyard_square in self.gy_coords:
+            x, y = self.gy_coords[graveyard_square]
+            column = int((x - 2.5) / 5) + 1  # Convert x to column (1-12)
+            row = int((y - 2.5) / 5) + 1  # Convert y to row (1-8)
+            return (column, row)
+        else:
+            return "Invalid graveyard square."
+        
+    def get_white_pieces_positions(self):
+        """Returns a list of tuples containing the positions (x, y) of all white pieces in the graveyard."""
+        white_pieces_positions = []
+        for sq, piece in self.occupied_position.items():
+            if piece and piece.color == chess.WHITE:
+                white_pieces_positions.append((self.get_coord_column_row(sq), piece))
+        return white_pieces_positions
 
+    def get_black_pieces_positions(self):
+        """Returns a list of tuples containing the positions (x, y) of all black pieces in the graveyard."""
+        black_pieces_positions = []
+        for sq, piece in self.occupied_position.items():
+            if piece and piece.color == chess.BLACK:
+                black_pieces_positions.append((self.get_coord_column_row(sq), piece))
+        return black_pieces_positions
+    
+    
 
 '''This function will automatically assign the GY locations for all pieces'''
 def generate_graveyard_coordinates():
