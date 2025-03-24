@@ -64,7 +64,15 @@ class Graveyard():
         # Add one queen for each color
         self.occupied_position[GraveyardSquare.w_Q1] = chess.Piece(chess.QUEEN, chess.WHITE)
         self.occupied_position[GraveyardSquare.b_Q1] = chess.Piece(chess.QUEEN, chess.BLACK)
-#Pushing
+        
+    def reset(self):
+        """resets graveyard"""
+        for sq in GraveyardSquare:
+            self.occupied_position[sq] = False  # Set each spot to False as they are empty at the start
+        # Add one queen for each color
+        self.occupied_position[GraveyardSquare.w_Q1] = chess.Piece(chess.QUEEN, chess.WHITE)
+        self.occupied_position[GraveyardSquare.b_Q1] = chess.Piece(chess.QUEEN, chess.BLACK)
+
     def get_lowest_available(self, piece: chess.Piece):
         """Finds the lowest available spot within the correct category"""
         #if piece in GraveyardSquare:

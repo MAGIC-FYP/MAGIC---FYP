@@ -22,6 +22,7 @@ class Display:
         self.message = ""
         self.legal_moves=[]
         self.output_button = pygame.Rect(self.screen_size[0] - 150, (self.screen_size[1]/8)/2 - 20, 140, 30)
+        self.reset_button = pygame.Rect(10, (self.screen_size[1]/8)/2 - 20, 140, 30)
         self.graveyard_squares_white = [pygame.Rect(i * (self.board_size // 8), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
         self.graveyard_squares_black = [pygame.Rect((self.board_size // 8) * (10 + i), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
         self.graveyard_squares = self.graveyard_squares_white + self.graveyard_squares_black
@@ -43,7 +44,6 @@ class Display:
             pygame.draw.rect(self.screen, (0, 0, 0), square, 3)  # Black border
         white_gy_pos = graveyard.get_white_pieces_positions()
         black_gy_pos = graveyard.get_black_pieces_positions()
-        print(black_gy_pos)
         
         # Loop through each piece in the white graveyard positions
         for piece in white_gy_pos:
@@ -114,6 +114,14 @@ class Display:
         text_rect = text.get_rect(center=self.output_button.center)
         self.screen.blit(text, text_rect)
 
+        # Reset button
+        pygame.draw.rect(self.screen, (220, 220, 220), self.reset_button)
+        pygame.draw.rect(self.screen, (0, 0, 0), self.reset_button, 2)  # Black border
+        font = pygame.font.Font(None, 16)
+        text = font.render("Reset", True, (0, 0, 0))
+        text_rect = text.get_rect(center=self.reset_button.center)
+        self.screen.blit(text, text_rect)
+
         
         # Update the display
         pygame.display.update()  # Update the display after drawing the board
@@ -129,7 +137,7 @@ class Display:
                 sys.exit()
         return True  # Return True to keep the game running
     
-    def handle_mouse_click(self, board: chess.Board):
+    def handle_mouse_click(self, board: chess.Board, graveyard: Graveyard, current_player):
         """
         Handle the mouse click events.
         """
@@ -151,6 +159,13 @@ class Display:
                 elif self.output_button.collidepoint(mouse_x, mouse_y):
                     # Output board state functionality
                     print(f"Board State: {board.fen()}")
+
+                elif self.reset_button.collidepoint(mouse_x, mouse_y):
+                    # Reset board functionality
+
+                    board.reset()
+                    graveyard.reset()
+                self.disp_board(board, graveyard, current_player)
                     
                 
     def get_next_move_from_click(self, board: chess.Board, graveyard: Graveyard, current_player):
@@ -160,14 +175,14 @@ class Display:
         After that, it waits for a click on the target square and returns the move.
         """
         while True:
-            position = self.handle_mouse_click(board)
+            position = self.handle_mouse_click(board, graveyard, current_player)
             piece = board.piece_at(position)
             if piece:
                 self.selected_square = position
                 if piece.color == current_player.colour:
                     self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == position]
                     self.disp_board(board, graveyard, current_player)
-                    target = self.handle_mouse_click(board)
+                    target = self.handle_mouse_click(board, graveyard, current_player)
                     self.selected_square = False
                     self.legal_moves = []
                     move = chess.Move(from_square=position, to_square=target)
