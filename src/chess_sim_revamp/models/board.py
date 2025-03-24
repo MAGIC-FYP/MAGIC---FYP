@@ -84,7 +84,7 @@ class Board:
 
             if type(self.current_player) == HumanPlayer:
                 move = display.get_next_move_from_click(self.board, self.current_player)
-                move = chess.Move(move[0], move[1])
+                
             else:
                 move = self.current_player.get_move(self.board)
 

@@ -46,9 +46,9 @@ class Display:
                 pygame.draw.rect(self.screen, colour, ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
                 piece = board.piece_at(chess.square(col, row))
                 if piece and piece.color == board.turn:
-                    
                     # Highlight selected position square yellow if selected_square is not empty
-                    if self.selected_square != False and self.selected_square == (row, col):
+                    
+                    if self.selected_square != False and self.selected_square == chess.square(col, row):
                         
                         pygame.draw.rect(self.screen, (195, 195, 0), ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
                 
@@ -110,6 +110,7 @@ class Display:
         Handle the mouse click events.
         """
         while True:
+            
             self.handle_events(board) # Handle any events before checking for mouse clicks
             event = pygame.event.wait()  # Wait for an event 
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -118,6 +119,7 @@ class Display:
                 adjusted_mouse_x = mouse_x - (self.board_size // 4)
                 # Check if the click is within the board boundaries
                 if 0 <= adjusted_mouse_x <= self.board_size and self.board_size / 9 <= mouse_y <= self.board_size + self.board_size / 9:
+                    
                     # Convert mouse position to board coordinates
                     board_x = adjusted_mouse_x // (self.board_size // 8)
                     board_y = (mouse_y - (self.board_size // 8)) // (self.board_size // 8)
@@ -135,17 +137,16 @@ class Display:
         """
         while True:
             position = self.handle_mouse_click(board)
-            from_square = chess.square(position[0], position[1])
-            piece = board.piece_at(from_square)
+            piece = board.piece_at(position)
             if piece:
                 self.selected_square = position
                 if piece.color == current_player.colour:
-                    self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == from_square]
+                    self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == position]
                     self.disp_board(board,current_player)
                     target = self.handle_mouse_click(board)
-                    to_square = chess.square(target[0], target[1])
                     self.selected_square = False
                     self.legal_moves = []
-                    return(position, target)
+                    move = chess.Move(from_square=position, to_square=target)
+                    return(move)
     
    
