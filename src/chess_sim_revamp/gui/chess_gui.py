@@ -35,16 +35,16 @@ class Display:
         self.screen.fill((220, 220, 220))
 
         # Draw graveyard squares
-        white_gy_pos = graveyard.get_white_pieces_positions()
-        black_gy_pos = graveyard.get_black_pieces_positions()
-        
+       
         for square in self.graveyard_squares_white:
             pygame.draw.rect(self.screen, (255, 255, 255), square, 3)  # White border
             
         for square in self.graveyard_squares_black:
             pygame.draw.rect(self.screen, (0, 0, 0), square, 3)  # Black border
+        white_gy_pos = graveyard.get_white_pieces_positions()
+        black_gy_pos = graveyard.get_black_pieces_positions()
         
-        #print(self.screen_size)
+        # Loop through each piece in the white graveyard positions
         for piece in white_gy_pos:
             font = pygame.font.Font(None, 64)
             text = font.render(piece[1].symbol(), True, (255, 255, 255))
@@ -53,6 +53,7 @@ class Display:
             text_rect = text.get_rect(center=(center_x, center_y))
             self.screen.blit(text, text_rect)
 
+        # Loop through each piece in the black graveyard positions
         for piece in black_gy_pos:
             font = pygame.font.Font(None, 64)
             text = font.render(piece[1].symbol(), True, (5, 5, 5))
