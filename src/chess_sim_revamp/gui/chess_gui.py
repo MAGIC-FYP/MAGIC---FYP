@@ -21,7 +21,7 @@ class Display:
         self.selected_square = False
         self.message = ""
         self.legal_moves=[]
-        self.output_button = pygame.Rect(self.screen_size[0] - 150, (self.screen_size[1]/8)/2 - 20, 140, 30)
+        self.output_state_button = pygame.Rect(self.screen_size[0] - 150, (self.screen_size[1]/8)/2 - 20, 140, 30)
         self.reset_button = pygame.Rect(10, (self.screen_size[1]/8)/2 - 20, 140, 30)
         self.graveyard_squares_white = [pygame.Rect(i * (self.board_size // 8), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
         self.graveyard_squares_black = [pygame.Rect((self.board_size // 8) * (10 + i), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
@@ -35,69 +35,41 @@ class Display:
         # Clear the screen
         self.screen.fill((220, 220, 220))
 
-        # Draw graveyard squares
-       
-        for square in self.graveyard_squares_white:
-            pygame.draw.rect(self.screen, (255, 255, 255), square, 3)  # White border
-            
-        for square in self.graveyard_squares_black:
-            pygame.draw.rect(self.screen, (0, 0, 0), square, 3)  # Black border
-        white_gy_pos = graveyard.get_white_pieces_positions()
-        black_gy_pos = graveyard.get_black_pieces_positions()
+        self._disp_graveyard(graveyard)
+        self._disp_playing_board(board)
+        self._top_text(current_player)
+        self._disp_button(self.output_state_button, "Output Board State")
+        self._disp_button(self.reset_button, "Reset")
         
-        # Loop through each piece in the white graveyard positions
-        for piece in white_gy_pos:
-            font = pygame.font.Font(None, 64)
-            text = font.render(piece[1].symbol(), True, (255, 255, 255))
-            center_x = (piece[0][0] * (self.board_size // 8)-(self.board_size / 16))
-            center_y = (piece[0][1] * (self.board_size // 8)+(self.board_size / 16))
-            text_rect = text.get_rect(center=(center_x, center_y))
-            self.screen.blit(text, text_rect)
+        # Update the display
+        pygame.display.update()
 
-        # Loop through each piece in the black graveyard positions
-        for piece in black_gy_pos:
-            font = pygame.font.Font(None, 64)
-            text = font.render(piece[1].symbol(), True, (5, 5, 5))
-            center_x = (piece[0][0] * (self.board_size // 8)-(self.board_size / 16))
-            center_y = (piece[0][1] * (self.board_size // 8)+(self.board_size / 16))
-            text_rect = text.get_rect(center=(center_x, center_y))
-            self.screen.blit(text, text_rect)
+    def _disp_button(self, button: pygame.Rect, button_label: str):
+        """
+        Displays a button on the screen with a given label.
+        
+        This method draws a button with a white background, a black border, and the specified label centered within the button.
+        
+        Parameters:
+        - button: pygame.Rect - The rectangle representing the button's position and size.
+        - button_label: str - The text to be displayed on the button.
+        """
+        pygame.draw.rect(self.screen, (220, 220, 220), button)
+        pygame.draw.rect(self.screen, (0, 0, 0), button, 2)  # Black border
+        font = pygame.font.Font(None, 16)
+        text = font.render(button_label, True, (0, 0, 0))
+        text_rect = text.get_rect(center=button.center)
+        self.screen.blit(text, text_rect)
 
-        # Draw the board
-        for row in range(8):
-            for col in range(8):
-                colour = (119, 149, 86) if (row + col) % 2 == 0 else (235, 236, 208)
-                pygame.draw.rect(self.screen, colour, ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
-                piece = board.piece_at(chess.square(col, row))
-                if piece and piece.color == board.turn:
-                    # Highlight selected position square yellow if selected_square is not empty
-                    
-                    if self.selected_square != False and self.selected_square == chess.square(col, row):
-                        
-                        pygame.draw.rect(self.screen, (195, 195, 0), ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
-                
-                # Highlights squares of legal moves
-
-                if self.legal_moves and chess.square(col, row) in self.legal_moves:
-                    if piece:
-                        gray = 80
-                        colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
-                        pygame.draw.rect(self.screen, colour, ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
-                    else:
-                        gray = 60
-                        colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
-                        pygame.draw.circle(self.screen, colour, ((col + 2) * (self.board_size // 8) + (self.board_size // 16), row * (self.board_size // 8) + (self.board_size // 16) + (self.board_size // 8)), self.board_size // 40)
-                        
-                if piece:
-                    font = pygame.font.Font(None, 64)
-                    if piece.color == chess.WHITE:
-                        text = font.render(piece.symbol(), True, (255, 255, 255))
-                    else:
-                        text = font.render(piece.symbol(), True, (5, 5, 5))
-                    text_rect = text.get_rect(center=((col + 2) * (self.board_size // 8) + (self.board_size // 16), row * (self.board_size // 8) + (self.board_size // 16) + (self.board_size // 8)))
-                    self.screen.blit(text, text_rect)
-
-        # Add text at top
+    def _top_text(self, current_player):
+        """
+        Displays the current player's turn at the top of the screen.
+        
+        This method renders the text indicating whose turn it is (White or Black) and displays it at the top center of the screen.
+        
+        Parameters:
+        - current_player: chess.Player - The current player whose turn it is.
+        """
         font = pygame.font.Font(None, 36)
         self.message = "White's Turn"
         if current_player.colour == chess.BLACK:
@@ -106,26 +78,128 @@ class Display:
         text_rect = text.get_rect(center=(self.screen_size[0] // 2, (self.board_size/9)/2))
         self.screen.blit(text, text_rect)
 
-        # Output board state button
-        pygame.draw.rect(self.screen, (220, 220, 220), self.output_button)
-        pygame.draw.rect(self.screen, (0, 0, 0), self.output_button, 2)  # Black border
-        font = pygame.font.Font(None, 16)
-        text = font.render("Output Board State", True, (0, 0, 0))
-        text_rect = text.get_rect(center=self.output_button.center)
-        self.screen.blit(text, text_rect)
 
-        # Reset button
-        pygame.draw.rect(self.screen, (220, 220, 220), self.reset_button)
-        pygame.draw.rect(self.screen, (0, 0, 0), self.reset_button, 2)  # Black border
-        font = pygame.font.Font(None, 16)
-        text = font.render("Reset", True, (0, 0, 0))
-        text_rect = text.get_rect(center=self.reset_button.center)
-        self.screen.blit(text, text_rect)
+    def _disp_graveyard(self, graveyard: Graveyard):
+        """
+        helps display function draw graveyard
+        """
+        graveyard_positions = [(self.graveyard_squares_white, (255, 255, 255), graveyard.get_white_pieces_positions()),
+                              (self.graveyard_squares_black, (0, 0, 0), graveyard.get_black_pieces_positions())]
 
+        for squares, border_color, positions in graveyard_positions:
+            for square in squares:
+                pygame.draw.rect(self.screen, border_color, square, 3)  # Draw border
+            
+            for piece in positions:
+                font = pygame.font.Font(None, 64)
+                text_color = (255, 255, 255) if squares == self.graveyard_squares_white else (5, 5, 5)
+                text = font.render(piece[1].symbol(), True, text_color)
+                text_rect = text.get_rect(center=(piece[0][0] * (self.board_size // 8)-(self.board_size / 16), piece[0][1] * (self.board_size // 8)+(self.board_size / 16)))
+                self.screen.blit(text, text_rect)
+
+    def _disp_playing_board(self, board: chess.Board):
+        """
+        Displays the playing board with all pieces and highlights selected and legal moves.
         
-        # Update the display
-        pygame.display.update()  # Update the display after drawing the board
+        This method iterates through each square on the board, draws the square, checks if there's a piece on the square, and if so, draws the piece. It also highlights the square if it's the selected square or if it's a legal move.
+        
+        Parameters:
+        - board: chess.Board - The current state of the chess board.
+        """
+        for row in range(8):
+            for col in range(8):
+                self._draw_square(row, col)
+                piece = board.piece_at(chess.square(col, row))
+                self._highlight_selected_square(col, row, board)
+                self._highlight_legal_moves(col, row, board)
+                if piece:
+                    self._draw_piece(piece, col, row)
+                
+    def _get_square_color(self, row, col):
+        """
+        Returns the color of a square based on its position.
+        
+        This method determines the color of a square on the board based on its row and column. It alternates between two colors for each row and column to create a checkered pattern.
+        
+        Parameters:
+        - row: int - The row of the square.
+        - col: int - The column of the square.
+        
+        Returns:
+        - tuple - A tuple representing the RGB color of the square.
+        """
+        return (119, 149, 86) if (row + col) % 2 == 0 else (235, 236, 208)
 
+    def _draw_square(self, row, col):
+        """
+        Draws a square on the board.
+        
+        This method draws a square on the board based on its row and column. It uses the color determined by _get_square_color.
+        
+        Parameters:
+        - row: int - The row of the square.
+        - col: int - The column of the square.
+        """
+        square_color = self._get_square_color(row, col)
+        pygame.draw.rect(self.screen, square_color, ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
+
+    def _draw_piece(self, piece, col, row):
+        """
+        Draws a piece on the board.
+        
+        This method draws a piece on the board based on its position and color. It uses a font to render the piece symbol and places it in the center of the square.
+        
+        Parameters:
+        - piece: chess.Piece - The piece to be drawn.
+        - col: int - The column of the piece.
+        - row: int - The row of the piece.
+        """
+        font = pygame.font.Font(None, 64)
+        if piece.color == chess.WHITE:
+            text = font.render(piece.symbol(), True, (255, 255, 255))
+        else:
+            text = font.render(piece.symbol(), True, (5, 5, 5))
+        text_rect = text.get_rect(center=((col + 2) * (self.board_size // 8) + (self.board_size // 16), row * (self.board_size // 8) + (self.board_size // 16) + (self.board_size // 8)))
+        self.screen.blit(text, text_rect)
+
+    def _highlight_selected_square(self, col, row, board: chess.Board):
+        """
+        Highlights the selected square on the board.
+        
+        This method checks if the current square is the selected square and if the piece on the square is of the current player's color. If so, it highlights the square.
+        
+        Parameters:
+        - col: int - The column of the square.
+        - row: int - The row of the square.
+        - board: chess.Board - The current state of the chess board.
+        """
+        piece = board.piece_at(chess.square(col, row))
+        if piece and piece.color == board.turn:
+            if self.selected_square != False and self.selected_square == chess.square(col, row):
+                pygame.draw.rect(self.screen, (195, 195, 0), ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
+
+    def _highlight_legal_moves(self, col, row, board: chess.Board):
+        """
+        Highlights legal moves on the board.
+        
+        This method checks if the current square is a legal move for the current player. If so, it highlights the square or draws a circle on it if it's an empty square.
+        
+        Parameters:
+        - col: int - The column of the square.
+        - row: int - The row of the square.
+        - board: chess.Board - The current state of the chess board.
+        """
+        if self.legal_moves and chess.square(col, row) in self.legal_moves:
+            piece = board.piece_at(chess.square(col, row))
+            if piece:
+                gray = 80
+                colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
+                pygame.draw.rect(self.screen, colour, ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
+            else:
+                gray = 60
+                colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
+                pygame.draw.circle(self.screen, colour, ((col + 2) * (self.board_size // 8) + (self.board_size // 16), row * (self.board_size // 8) + (self.board_size // 16) + (self.board_size // 8)), self.board_size // 40)
+                    
     def handle_events(self, board: chess.Board):
         """
         Handle the events in the game.
@@ -151,18 +225,18 @@ class Display:
                 adjusted_mouse_x = mouse_x - (self.board_size // 4)
                 # Check if the click is within the board boundaries
                 if 0 <= adjusted_mouse_x <= self.board_size and self.board_size / 9 <= mouse_y <= self.board_size + self.board_size / 9:
-                    
                     # Convert mouse position to board coordinates
                     board_x = adjusted_mouse_x // (self.board_size // 8)
                     board_y = (mouse_y - (self.board_size // 8)) // (self.board_size // 8)
                     return board_y * 8 + board_x  # Return the board coordinates of the mouse click as a single number 0-63
-                elif self.output_button.collidepoint(mouse_x, mouse_y):
+                elif self.output_state_button.collidepoint(mouse_x, mouse_y):
                     # Output board state functionality
                     print(f"Board State: {board.fen()}")
 
                 elif self.reset_button.collidepoint(mouse_x, mouse_y):
                     # Reset board functionality
-
+                    self.selected_square = False
+                    self.legal_moves = []
                     board.reset()
                     graveyard.reset()
                 self.disp_board(board, graveyard, current_player)
