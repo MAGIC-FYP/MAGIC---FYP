@@ -1,4 +1,4 @@
-from models.player import HumanPlayer, ComputerBasic
+from models.player import HumanPlayer, ComputerBasic, Stockfish
 from models.controller import Controller
 from models.board import Board
 import chess
@@ -9,7 +9,7 @@ def main():
 
     # Set up the players
     white_player = HumanPlayer(chess.WHITE)
-    black_player = ComputerBasic(chess.BLACK, difficulty=3)
+    black_player = Stockfish(chess.BLACK)
     chess_board.setup_players(white_player, black_player)
     
     # Start the game

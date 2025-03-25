@@ -1,8 +1,9 @@
+import chess
+import requests
+import logging
 from enum import Enum
 from abc import ABC, abstractmethod
 from typing import List, Optional
-import chess
-from stockfish import Stockfish
 
 class PlayerType(Enum):
     HUMAN = 1
@@ -69,22 +70,47 @@ class ComputerBasic(BasePlayer):
 class Stockfish(BasePlayer):
     '''Stockfish chess player implementation'''
 
-    def __init__(self, colour: chess.Color, difficulty: int = 10, depth: int = 5): #I want depth to be optional but defult to 5, also difficulty to default to 10
+    def __init__(self, colour: chess.Color, depth: int = 5): # Depth / Difficulty are Correlated
         super().__init__(colour)
-        self.engine = Stockfish("/usr/local/bin/stockfish") # This will need changing as its set up for Alex 
-        self.difficulty = difficulty
         self.depth = depth
+        self.api_endpoint = "https://stockfish.online/api/s/v2.php"
+        self.logger = self._create_default_logger
 
-        self.engine.set_skill_level(self.difficulty)  # Set difficulty level
-        self.engine.set_depth(self.depth)  # Set search depth
+    def _create_default_logger(self) -> logging.Logger:
+        logger = logging.getLogger(self.__class__.__name__)
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        logger.addHandler(handler)
+        return logger
 
-    def get_move(self, board):
-        self.engine.set_fen_position(board.fen()) #Get board state
-        evaluation = self.engine.get_evaluation()  # Evaluate the board, not currently used, but can give a live score of the board
-        best_move = self.engine.get_best_move()  # Return the top move
+    def get_move(self, board: chess.Board) -> Optional[chess.Move]:
+        params = {
+            "fen": board.fen(),
+            "depth": min(self.depth, 16)
+        }
+        
+        try:
+            response = requests.get(self.api_endpoint, params=params)
+            response.raise_for_status()
+            
+            result = response.json()
+            if not result.get('success', False):
+                self.logger.error(f"API Error: {result.get('data', 'Unknown error')}")
+                return None
 
-        move = chess.Move.from_uci(best_move)   #Untested
-        if move in board.legal_moves:
+            best_move_uci = result['continuation'].split()[0]
+            move = chess.Move.from_uci(best_move_uci)
+            
+            if move not in board.legal_moves:
+                self.logger.warning(f"Suggested move {best_move_uci} is not legal.")
+                return None
+            
             return move
-        else:
-            return "No valid moves found"  # Better handling for empty moves
+        
+        except requests.RequestException as e:
+            self.logger.error(f"Request failed: {e}")
+        except (ValueError, KeyError) as e:
+            self.logger.error(f"Data parsing error: {e}")
+        
+        return None
