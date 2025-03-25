@@ -259,7 +259,16 @@ class Display:
                     target = self.handle_mouse_click(board, graveyard, current_player)
                     self.selected_square = False
                     self.legal_moves = []
-                    move = chess.Move(from_square=position, to_square=target)
+
+                    promotion = None
+                    if piece.piece_type == chess.PAWN and (
+                        (piece.color == chess.WHITE and target > 55) or 
+                        (piece.color == chess.BLACK and target < 8)
+                    ):
+                        promotion = input('Enter your promotion piece (q, r, b, n):') # Get promotion piece from user (ADD GUI BUTTONS FOR Q, R, B, N)
+                        promotion = chess.Piece.from_symbol(promotion).piece_type # Can directly link the buttons to be chess.QUEEN etc
+  
+                    move = chess.Move(from_square=position, to_square=target, promotion = promotion)
                     return(move)
     
    
