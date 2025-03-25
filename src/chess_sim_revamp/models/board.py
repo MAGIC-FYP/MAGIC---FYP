@@ -14,7 +14,11 @@ class Board:
         self.black_player: Optional[BasePlayer] = None
         self.current_player: Optional[BasePlayer] = None
         self.move_history: List[chess.Move] = []
-        self.dead_pieces: List[chess.Piece] = [] 
+        self.dead_pieces: List[chess.Piece] = []
+
+    def set_fen(self, fen: str) -> None:
+        self.board.set_fen(fen)
+        self.current_player = self.white_player if self.board.turn == chess.WHITE else self.black_player
     
     def setup_players(self, white_player: BasePlayer, black_player: BasePlayer) -> None:
         '''Set up the players for this game'''
