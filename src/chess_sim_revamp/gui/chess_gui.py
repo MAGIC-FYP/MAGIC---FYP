@@ -6,6 +6,7 @@ import pygame
 import sys
 import chess
 from models.graveyard import Graveyard
+import time
 
 # Initialize Pygame once
 pygame.init()
@@ -265,10 +266,81 @@ class Display:
                         (piece.color == chess.WHITE and target > 55) or 
                         (piece.color == chess.BLACK and target < 8)
                     ):
-                        promotion = input('Enter your promotion piece (q, r, b, n):') # Get promotion piece from user (ADD GUI BUTTONS FOR Q, R, B, N)
+                        # Display a little box on the GUI with a piece to promote
+                        promotion = self.display_promotion_box(board, graveyard, current_player, piece, target)
                         promotion = chess.Piece.from_symbol(promotion).piece_type # Can directly link the buttons to be chess.QUEEN etc
-  
                     move = chess.Move(from_square=position, to_square=target, promotion = promotion)
                     return(move)
     
-   
+    def display_promotion_box(self, board: chess.Board, graveyard: Graveyard, current_player, piece: chess.Piece, to_square):
+        """
+        This method displays a box with the options for promotion and returns the selected piece.
+        """
+        promotion_options = ['Q', 'R', 'B', 'N']  # Changed 'K' to 'N' as Knight is valid promotion option
+        box_width = 50 * len(promotion_options)  # Make the box long, not tall
+        box_height = 50 
+        
+        # Center the box on screen
+        to_square_rect = pygame.Rect(
+            (to_square % 8 + 2) * (self.board_size // 8),
+            (to_square // 8) * (self.board_size // 8),
+            self.board_size // 8,
+            self.board_size // 8
+        )
+        promotion_box = pygame.Rect(
+            to_square_rect.centerx - box_width // 2,
+            to_square_rect.centery - box_height // 2,
+            box_width,
+            box_height
+        )
+
+        #removing old piece and showing pawn
+        gray = 80
+        colour = (119-gray, 149-gray, 86-gray) if (to_square // 8 + to_square % 8) % 2 == 0 else (235-gray, 236-gray, 208-gray)
+        pygame.draw.rect(self.screen, colour, ((to_square % 8 + 2) * (self.board_size // 8), to_square // 8 * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
+        self._draw_piece(piece, to_square % 8, to_square // 8)
+
+        while True:
+            # Draw the box
+            pygame.draw.rect(self.screen, (220, 220, 220), promotion_box)
+            pygame.draw.rect(self.screen, (0, 0, 0), promotion_box, 2)  # Add border
+            
+            # Draw the piece options
+            font = pygame.font.Font(None, 64)
+            for i, piece in enumerate(promotion_options):
+                piece_color = (255, 255, 255) if current_player.colour == chess.WHITE else (5, 5, 5)
+                text = font.render(piece, True, piece_color)
+                text_rect = text.get_rect(center=(
+                    promotion_box.left + (i + 0.5) * box_width // len(promotion_options),
+                    promotion_box.centery
+                ))
+                self.screen.blit(text, text_rect)
+            
+            # Draw a small triangle pointing at the target square
+            triangle_points = [
+                (promotion_box.centerx-20, promotion_box.bottom),
+                (to_square_rect.centerx, to_square_rect.bottom),
+                (promotion_box.centerx+20, promotion_box.bottom)  # Adjust the height of the triangle
+            ]
+            pygame.draw.polygon(self.screen, (0, 0, 0), triangle_points)
+            
+            pygame.display.update()
+            
+            # Handle events
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if promotion_box.collidepoint(mouse_pos):
+                        # Calculate which piece was clicked
+                        relative_x = mouse_pos[0] - promotion_box.left
+                        piece_index = int(relative_x // (box_width // len(promotion_options)))
+                        if 0 <= piece_index < len(promotion_options):
+                            return promotion_options[piece_index]
+                
+                elif event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            
+            time.sleep(0.01)  # Prevent high CPU usage
+        
+        
