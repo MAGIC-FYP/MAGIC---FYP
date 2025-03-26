@@ -129,8 +129,7 @@ class Graveyard():
             if piece and piece.color == chess.BLACK:
                 black_pieces_positions.append((self.get_coord_column_row(sq), piece))
         return black_pieces_positions
-    
-    
+
 
 '''This function will automatically assign the GY locations for all pieces'''
 def generate_graveyard_coordinates():
@@ -173,3 +172,13 @@ def generate_graveyard_coordinates():
     return graveyard_coords
 
 graveyard_coordinates = generate_graveyard_coordinates()
+
+
+"""Setting up the graveyard given a pre-loaded board state"""
+def preLoadedGraveyard(): # FEN String INPUT
+    # Input will be a board state
+    # Go through chess list
+    # Remove pieces from full chess list, the remaining peices need to be placed in graveyard
+    # Call place_piece function 
+
+    return 0
