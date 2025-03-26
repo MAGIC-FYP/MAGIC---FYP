@@ -14,14 +14,14 @@ def main():
     #chess_board.set_fen('8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1')
     
     # Start the game
-    try:
-        chess_board.play_game_gui()
-    except KeyboardInterrupt:
-        print("\nGame interrupted by user. Exiting...")
-    except Exception as e:
-        print(f"\nAn error occurred: {e}")
-    finally:
-        print("Game session ended.")
+    #try:
+    chess_board.play_game_gui()
+    # except KeyboardInterrupt:
+    #     print("\nGame interrupted by user. Exiting...")
+    # except Exception as e:
+    #     print(f"\nAn error occurred: {e}")
+    # finally:
+    #     print("Game session ended.")
 
 if __name__ == "__main__":
     main()

@@ -4,6 +4,7 @@ from models.player import BasePlayer, HumanPlayer
 from models.controller import Controller
 from models.graveyard import Graveyard
 from gui.chess_gui import Display
+from algorithms.algorithms_expanding_aStar import find_path
 
 class Board:
     def __init__(self, controller: Controller):
@@ -96,11 +97,15 @@ class Board:
             if type(self.current_player) == HumanPlayer:
                 move = display.get_next_move_from_click(self.board, self.graveyard ,self.current_player)
                 
+                
+                
             else:
                 move = self.current_player.get_move(self.board)
 
             if move:
+
                 if self.make_move(move):
+                    display.path = find_path(move, self.board)
                     self.switch_player()
                 else:
                     print("Invalid move.")

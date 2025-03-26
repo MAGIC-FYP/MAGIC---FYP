@@ -7,6 +7,7 @@ import sys
 import chess
 from models.graveyard import Graveyard
 import time
+from algorithms.algorithms_expanding_aStar import find_path, screen_to_surface_coord, surface_to_screen_coord
 
 # Initialize Pygame once
 pygame.init()
@@ -21,11 +22,14 @@ class Display:
         self.screen = pygame.display.set_mode(self.screen_size)
         self.selected_square = False
         self.message = ""
+        self.path = []
+        self.show_path = True
         self.legal_moves=[]
         self.show_mouse_coords = False
         self.output_state_button = pygame.Rect(self.screen_size[0] - 150, (self.screen_size[1]/8)/2 - 20, 140, 30)
         self.reset_button = pygame.Rect(10, (self.screen_size[1]/8)/2 - 20, 70, 30)
         self.mouse_loc_button = pygame.Rect(self.reset_button.right + 10, (self.screen_size[1]/8)/2 - 20, 100, 30)
+        self.show_path_button = pygame.Rect(self.output_state_button.left - 90, (self.screen_size[1]/8)/2 - 20, 80, 30)
         self.graveyard_squares_white = [pygame.Rect(i * (self.board_size // 8), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
         self.graveyard_squares_black = [pygame.Rect((self.board_size // 8) * (10 + i), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
         self.graveyard_squares = self.graveyard_squares_white + self.graveyard_squares_black
@@ -43,7 +47,10 @@ class Display:
         self._top_text(current_player)
         self._disp_button(self.output_state_button, "Output Board State")
         self._disp_button(self.reset_button, "Reset")
-        self._disp_button(self.mouse_loc_button, "Mouse coords")
+        self._disp_button(self.mouse_loc_button, "Show Coords" if not self.show_mouse_coords else "Hide Coords")
+        self._disp_button(self.show_path_button, "Show Path" if not self.show_path else "Hide Path")
+        if self.show_path:
+            self.display_path()
         
         # Update the display
         pygame.display.update()
@@ -76,8 +83,8 @@ class Display:
         """
         if self.show_mouse_coords:
             font = pygame.font.Font(None, 30)
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            self.message = f"Mouse Coodinates: {mouse_x}, {mouse_y}"
+            mouse_x, mouse_y = screen_to_surface_coord(pygame.mouse.get_pos(), self.screen_size)
+            self.message = f"Mouse Coodinates: {mouse_x:.1f}, {mouse_y:.1f}"
         else:
             font = pygame.font.Font(None, 36)
             self.message = "White's Turn"
@@ -87,6 +94,22 @@ class Display:
         text_rect = text.get_rect(center=(self.screen_size[0] // 2, (self.board_size/9)/2))
         self.screen.blit(text, text_rect)
 
+    def display_path(self):
+        """
+        Displays the path of a move on the board.
+        
+        This method draws a line on the board to visualize the path of a move. It takes a list of tuples, each tuple representing the start and end coordinates of a line segment.
+        
+        Parameters:
+        - path: List[Tuple[int, int]] - A list ofx tuples, each tuple containing the start and end coordinates of a line segment.
+        """
+        
+        
+        for i in range(len(self.path) - 1):
+            a = surface_to_screen_coord((self.path[i][0], self.path[i][1]), self.screen_size)
+            b = surface_to_screen_coord((self.path[i+1][0], self.path[i+1][1]), self.screen_size)
+            pygame.draw.line(self.screen, (255, 0, 0), a, b, 3)  # Draw a red line for the path
+        pygame.display.update()
 
     def _disp_graveyard(self, graveyard: Graveyard):
         """
@@ -269,6 +292,9 @@ class Display:
 
                 elif self.mouse_loc_button.collidepoint(mouse_x, mouse_y):
                     self.show_mouse_coords = not self.show_mouse_coords
+
+                elif self.show_path_button.collidepoint(mouse_x, mouse_y):
+                    self.show_path = not self.show_path
                 
                 self.disp_board(board, graveyard, current_player)
 
