@@ -20,6 +20,7 @@ class Board:
     def set_fen(self, fen: str) -> None:
         self.board.set_fen(fen)
         self.current_player = self.white_player if self.board.turn == chess.WHITE else self.black_player
+        self.graveyard.pre_loaded_graveyard(fen)  # Pass FEN to detect captured pieces
     
     def setup_players(self, white_player: BasePlayer, black_player: BasePlayer) -> None:
         '''Set up the players for this game'''
