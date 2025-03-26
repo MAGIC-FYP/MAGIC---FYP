@@ -129,7 +129,43 @@ class Graveyard():
             if piece and piece.color == chess.BLACK:
                 black_pieces_positions.append((self.get_coord_column_row(sq), piece))
         return black_pieces_positions
+    
+###############################################################################################################
+###############################################################################################################
+    def pre_loaded_graveyard(self, fen):  # Dont think its reading the global file correctly
+        """Determines which pieces have been captured and places them in the graveyard."""
+        print('Gameloading')
+        print('FEN:', fen)
+        # List of all pieces (both colors) at the start of a game
+        initial_pieces = list("QRRBBNNPPPPPPPPqrrbbnnpppppppp")
 
+        # Extract letters from FEN (ignoring slashes and expanding empty spaces)
+        letters = []
+        for char in fen:
+            if char.isdigit():
+                letters.extend([" "] * int(char))  # Convert numbers to spaces
+            elif char != "/":
+                letters.append(char)
+
+        # Remove pieces that are still on the board
+        for piece in letters:
+            if piece in initial_pieces:
+                initial_pieces.remove(piece)
+        print('To place:', initial_pieces)
+        # The remaining pieces need to be placed in the graveyard
+        # Convert to chess.Piece objects before placing
+        piece_mapping = {
+            'P': chess.PAWN, 'N': chess.KNIGHT, 'B': chess.BISHOP,
+            'R': chess.ROOK, 'Q': chess.QUEEN, 'K': chess.KING
+        }
+
+        for piece_symbol in initial_pieces:
+            color = chess.WHITE if piece_symbol.isupper() else chess.BLACK
+            piece_type = piece_mapping[piece_symbol.upper()]
+            piece_obj = chess.Piece(piece_type, color)
+            self.place_piece(piece_obj)
+            print("BANG")
+        print('Graveyard occupation:', self.occupied_position)
 
 '''This function will automatically assign the GY locations for all pieces'''
 def generate_graveyard_coordinates():

@@ -12,6 +12,12 @@ def main():
     black_player = ComputerBasic(chess.BLACK, 1)
     chess_board.setup_players(white_player, black_player)
     #chess_board.set_fen('8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1')
+    fen = '8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1'   # This needs to be put in the YAML
+    chess_board.set_fen(fen)
+
+    # Create an instance of Graveyard and process captured pieces
+    graveyard = Graveyard()
+    graveyard.pre_loaded_graveyard(fen)  # Pass FEN to detect captured pieces
     
     # Start the game
     #try:
