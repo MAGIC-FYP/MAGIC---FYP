@@ -113,9 +113,27 @@ class Display:
                 piece = board.piece_at(chess.square(col, row))
                 self._highlight_selected_square(col, row, board)
                 self._highlight_legal_moves(col, row, board)
+                self._highlight_previous_move(col, row, board)
+                
                 if piece:
                     self._draw_piece(piece, col, row)
-                
+
+    def _highlight_previous_move(self, col, row, board):
+        """
+        Highlights the square of the previous move with a yellow border.
+        
+        This method checks if there is a previous move in the move stack of the board. If there is, it gets the last move and checks if the from_square or to_square of the move matches the current square. If it does, it highlights the square with a yellow border.
+        
+        Parameters:
+        - col: int - The column of the square.
+        - row: int - The row of the square.
+        - board: chess.Board - The current state of the chess board.
+        """
+        if board.move_stack:
+            last_move = board.move_stack[-1]
+            if last_move.from_square == col + row * 8 or last_move.to_square == col + row * 8:
+                pygame.draw.rect(self.screen, (220, 220, 0), ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8), 5)  # Highlight the square with a yellow border
+
     def _get_square_color(self, row, col):
         """
         Returns the color of a square based on its position.
