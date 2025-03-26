@@ -22,8 +22,10 @@ class Display:
         self.selected_square = False
         self.message = ""
         self.legal_moves=[]
+        self.show_mouse_coords = False
         self.output_state_button = pygame.Rect(self.screen_size[0] - 150, (self.screen_size[1]/8)/2 - 20, 140, 30)
-        self.reset_button = pygame.Rect(10, (self.screen_size[1]/8)/2 - 20, 140, 30)
+        self.reset_button = pygame.Rect(10, (self.screen_size[1]/8)/2 - 20, 70, 30)
+        self.mouse_loc_button = pygame.Rect(self.reset_button.right + 10, (self.screen_size[1]/8)/2 - 20, 100, 30)
         self.graveyard_squares_white = [pygame.Rect(i * (self.board_size // 8), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
         self.graveyard_squares_black = [pygame.Rect((self.board_size // 8) * (10 + i), j * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8) for i in range(2) for j in range(8)]
         self.graveyard_squares = self.graveyard_squares_white + self.graveyard_squares_black
@@ -41,6 +43,7 @@ class Display:
         self._top_text(current_player)
         self._disp_button(self.output_state_button, "Output Board State")
         self._disp_button(self.reset_button, "Reset")
+        self._disp_button(self.mouse_loc_button, "Mouse coords")
         
         # Update the display
         pygame.display.update()
@@ -71,10 +74,15 @@ class Display:
         Parameters:
         - current_player: chess.Player - The current player whose turn it is.
         """
-        font = pygame.font.Font(None, 36)
-        self.message = "White's Turn"
-        if current_player.colour == chess.BLACK:
-            self.message = "Black's Turn"
+        if self.show_mouse_coords:
+            font = pygame.font.Font(None, 30)
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            self.message = f"Mouse Coodinates: {mouse_x}, {mouse_y}"
+        else:
+            font = pygame.font.Font(None, 36)
+            self.message = "White's Turn"
+            if current_player.colour == chess.BLACK:
+                self.message = "Black's Turn"
         text = font.render(f"{self.message}", True, (0, 0, 0))
         text_rect = text.get_rect(center=(self.screen_size[0] // 2, (self.board_size/9)/2))
         self.screen.blit(text, text_rect)
@@ -235,8 +243,8 @@ class Display:
         Handle the mouse click events.
         """
         while True:
-            
-            self.handle_events(board) # Handle any events before checking for mouse clicks
+            self.disp_board(board, graveyard, current_player)  # Display the board before handling events
+            self.handle_events(board)  # Handle any events before checking for mouse clicks
             event = pygame.event.wait()  # Wait for an event 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -258,7 +266,12 @@ class Display:
                     self.legal_moves = []
                     board.reset()
                     graveyard.reset()
+
+                elif self.mouse_loc_button.collidepoint(mouse_x, mouse_y):
+                    self.show_mouse_coords = not self.show_mouse_coords
+                
                 self.disp_board(board, graveyard, current_player)
+
                     
                 
     def get_next_move_from_click(self, board: chess.Board, graveyard: Graveyard, current_player):
