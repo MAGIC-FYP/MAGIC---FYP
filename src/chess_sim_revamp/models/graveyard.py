@@ -92,6 +92,20 @@ class Graveyard():
                 return spot  
         return None  # No available spot left
 
+    def place_piece_at(self, coord, piece: chess.Piece):
+        if coord in self.gy_coords:
+            graveyard_square = [k for k, v in self.gy_coords.items() if v == coord][0]
+            self.occupied_position[graveyard_square] = piece
+        else:
+            print("Invalid graveyard coordinate.")
+
+    def remove_piece_at(self, coord):
+        if coord in self.gy_coords:
+            graveyard_square = [k for k, v in self.gy_coords.items() if v == coord][0]
+            self.occupied_position[graveyard_square] = None
+        else:
+            print("Invalid graveyard coordinate.")
+
     def place_piece(self, piece: chess.Piece):
         """Places a captured piece in the lowest available spot within its category."""
         lowest_spot = self.get_lowest_available(piece)
@@ -130,6 +144,18 @@ class Graveyard():
                 black_pieces_positions.append((self.get_coord_column_row(sq), piece))
         return black_pieces_positions
     
+    def get_empty_squares(self):
+        """Returns a list of all empty squares in the graveyard."""
+        empty_squares = []
+        for sq, piece in self.occupied_position.items():
+            if not piece:
+                empty_squares.append(self.get_coord_column_row(sq))
+        return empty_squares
+    
+    
+    def get_surface_from_gy_coord(self, coord, surface_size= [5*12,5*8]):
+        return (coord[0] * (surface_size[0] // 12)-(surface_size[1] / (8*2)), coord[1] * (surface_size[1] // 8)-(surface_size[1] / (8*2)))
+
 ###############################################################################################################
 ###############################################################################################################
     def pre_loaded_graveyard(self, fen):  # Dont think its reading the global file correctly
