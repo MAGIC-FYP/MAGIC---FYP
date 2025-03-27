@@ -4,7 +4,7 @@ from models.player import BasePlayer, HumanPlayer
 from models.controller import Controller
 from models.graveyard import Graveyard
 from gui.chess_gui import Display
-from algorithms.algorithms_expanding_aStar import find_path
+from algorithms.algorithms_expanding_aStar import find_path, crowd_control
 
 class Board:
     def __init__(self, controller: Controller):
@@ -106,7 +106,8 @@ class Board:
             if move:
 
                 if self.make_move(move):
-                    display.path = find_path(move, self.board)
+                    display.path = crowd_control(self.board, move, 4)
+                    print(display.path)
                     self.switch_player()
                 else:
                     print("Invalid move.")

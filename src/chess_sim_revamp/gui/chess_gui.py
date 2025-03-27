@@ -23,7 +23,7 @@ class Display:
         self.selected_square = False
         self.message = ""
         self.path = []
-        self.show_path = True
+        self.show_path = False
         self.legal_moves=[]
         self.show_mouse_coords = False
         self.output_state_button = pygame.Rect(self.screen_size[0] - 150, (self.screen_size[1]/8)/2 - 20, 140, 30)
@@ -104,10 +104,10 @@ class Display:
         - path: List[Tuple[int, int]] - A list ofx tuples, each tuple containing the start and end coordinates of a line segment.
         """
         
-        
-        for i in range(len(self.path) - 1):
-            a = surface_to_screen_coord((self.path[i][0], self.path[i][1]), self.screen_size)
-            b = surface_to_screen_coord((self.path[i+1][0], self.path[i+1][1]), self.screen_size)
+        path = self.path["path"]
+        for i in range(len(path) - 1):
+            a = surface_to_screen_coord((path[i][0], path[i][1]), self.screen_size)
+            b = surface_to_screen_coord((path[i+1][0], path[i+1][1]), self.screen_size)
             pygame.draw.line(self.screen, (255, 0, 0), a, b, 3)  # Draw a red line for the path
         pygame.display.update()
 

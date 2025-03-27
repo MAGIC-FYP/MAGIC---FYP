@@ -13,7 +13,7 @@ def main():
     chess_board.setup_players(white_player, black_player)
     #chess_board.set_fen('8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1')
     fen = '8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1'   # This needs to be put in the YAML
-    chess_board.set_fen(fen)
+    #chess_board.set_fen(fen)
     
     # Start the game
     #try:
