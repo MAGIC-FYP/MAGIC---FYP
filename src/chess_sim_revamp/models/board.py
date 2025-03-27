@@ -96,7 +96,7 @@ class Board:
             display.disp_board(self.board, self.graveyard, self.current_player)
 
             if type(self.current_player) == HumanPlayer:
-                move = display.get_next_move_from_click(self.board, self.graveyard ,self.current_player)
+                move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
                 
                 
                 
@@ -106,7 +106,7 @@ class Board:
             if move:
 
                 if self.make_move(move):
-                    display.path = crowd_control(self.board, move, 4)
+                    display.path = crowd_control(self.board, move, self.graveyard, 4)
                     print(display.path)
                     self.switch_player()
                 else:
