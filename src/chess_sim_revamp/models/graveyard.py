@@ -93,19 +93,36 @@ class Graveyard():
         return None  # No available spot left
 
     def place_piece_at(self, coord, piece: chess.Piece):
-        if coord in self.gy_coords:
-            graveyard_square = [k for k, v in self.gy_coords.items() if v == coord][0]
-            self.occupied_position[graveyard_square] = piece
+        matching_squares = [square for square, pos in self.gy_coords.items() 
+                       if pos == coord]
+    
+        if matching_squares:
+            graveyard_square = matching_squares[0]  # Get the first matching square
+            if not self.occupied_position[graveyard_square]:
+                self.occupied_position[graveyard_square] = piece
+                return True
+            else:
+                print(f"Square {graveyard_square.name} is already occupied.")
+                return False
         else:
-            print("Invalid graveyard coordinate.")
+            print(f"Invalid graveyard coordinate: {coord}")
+            return False
 
     def remove_piece_at(self, coord):
-        if coord in self.gy_coords:
-            graveyard_square = [k for k, v in self.gy_coords.items() if v == coord][0]
-            self.occupied_position[graveyard_square] = None
+        matching_squares = [square for square, pos in self.gy_coords.items() 
+                       if pos == coord]
+    
+        if matching_squares:
+            graveyard_square = matching_squares[0]  # Get the first matching square
+            if self.occupied_position[graveyard_square]:
+                self.occupied_position[graveyard_square] = False
+                return True
+            else:
+                print(f"Square not occupied.")
+                return False
         else:
-            print("Invalid graveyard coordinate.")
-
+            print(f"Invalid graveyard coordinate: {coord}")
+            return False
     def place_piece(self, piece: chess.Piece):
         """Places a captured piece in the lowest available spot within its category."""
         lowest_spot = self.get_lowest_available(piece)
