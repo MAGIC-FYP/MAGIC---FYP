@@ -1,0 +1,14 @@
+project:
+  name: magic_chess_board
+  version: "0.0.0"
+  description: "MAGIC CHESS FYP"
+
+models:
+  chess_board:
+    size_x: 40.0
+    size_y: 40.0
+    square_size: 5.0
+  
+  graveyard:
+    size_x: 10
+    size_y: 40

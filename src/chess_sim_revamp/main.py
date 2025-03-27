@@ -1,10 +1,19 @@
+import sys
+import chess
 from models.player import HumanPlayer, ComputerBasic, Stockfish
 from models.controller import Controller
 from models.board import Board
-import chess
+from pathlib import Path
+
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root)) 
+from config import CONFIG
+
 
 def main():
-    controller = Controller(board_size_cm=40.0, square_size_cm=5.0)
+    board_size = CONFIG.get('models', {}).get('chess_board', {}).get('size_x')
+    square_size = CONFIG.get('models', {}).get('chess_board', {}).get('square_size')
+    controller = Controller(board_size_cm=board_size, square_size_cm=square_size)
     chess_board = Board(controller)  
 
     # Set up the players
