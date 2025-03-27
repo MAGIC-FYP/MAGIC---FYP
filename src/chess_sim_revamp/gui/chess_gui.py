@@ -22,7 +22,7 @@ class Display:
         self.screen = pygame.display.set_mode(self.screen_size)
         self.selected_square = False
         self.message = ""
-        self.path = []
+        self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.show_path = False
         self.legal_moves=[]
         self.show_mouse_coords = False
@@ -287,6 +287,7 @@ class Display:
                     # Reset board functionality
                     self.selected_square = False
                     self.legal_moves = []
+                    self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
                     board.reset()
                     graveyard.reset()
 
