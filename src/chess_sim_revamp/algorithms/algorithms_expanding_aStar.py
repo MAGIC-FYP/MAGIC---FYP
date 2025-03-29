@@ -156,8 +156,22 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,rad
         r=r+check_interval
     
     for i in range(len(moved_pieces)):
-        board.push(chess.Move(moved_pieces[i].to_square, moved_pieces[i].from_square))
-        board.move_stack.pop()
+
+        if (surface_size[0]/6 < nearest_square[0]< surface_size[0] - surface_size[0]/6): 
+            if(surface_size[0]/6 < target_square[0]< surface_size[0] - surface_size[0]/6):
+                board.push(chess.Move(surface_to_square_coord(target_square), surface_to_square_coord(nearest_square)))
+                board.move_stack.pop()
+            else:
+                graveyard.remove_piece_at(target_square)
+                board.set_piece_at(surface_to_square_coord(nearest_square), nearest_piece)
+        else:
+            if(surface_size[0]/6 < target_square[0]< surface_size[0] - surface_size[0]/6):
+                board.remove_piece_at(surface_to_square_coord(target_square))
+                graveyard.place_piece_at(nearest_square, nearest_piece)
+            else:
+                graveyard.remove_piece_at(target_square)
+                graveyard.place_piece_at(nearest_square, nearest_piece)
+
         reversed_path = moved_pieces_paths[i][::-1]
         undo_moves.append(reversed_path)
 
