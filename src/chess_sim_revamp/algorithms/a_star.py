@@ -170,14 +170,16 @@ def map_generator(size_x=5*12, size_y=5*8, obstacle_radius=1.0, res=100, obstacl
         y_ind = int((obstacle[1]) / size_y * res)
         
         # Calculate the obstacle radius in map indices
-        ob_radius = int(obstacle_radius/size_x * res)
+        ob_radius_x = obstacle_radius / size_x * res
+        ob_radius_y = obstacle_radius / size_y * res
         
         # Mark the area around the obstacle as occupied
-        for j in range(-ob_radius, ob_radius+1):
-            for k in range(-ob_radius, ob_radius+1):
-                # Check if the index is within bounds and within the circular zone before marking
-                if 0 <= x_ind + j < res and 0 <= y_ind + k < res and (j**2 + k**2) <= ob_radius**2:
-                    map[x_ind + j][y_ind + k] = 1
+        for j in range(-int(ob_radius_x), int(ob_radius_x) + 1):
+            for k in range(-int(ob_radius_y), int(ob_radius_y) + 1):
+                # Check if the index is within bounds and within the ellipse
+                if (0 <= x_ind + j < res) and (0 <= y_ind + k < res):
+                    if (j**2 / ob_radius_x**2 + k**2 / ob_radius_y**2) <= 1:
+                        map[x_ind + j][y_ind + k] = 1  # Use y, x indexing
     return map
 
 def path_converter_(path=list, size_x=5*12, size_y=5*8, res=100):
@@ -268,11 +270,11 @@ def astar_activate(pose = [], goal = [], radius = float,  obstacle_list = list )
     
     
     map = map_generator(size_x = 5*12, size_y = 5*8,obstacle_radius = radius, res=100, obstacles = obstacle_list)
-    # for row in map:
-    #     for i in row:
-    #         if i==0: print(' ',end= '') 
-    #         else: print('X',end= '')
-    #     print("", end= '\n')
+    for row in map:
+        for i in row:
+            if i==0: print(' ',end= '') 
+            else: print('X',end= '')
+        print("", end= '\n')
     start = pose
     end = goal
     #print("pose =", start[0],",", start[1])

@@ -4,6 +4,7 @@ from models.player import BasePlayer, HumanPlayer
 from models.controller import Controller
 from models.graveyard import Graveyard
 from gui.chess_gui import Display
+import time
 from algorithms.algorithms_expanding_aStar import find_path, crowd_control
 
 class Board:
@@ -11,6 +12,8 @@ class Board:
         self.board = chess.Board()
         self.controller = controller
         self.graveyard = Graveyard()
+        self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
+        self.path_extra = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.white_player: Optional[BasePlayer] = None
         self.black_player: Optional[BasePlayer] = None
         self.current_player: Optional[BasePlayer] = None
@@ -101,13 +104,14 @@ class Board:
                 
                 
             else:
+                time.sleep(5)
                 move = self.current_player.get_move(self.board)
 
             if move:
 
                 if self.make_move(move):
-                    display.path = crowd_control(self.board, move, self.graveyard, 4)
-                    print(display.path)
+                    self.path = crowd_control(self.board, move, self.graveyard, 3)
+                    display.path = self.path 
                     self.switch_player()
                 else:
                     print("Invalid move.")
