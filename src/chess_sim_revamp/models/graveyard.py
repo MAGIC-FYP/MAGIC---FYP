@@ -145,6 +145,21 @@ class Graveyard():
         else:
             return "Invalid graveyard square."
         
+    def piece_at(self, coord):
+        """
+        Retrieves the piece at the given graveyard coordinate.
+
+        :param coord: The (x, y) coordinate of the graveyard square.
+        :return: The piece at the given coordinate, or None if empty.
+        """
+        matching_squares = [square for square, pos in self.gy_coords.items() if pos == coord]
+
+        if matching_squares:
+            graveyard_square = matching_squares[0]
+            return self.occupied_position.get(graveyard_square, None)
+        else:
+            return None
+    
     def get_white_pieces_positions(self):
         """Returns a list of tuples containing the positions (x, y) of all white pieces in the graveyard."""
         white_pieces_positions = []

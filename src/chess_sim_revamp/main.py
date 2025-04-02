@@ -18,11 +18,12 @@ def main():
 
     # Set up the players
     white_player = HumanPlayer(chess.WHITE)
-    black_player = ComputerBasic(chess.BLACK, 1)
+    black_player = Stockfish(chess.BLACK, 1)
     chess_board.setup_players(white_player, black_player)
     #chess_board.set_fen('8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1')
-    fen = '8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1'   # This needs to be put in the YAML
-    #chess_board.set_fen(fen)
+    fen_algo_c_challange = 'Bpp5/p1pp4/pp1pp3/1pp1pp2/2pp1pp1/3pp1pp/4pp1p/5pp1 w - - 0 1'   # This needs to be put in the YAML
+    fen = 'rnbqkb1r/pppppppp/7n/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 3'
+    #chess_board.set_fen(fen_algo_c_challange)
     
     # Start the game
     #try:
