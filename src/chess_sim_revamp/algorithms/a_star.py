@@ -266,15 +266,16 @@ def simplify_path(points, epsilon=1.0):
         return [start, end]
 
     
-def astar_activate(pose = [], goal = [], radius = float,  obstacle_list = list ):
+def astar_activate(pose = [], goal = [], radius = float,  obstacle_list = list ,print_map= False):
     
     
     map = map_generator(size_x = 5*12, size_y = 5*8,obstacle_radius = radius, res=100, obstacles = obstacle_list)
-    for row in map:
-        for i in row:
-            if i==0: print(' ',end= '') 
-            else: print('X',end= '')
-        print("", end= '\n')
+    if print_map:
+        for row in map:
+            for i in row:
+                if i==0: print(' ',end= '') 
+                else: print('X',end= '')
+            print("", end= '\n')
     start = pose
     end = goal
     #print("pose =", start[0],",", start[1])

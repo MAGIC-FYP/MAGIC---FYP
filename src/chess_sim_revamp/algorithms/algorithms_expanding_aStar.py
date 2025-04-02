@@ -20,7 +20,9 @@ def surface_to_screen_coord(coord, screen_size, surface_size=[5*12,5*8]):
     adjusted_screen_size = (screen_size[0], screen_size[1] - screen_size[1]/8)
     return ((coord[0] * adjusted_screen_size[0] / surface_size[0]), ((coord[1]+5) * adjusted_screen_size[1] / surface_size[1]))
 
-
+def is_on_playing_surface(coord, surface_size=[5*12,5*8]):
+    t = (coord[0]-(surface_size[0]/6))
+    return (0<t) and (t < ((surface_size[0]*2/3)))
 
 def find_path(move: chess.Move, board: chess.Board):
     obstacle_list = []
@@ -38,18 +40,25 @@ def find_path(move: chess.Move, board: chess.Board):
     print(path)
     return path
 
-def get_obstacle_list(board: chess.Board, move, graveyard: Graveyard):
+def get_obstacle_list(board: chess.Board, move, graveyard: Graveyard, points_to_exclude=[], points_to_include=[]):
     obstacle_list = []
     from_square = move[0]
     to_square = move[1]
     for square in range(64):
         piece = board.piece_at(square)
-        if piece and square_to_surface_coord(square) not in [from_square, to_square]:
-            obstacle_list.append(square_to_surface_coord(square))
+        coords = square_to_surface_coord(square)
+        if piece and coords not in [from_square, to_square] and coords not in points_to_exclude:
+            obstacle_list.append(coords)
     for piece in graveyard.get_black_pieces_positions():
-        obstacle_list.append(graveyard.get_surface_from_gy_coord(piece[0]))
+        coords = graveyard.get_surface_from_gy_coord(piece[0])
+        if coords not in points_to_exclude:
+            obstacle_list.append(coords)
     for piece in graveyard.get_white_pieces_positions():
-        obstacle_list.append(graveyard.get_surface_from_gy_coord(piece[0]))
+        coords = graveyard.get_surface_from_gy_coord(piece[0])
+        if coords not in points_to_exclude:
+            obstacle_list.append(coords)
+    for point in points_to_include:
+        obstacle_list.append(point)
     return obstacle_list
 
 
@@ -60,7 +69,6 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,rad
     moved_pieces_paths = []
     undo_moves = []
     r=1
-
 
     start = square_to_surface_coord(move.from_square)
     finish = square_to_surface_coord(move.to_square)
@@ -117,50 +125,77 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,rad
                 raise("No pieces found near the path.")
             
             target_square = None
+            better_square = None
             min_distance = float('inf')
+            min_distance_better = float('inf')
             for square in range(64):
-                if board.piece_at(square) is None and square_to_surface_coord(square) not in unavailable_squares:
+                surface_square = square_to_surface_coord(square)
+                if (board.piece_at(square) is None) and (surface_square not in unavailable_squares):
+
                     for path_point in path:
                         for i in range(10):
                             point_along_line = (path_point[0] + (path[i % len(path)][0] - path_point[0]) * i / 9, 
                                             path_point[1] + (path[i % len(path)][1] - path_point[1]) * i / 9)
-                            distance_to_path = ((point_along_line[0] - square_to_surface_coord(square)[0]) ** 2 + 
-                                        (point_along_line[1] - square_to_surface_coord(square)[1]) ** 2) ** 0.5
+                            distance_to_path = ((point_along_line[0] - surface_square[0]) ** 2 + 
+                                        (point_along_line[1] - surface_square[1]) ** 2) ** 0.5
                             if distance_to_path > 5:
-                                distance = ((nearest_square[0] - square_to_surface_coord(square)[0]) ** 2 + (nearest_square[1] - square_to_surface_coord(square)[1]) ** 2) ** 0.5
+                                distance = ((nearest_square[0] - surface_square[0]) ** 2 + (nearest_square[1] - surface_square[1]) ** 2) ** 0.5
                                 if distance < min_distance:
                                     min_distance = distance
-                                    target_square = square_to_surface_coord(square)
+                                    target_square = surface_square
+                    try:
+                        if distance < min_distance_better:
+                            obstacle_list = get_obstacle_list(board, (start, finish), graveyard, points_to_exclude= [nearest_square], points_to_include= [square_to_surface_coord(square)])
+                            path = aStar.astar_activate(start, goal= finish, radius = radius, obstacle_list=obstacle_list)
+                            if path:
+                                min_distance_better = distance
+                                better_square = surface_square
+                    except:
+                        pass
 
             for square in graveyard.get_empty_squares():
-                if graveyard.get_surface_from_gy_coord(square) not in unavailable_squares:
+                surface_square = graveyard.get_surface_from_gy_coord(square)
+                if surface_square not in unavailable_squares:
                     for path_point in path:
                         for i in range(10):
                             point_along_line = (path_point[0] + (path[i % len(path)][0] - path_point[0]) * i / 9, 
                                             path_point[1] + (path[i % len(path)][1] - path_point[1]) * i / 9)
-                            distance_to_path = ((point_along_line[0] - graveyard.get_surface_from_gy_coord(square)[0]) ** 2 + 
-                                        (point_along_line[1] - graveyard.get_surface_from_gy_coord(square)[1]) ** 2) ** 0.5
+                            distance_to_path = ((point_along_line[0] - surface_square[0]) ** 2 + 
+                                        (point_along_line[1] - surface_square[1]) ** 2) ** 0.5
                             if distance_to_path > 4:
-                                distance = ((nearest_square[0] - graveyard.get_surface_from_gy_coord(square)[0]) ** 2 + (nearest_square[1] - graveyard.get_surface_from_gy_coord(square)[1]) ** 2) ** 0.5
+                                distance = ((nearest_square[0] - surface_square[0]) ** 2 + (nearest_square[1] - surface_square[1]) ** 2) ** 0.5
                                 if distance <= min_distance:
                                     min_distance = distance
-                                    target_square = graveyard.get_surface_from_gy_coord(square)
+                                    target_square = surface_square
+                    try:
+                        if distance < min_distance_better:
+                            obstacle_list = get_obstacle_list(board, (start, finish), graveyard, points_to_exclude= [nearest_square], points_to_include= [square_to_surface_coord(square)])
+                            path = aStar.astar_activate(start, goal= finish, radius = radius, obstacle_list=obstacle_list)
+                            if path:
+                                min_distance_better = distance
+                                better_square = surface_square
+                    except:
+                        pass
 
+            
             if target_square:
+                if better_square:
+                    target_square = better_square
+
                 #print(f"Target square for {nearest_piece} is at position {square_to_surface_coord(target_square)} at distance {min_distance:.2f}")
                 obstacle_list = get_obstacle_list(board, (nearest_square, target_square), graveyard)
                 moved_pieces_path = aStar.astar_activate(nearest_square, goal= target_square, radius = radius, obstacle_list=obstacle_list)
                 
-                
-                if (surface_size[0]/6 < nearest_square[0]< surface_size[0] - surface_size[0]/6): 
-                    if(surface_size[0]/6 < target_square[0]< surface_size[0] - surface_size[0]/6):
+
+                if is_on_playing_surface(nearest_square): 
+                    if is_on_playing_surface(target_square):
                         board.push(chess.Move(surface_to_square_coord(nearest_square), surface_to_square_coord(target_square)))
                         board.move_stack.pop()
                     else:
                         board.remove_piece_at(surface_to_square_coord(nearest_square))
                         graveyard.place_piece_at(target_square, nearest_piece)
                 else:
-                    if(surface_size[0]/6 < target_square[0]< surface_size[0] - surface_size[0]/6):
+                    if is_on_playing_surface(target_square):
                         graveyard.remove_piece_at(nearest_square)
                         board.set_piece_at(surface_to_square_coord(target_square), nearest_piece)
                     else:
@@ -177,16 +212,17 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,rad
         
     
     for i in range(len(moved_pieces)):
-
-        if (surface_size[0]/6 < nearest_square[0]< surface_size[0] - surface_size[0]/6): 
-            if(surface_size[0]/6 < target_square[0]< surface_size[0] - surface_size[0]/6):
+        nearest_square = moved_pieces[i][0]
+        target_square = moved_pieces[i][1]
+        if is_on_playing_surface(nearest_square): 
+            if is_on_playing_surface(target_square):
                 board.push(chess.Move(surface_to_square_coord(target_square), surface_to_square_coord(nearest_square)))
                 board.move_stack.pop()
             else:
                 graveyard.remove_piece_at(target_square)
                 board.set_piece_at(surface_to_square_coord(nearest_square), nearest_piece)
         else:
-            if(surface_size[0]/6 < target_square[0]< surface_size[0] - surface_size[0]/6):
+            if is_on_playing_surface(target_square):
                 board.remove_piece_at(surface_to_square_coord(target_square))
                 graveyard.place_piece_at(nearest_square, nearest_piece)
             else:

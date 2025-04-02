@@ -115,7 +115,7 @@ class Display:
                 self.draw_arrow(self.screen, (0, 0, 200), a, b)  # Draw a blue line for the path
                 font = pygame.font.Font(None, 25)
                 text = font.render(str(inc), True, (255, 0,0))
-                text_rect = text.get_rect(center=((a[0] + b[0]*2) // 3, ((a[1] + b[1]) // 2)+10))
+                text_rect = text.get_rect(center=(((a[0] + b[0]*2) // 3)+10, ((a[1] + b[1]) // 2)+10))
                 self.screen.blit(text, text_rect)
                 inc = inc+1
                 
@@ -139,7 +139,7 @@ class Display:
                 self.draw_arrow(self.screen, (0, 200, 0), a, b, 3)  # Draw a blue line for the path
                 font = pygame.font.Font(None, 25)
                 text = font.render(str(inc), True, (255, 0,0))
-                text_rect = text.get_rect(center=((a[0] + b[0]*2) // 3, ((a[1] + b[1]) // 2)-10))
+                text_rect = text.get_rect(center=(((a[0] + b[0]*2) // 3)-10, ((a[1] + b[1]) // 2)-10))
                 self.screen.blit(text, text_rect)
                 inc = inc+1
                 

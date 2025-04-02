@@ -110,7 +110,7 @@ class Board:
             if move:
 
                 if self.make_move(move):
-                    self.path = crowd_control(self.board, move, self.graveyard, 3)
+                    self.path = crowd_control(self.board, move, self.graveyard, 4)
                     display.path = self.path 
                     self.switch_player()
                 else:
