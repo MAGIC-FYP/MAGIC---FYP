@@ -33,10 +33,6 @@ def archived_game(username):
 def online_game(username):
     # Find an ongoing game for the user
     print(f"Checking for live games for: {username}")
-    # ongoing_games = list(client.games.get_ongoing(count=1))
-    # print(ongoing_games)
-    # print()
-    # games = list(client.games.export_by_player(username, ongoing=True))
     games = list(client.games.export_by_player(username, ongoing=True))
     
     if not games:
@@ -49,48 +45,13 @@ def online_game(username):
     white_name = games[0]["players"]["white"]["user"]["name"]
     black_name = games[0]["players"]["black"]["user"]["name"]
     print(f"White: {white_name} vs Black: {black_name}")
-    
-    # for event in client.games.stream_game_moves(game_id):
-    #     # print("Event received:", event)
 
-    #     if "moves" in event:
-    #         moves = event["moves"].split()  # List of moves played so far
-    #         print("Moves played so far:", moves)
-
-    #     elif "lastMove" in event:
-    #         print("Last move:", event["lastMove"]) 
-     # Track previous moves to detect new ones
     
     last_moves = games[0].get("moves", "").split()
     last_move_count = len(last_moves)
     print(f"Current position has {last_move_count} moves already played")
     print("Watching for moves...")
-    
-    # try:
-        # for event in client.games.stream_game_moves(game_id):
-        #     # Process moves when they come in
-        #     if "moves" in event:
-        #         current_moves = event["moves"].split()
-                
-        #         # Check if we have new moves
-        #         if len(current_moves) > len(previous_moves):
-        #             # Extract only the new moves
-        #             new_moves = current_moves[len(previous_moves):]
-                    
-        #             for move in new_moves:
-        #                 move_number = (len(previous_moves) + 1) // 2 + 1
-        #                 player = "White" if len(previous_moves) % 2 == 0 else "Black"
-        #                 print(f"Move {move_number}: {player} played {move}")
-                    
-        #             # Update our record of previous moves
-        #             previous_moves = current_moves
-            
-        #     # Also report last move in different format if available
-        #     if "lastMove" in event and event["lastMove"]:
-        #         # Only print if this is a new lastMove
-        #         if not hasattr(online_game, 'last_reported_move') or online_game.last_reported_move != event["lastMove"]:
-        #             print(f"Last move in UCI format: {event['lastMove']}")
-        #             online_game.last_reported_move = event["lastMove"]
+      
     try:
         while True:
             # Get the current game state
