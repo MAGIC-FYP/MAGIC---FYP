@@ -114,3 +114,31 @@ class Stockfish(BasePlayer):
             self.logger.error(f"Data parsing error: {e}")
         
         return None
+
+class ArchivedPlayers(BasePlayer):
+    '''Player for replaying an old chess game from a given move list.'''
+    
+    def __init__(self, moves: list[str], white_name: str, black_name: str):
+        self.moves = [chess.Move.from_uci(move) for move in moves]
+        self.white_name = white_name
+        self.black_name = black_name
+        self.current_move_index = 0
+
+    def get_move(self, board: chess.Board) -> Optional[chess.Move]:
+        """Get the next move in the replay sequence."""
+        if self.current_move_index < len(self.moves):
+            move = self.moves[self.current_move_index]
+            self.current_move_index += 1
+            return move
+        return None  # No more moves
+
+    def reset(self):
+        """Reset the replay to the beginning."""
+        self.current_move_index = 0
+
+    def get_current_player(self) -> str:
+        """Return the current player's name based on move index."""
+        return self.white_name if self.current_move_index % 2 == 0 else self.black_name
+
+    def __str__(self) -> str:
+        return f"Replay Mode: {self.white_name} (White) vs {self.black_name} (Black)"
