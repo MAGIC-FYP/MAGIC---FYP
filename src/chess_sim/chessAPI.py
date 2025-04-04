@@ -3,8 +3,10 @@
 import berserk
 import re
 import time
+import requests
 # Alex's personal API token, I don't mind everyone using it 
 API_TOKEN = 'lip_x73cN37xXXVy7EkHCbDa'
+BASE_URL = "https://lichess.org/api"
 session = berserk.TokenSession(API_TOKEN)
 client = berserk.Client(session=session)
 
@@ -84,7 +86,33 @@ def online_game(username):
     except Exception as e:
         print(f"Error occurred: {e}")
 
-online_game('MNZS1927')
+
+def get_active_game():
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    response = requests.get(f"{BASE_URL}/account/playing", headers=headers)
+    data = response.json()
+    if "nowPlaying" in data and len(data["nowPlaying"]) > 0:
+        print('SUCCESS: Active Game Found')
+        print(data)#["nowPlaying"][0]["gameId"])
+        return data["nowPlaying"][0]["gameId"]
+    print('Whomp Whomp: No Game Found')
+    return None
+
+def send_move(game_id, move):
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    url = f"{BASE_URL}/board/game/{game_id}/move/{move}"
+    response = requests.post(url, headers=headers)
+    return response.status_code, response.text
+
+game_id = get_active_game()
+if game_id:
+    move = input("Enter your move (e.g., e2e4): ")
+    status, result = send_move(game_id, move)
+    print(f"Move sent: {status}, Response: {result}")
+else:
+    print("No active game found.")
+
+# online_game('MNZS1927')
 # archived_game('anatoliy324')
 
 
