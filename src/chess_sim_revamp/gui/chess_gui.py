@@ -5,6 +5,7 @@ This file contains all functions for chess GUI handling
 import pygame
 import sys
 import chess
+import math
 from models.graveyard import Graveyard
 import time
 from algorithms.algorithms_expanding_aStar import find_path, screen_to_surface_coord, surface_to_screen_coord
@@ -23,7 +24,8 @@ class Display:
         self.selected_square = False
         self.message = ""
         self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
-        self.show_path = False
+        self.path_extra = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
+        self.show_path = True
         self.legal_moves=[]
         self.show_mouse_coords = False
         self.output_state_button = pygame.Rect(self.screen_size[0] - 150, (self.screen_size[1]/8)/2 - 20, 140, 30)
@@ -50,7 +52,7 @@ class Display:
         self._disp_button(self.mouse_loc_button, "Show Coords" if not self.show_mouse_coords else "Hide Coords")
         self._disp_button(self.show_path_button, "Show Path" if not self.show_path else "Hide Path")
         if self.show_path:
-            self.display_path()
+            self.display_path(board, graveyard)
         
         # Update the display
         pygame.display.update()
@@ -94,7 +96,7 @@ class Display:
         text_rect = text.get_rect(center=(self.screen_size[0] // 2, (self.board_size/9)/2))
         self.screen.blit(text, text_rect)
 
-    def display_path(self):
+    def display_path(self, board: chess.Board, graveyard: Graveyard):
         """
         Displays the path of a move on the board.
         
@@ -103,13 +105,70 @@ class Display:
         Parameters:
         - path: List[Tuple[int, int]] - A list ofx tuples, each tuple containing the start and end coordinates of a line segment.
         """
+        #self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
+        inc = 1
+        moved_pieces_paths = self.path["moved_pieces_paths"]
+        for path in moved_pieces_paths:
+            for i in range(len(path) - 1):
+                a = surface_to_screen_coord((path[i][0]+0.1, path[i][1]+0.1), self.screen_size)
+                b = surface_to_screen_coord((path[i+1][0]+0.1, path[i+1][1]+0.1), self.screen_size)
+                self.draw_arrow(self.screen, (0, 0, 200), a, b)  # Draw a blue line for the path
+                font = pygame.font.Font(None, 25)
+                text = font.render(str(inc), True, (255, 0,0))
+                text_rect = text.get_rect(center=(((a[0] + b[0]*2) // 3)+10, ((a[1] + b[1]) // 2)+10))
+                self.screen.blit(text, text_rect)
+                inc = inc+1
+                
         
         path = self.path["path"]
         for i in range(len(path) - 1):
             a = surface_to_screen_coord((path[i][0], path[i][1]), self.screen_size)
             b = surface_to_screen_coord((path[i+1][0], path[i+1][1]), self.screen_size)
-            pygame.draw.line(self.screen, (255, 0, 0), a, b, 3)  # Draw a red line for the path
+            self.draw_arrow(self.screen, (255, 140, 0), a, b)  # Draw an orange line for the path
+            font = pygame.font.Font(None, 25)
+            text = font.render(str(inc), True, (255, 0,0))
+            text_rect = text.get_rect(center=((a[0] + b[0]*2) // 3, ((a[1] + b[1]) // 2)))
+            self.screen.blit(text, text_rect)
+            inc = inc+1
+
+        undo_moves = self.path["undo_moves"]
+        for path in undo_moves:
+            for i in range(len(path) - 1):
+                a = surface_to_screen_coord((path[i][0]-0.1, path[i][1]-0.1), self.screen_size)
+                b = surface_to_screen_coord((path[i+1][0]-0.1, path[i+1][1]-0.1), self.screen_size)
+                self.draw_arrow(self.screen, (0, 200, 0), a, b, 3)  # Draw a blue line for the path
+                font = pygame.font.Font(None, 25)
+                text = font.render(str(inc), True, (255, 0,0))
+                text_rect = text.get_rect(center=(((a[0] + b[0]*2) // 3)-10, ((a[1] + b[1]) // 2)-10))
+                self.screen.blit(text, text_rect)
+                inc = inc+1
+                
+        
         pygame.display.update()
+        
+    def draw_arrow(self, screen, color, start, end, width=3, arrow_size=10):
+        """Draws a line with an arrowhead."""
+    
+        # Draw the main line
+        pygame.draw.line(screen, color, start, end, width)
+
+        # Calculate the direction of the arrow
+        angle = math.atan2(end[1] - start[1], end[0] - start[0])  # Get angle of the line
+        
+        # Calculate arrowhead points
+        arrow_points = [
+            (end[0] - arrow_size * math.cos(angle - math.pi / 6),  # Left wing
+            end[1] - arrow_size * math.sin(angle - math.pi / 6)),
+
+            (end[0] - arrow_size * math.cos(angle + math.pi / 6),  # Right wing
+            end[1] - arrow_size * math.sin(angle + math.pi / 6)),
+
+            end  # Arrow tip
+        ]
+
+        # Draw the arrowhead as a polygon
+        pygame.draw.polygon(screen, color, arrow_points)
+        return
 
     def _disp_graveyard(self, graveyard: Graveyard):
         """
