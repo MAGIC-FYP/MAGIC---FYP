@@ -4,6 +4,7 @@ from models.player import BasePlayer, HumanPlayer
 from models.controller import Controller
 from models.graveyard import Graveyard
 from gui.chess_gui import Display
+from models.log import logger
 import time
 from algorithms.algorithms_expanding_aStar import find_path, crowd_control
 
@@ -12,6 +13,7 @@ class Board:
         self.board = chess.Board()
         self.controller = controller
         self.graveyard = Graveyard()
+        self.logger = logger()
         self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.path_extra = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.white_player: Optional[BasePlayer] = None
@@ -87,6 +89,7 @@ class Board:
             return
             
         print("Starting new chess game!")
+        self.logger.log("Starting new chess game")
 
         # # Ensure the controller is calibrated
         # if not self.controller.calibrated:
@@ -97,7 +100,7 @@ class Board:
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
             display.disp_board(self.board, self.graveyard, self.current_player)
-
+            self.logger.log(f"board fen:\t{self.board.fen()}")
             if type(self.current_player) == HumanPlayer:
                 move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
                 
@@ -108,15 +111,18 @@ class Board:
                 move = self.current_player.get_move(self.board)
 
             if move:
-
+                self.logger.log(f"attempted move:\t{move}")
                 if self.make_move(move):
                     self.path = crowd_control(self.board, move, self.graveyard, 4)
                     display.path = self.path 
                     self.switch_player()
+                    self.logger.log(f"move success")
                 else:
                     print("Invalid move.")
             else:
                 print("No legal moves available.")
                 break
+            
+        self.logger.end_log()
 
             
