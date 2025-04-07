@@ -1,4 +1,8 @@
-# Welcome to MkDocs
+# Controller Documentation
+
+## Content Tabs
+
+This is some examples of content tabs.
 
 For full documentation visit [mkdocs.org](https://www.mkdocs.org).
 
@@ -17,7 +21,5 @@ For full documentation visit [mkdocs.org](https://www.mkdocs.org).
         ...       # Other markdown pages, images and other files.
 
 
-## Content Tabs
 
-This is some examples of content tabs.
 
