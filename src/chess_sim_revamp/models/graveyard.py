@@ -123,6 +123,7 @@ class Graveyard():
         else:
             print(f"Invalid graveyard coordinate: {coord}")
             return False
+        
     def place_piece(self, piece: chess.Piece):
         """Places a captured piece in the lowest available spot within its category."""
         lowest_spot = self.get_lowest_available(piece)
@@ -184,12 +185,9 @@ class Graveyard():
                 empty_squares.append(self.get_coord_column_row(sq))
         return empty_squares
     
-    
     def get_surface_from_gy_coord(self, coord, surface_size= [5*12,5*8]):
         return (coord[0] * (surface_size[0] // 12)-(surface_size[1] / (8*2)), coord[1] * (surface_size[1] // 8)-(surface_size[1] / (8*2)))
 
-###############################################################################################################
-###############################################################################################################
     def pre_loaded_graveyard(self, fen):  # Dont think its reading the global file correctly
         """Determines which pieces have been captured and places them in the graveyard."""
         print('Gameloading')
