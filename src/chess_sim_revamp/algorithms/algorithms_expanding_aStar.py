@@ -1,5 +1,6 @@
 import algorithms.a_star as aStar
 import chess
+import time
 from models.graveyard import Graveyard
 
 
@@ -62,7 +63,7 @@ def get_obstacle_list(board: chess.Board, move, graveyard: Graveyard, points_to_
     return obstacle_list
 
 
-def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,radius, check_interval = 0.2, surface_size=[5*12,5*8]):
+def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,radius, check_interval = 0.2, surface_size=[5*12,5*8], log=False):
     moves = []
     moved_pieces = []
     unavailable_squares=[]
@@ -70,6 +71,7 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,rad
     moved_pieces_paths = []
     undo_moves = []
     r=1
+    time_out = 5
 
     start = square_to_surface_coord(move.from_square)
     finish = square_to_surface_coord(move.to_square)
@@ -77,13 +79,15 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,rad
     unavailable_squares.append(finish)
 
     obstacle_list = get_obstacle_list(board, (start, finish), graveyard)
-
+    start_time = time.time()
     while r<radius:
         try:
             path = aStar.astar_activate(start, goal= finish, radius = r, obstacle_list=obstacle_list)
             r=r+check_interval
         except:
-
+            if start_time+time_out <= time.time():
+                log.log(f"crowd_control time out: took longer then {time_out} seconds")
+                return False
             #find neerest piece to path
             nearest_piece = None
             nearest_square = None

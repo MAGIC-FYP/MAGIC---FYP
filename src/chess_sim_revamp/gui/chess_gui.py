@@ -224,6 +224,22 @@ class Display:
             if last_move.from_square == col + row * 8 or last_move.to_square == col + row * 8:
                 pygame.draw.rect(self.screen, (220, 220, 0), ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8), 5)  # Highlight the square with a yellow border
 
+    def _display_rank_file(self, col, row):
+        """
+        Displays the rank and file of each square to the right of the square.
+        
+        This method displays the rank and file of each square to the right of the square.
+        
+        Parameters:
+        - col: int - The column of the square.
+        - row: int - The row of the square.
+        """
+        topness = 20
+        font = pygame.font.Font(None, 15)
+        text = font.render(f"{chr(97 + col)}{row + 1}", True, (0, 0, 0))
+        text_rect = text.get_rect(center=((col + 2) * (self.board_size // 8) + (self.board_size // 16) + (self.board_size // topness), row * (self.board_size // 8) + (self.board_size // 16) + (self.board_size // 8) - (self.board_size // topness)))
+        self.screen.blit(text, text_rect)
+
     def _get_square_color(self, row, col):
         """
         Returns the color of a square based on its position.
@@ -251,6 +267,7 @@ class Display:
         """
         square_color = self._get_square_color(row, col)
         pygame.draw.rect(self.screen, square_color, ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
+        self._display_rank_file(col, row)
 
     def _draw_piece(self, piece, col, row):
         """
@@ -460,4 +477,6 @@ class Display:
             
             time.sleep(0.01)  # Prevent high CPU usage
         
-        
+    def close_disp(self):
+        pygame.quit()
+        sys.exit()

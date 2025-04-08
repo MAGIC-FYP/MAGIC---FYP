@@ -107,13 +107,15 @@ class Board:
                 
                 
             else:
-                time.sleep(5)
+                #time.sleep(5) #just to see player path 
                 move = self.current_player.get_move(self.board)
 
             if move:
                 self.logger.log(f"attempted move:\t{move}")
                 if self.make_move(move):
-                    self.path = crowd_control(self.board, move, self.graveyard, 4)
+                    self.path = crowd_control(self.board, move, self.graveyard, 4, log = self.logger)
+                    if self.path == False:
+                        break
                     display.path = self.path 
                     self.switch_player()
                     self.logger.log(f"move success")
@@ -122,7 +124,8 @@ class Board:
             else:
                 print("No legal moves available.")
                 break
-            
+
         self.logger.end_log()
+        display.close_disp()
 
             
