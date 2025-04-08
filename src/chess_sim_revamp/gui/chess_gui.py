@@ -14,11 +14,12 @@ from algorithms.algorithms_expanding_aStar import find_path, screen_to_surface_c
 pygame.init()
 
 class Display:
-    def __init__(self, board_size=600):
+    def __init__(self, board_size=600, log=False):
         """
         Initialize the display with a default screen size of 600.
         """
         self.board_size = board_size
+        self.logger = log
         self.screen_size = (self.board_size+(self.board_size/2), self.board_size+(self.board_size/8))
         self.screen = pygame.display.set_mode(self.screen_size)
         self.selected_square = False
@@ -366,6 +367,9 @@ class Display:
                     self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
                     board.reset()
                     graveyard.reset()
+                    if self.logger:
+                        self.logger.log("Reset Board")
+                        self.logger.log(f"New fen: {board.fen()}")
 
                 elif self.mouse_loc_button.collidepoint(mouse_x, mouse_y):
                     self.show_mouse_coords = not self.show_mouse_coords

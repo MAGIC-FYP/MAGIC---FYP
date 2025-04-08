@@ -71,7 +71,7 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard,rad
     moved_pieces_paths = []
     undo_moves = []
     r=1
-    time_out = 5
+    time_out = 10
 
     start = square_to_surface_coord(move.from_square)
     finish = square_to_surface_coord(move.to_square)

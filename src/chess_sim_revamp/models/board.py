@@ -94,7 +94,7 @@ class Board:
         # # Ensure the controller is calibrated
         # if not self.controller.calibrated:
         #     self.controller.calibrate()
-        display = Display()
+        display = Display(log= self.logger)
         
         while not self.is_game_over():
             print("\n" + "-" * 40)
@@ -125,6 +125,16 @@ class Board:
                 print("No legal moves available.")
                 break
 
+        result = self.board.result()
+        if result == "1-0":
+            self.logger.log("Game over, result: White wins")
+            print("White wins!")
+        elif result == "0-1":
+            self.logger.log("Game over, result: Black wins")
+            print("Black wins!")
+        elif result == "1/2-1/2":
+            self.logger.log("Game over, result: Draw")
+            print("It's a draw!")
         self.logger.end_log()
         display.close_disp()
 
