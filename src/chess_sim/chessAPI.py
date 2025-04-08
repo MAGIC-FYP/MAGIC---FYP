@@ -91,12 +91,18 @@ def get_active_game():
     headers = {"Authorization": f"Bearer {API_TOKEN}"}
     response = requests.get(f"{BASE_URL}/account/playing", headers=headers)
     data = response.json()
-    if "nowPlaying" in data and len(data["nowPlaying"]) > 0:
-        print('SUCCESS: Active Game Found')
-        print(data)#["nowPlaying"][0]["gameId"])
-        return data["nowPlaying"][0]["gameId"]
-    print('Whomp Whomp: No Game Found')
+    print(data)
+
+    if "nowPlaying" in data:
+        for game in data["nowPlaying"]:
+            if game.get("isMyTurn", False):  # Only pick games where it's your turn
+                print('SUCCESS: Active Game Found')
+                print(game)
+                return game["gameId"]
+                
+    print('Whomp Whomp: No Active Game Where It’s Your Turn')
     return None
+
 
 def send_move(game_id, move):
     headers = {"Authorization": f"Bearer {API_TOKEN}"}
