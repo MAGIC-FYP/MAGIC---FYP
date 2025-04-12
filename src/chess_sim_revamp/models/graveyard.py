@@ -2,17 +2,6 @@ from enum import Enum
 import chess
 
 class GraveyardSquare(Enum):
-    '''
-    Enum for graveyard squares numbered 1-32
-
-    King will never be in the grave so we will have a queen alread located in the GY.
-    Odd = W, Even = B
-
-    Edge columns will contain the pawns as they will never come back once they are killed.
-    The inner column on either side of the board will contain the other pieces.
-    From W perspective, B queen will be next to them, likewise for    B opponent.
-    Then it'll go, queen 2, rook 1 & 2, bishop 1 & 2, knight 1 & 2
-    '''
     # Queens
     w_Q1 = 1
     b_Q1 = 2
@@ -264,13 +253,3 @@ def generate_graveyard_coordinates():
     return graveyard_coords
 
 graveyard_coordinates = generate_graveyard_coordinates()
-
-
-"""Setting up the graveyard given a pre-loaded board state"""
-def preLoadedGraveyard(): # FEN String INPUT
-    # Input will be a board state
-    # Go through chess list
-    # Remove pieces from full chess list, the remaining peices need to be placed in graveyard
-    # Call place_piece function 
-
-    return 0

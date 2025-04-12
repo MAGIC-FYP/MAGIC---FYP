@@ -22,11 +22,25 @@ For full documentation visit [mkdocs.org](https://www.mkdocs.org).
 This is some examples of content tabs.
 
 
+
 ## GRAVEYARD.py
+### Notes
+King will never be in the grave so we will have a queen already located in the graveyard.
+
+Odd = W, Even = B
+
+Edge columns will contain the pawns as they will never come back once they are killed.
+The inner column on either side of the board will contain the other pieces.
+From W perspective, B queen will be next to them, likewise for the B opponent.
+Then it'll go, queen 2, rook 1 & 2, bishop 1 & 2, knight 1 & 2.
+
+At the start of the game each piece is given a spot in the grave, as pieces are removed the allocated spots change based on available places in the graveyard.
+
     class GraveyardSquare(Enum)
         Inputs: None
         Outputs: dict mapping GraveyardSquare → (x, y) positions
         Purpose: Defines and returns the physical layout (coordinates) of all 32 graveyard squares on the board.
+        Enum is used for graveyard squares numbered 1-32
 
     class Graveyard()
         Graveyard.__init__()
@@ -38,12 +52,14 @@ This is some examples of content tabs.
             Inputs: None
             Outputs: None
             Purpose: Clears all graveyard positions and resets it back to the initial state with one queen for each color.
+                     This is done by setting each spot to False as they are empty at the start.
 
         Graveyard.get_lowest_available(piece)
             Inputs: piece: chess.Piece
             Outputs: GraveyardSquare or None
             Purpose: Finds the lowest-numbered available graveyard square that matches the piece type and color.
-
+                     A piece is removed from the board, the system determines: colour and type, it then finds the lowest avaible spot for the piece type.
+        
         Graveyard.place_piece_at(coord, piece)
             Inputs: coord: tuple, piece: chess.Piece
             Outputs: bool
@@ -87,15 +103,15 @@ This is some examples of content tabs.
         Graveyard.get_surface_from_gy_coord(coord, surface_size=[60, 40])
             Inputs: coord: (int, int), optional surface_size: [int, int]
             Outputs: (x, y)
-            Purpose: Converts grid (col, row) into pixel/surface position for rendering on a 2D interface.
+            Purpose: Converts grid (col, row) into pixel/surface position for rendering on a 2D interface. Can help with debugging
 
         Graveyard.pre_loaded_graveyard(fen)
             Inputs: fen: str
             Outputs: None
-            Purpose: Parses a FEN string, determines which pieces have been captured, and places them in the graveyard.
+            Purpose: Goes through a given FEN string and determines which pieces have been captured, and places them in the graveyard.
 
-    preLoadedGraveyard()
+    generate_graveyard_coordinates():
         Inputs: None
-        Outputs: int (always returns 0)
-        Purpose: Placeholder; doesn’t currently do anything useful. May be legacy or stub function.
+        Outputs: None
+        Purpose: The function will automatically assign the GY locations for all pieces. This will be used by the gantry.
 
