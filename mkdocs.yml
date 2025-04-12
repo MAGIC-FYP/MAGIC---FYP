@@ -1,7 +1,14 @@
 site_name: MAGIC Documentation
 theme:
   name: material
+  features:
+    - navigation.sections
+    - toc.integrate 
+    - content.code.annotate
+    - navigation.tabs
+    - toc.follow
   palette:
+    scheme: slate
     primary: purple
     accent: light green
   font:
@@ -12,6 +19,8 @@ theme:
     
 markdown_extensions:
   - attr_list
+  - toc:
+      toc_depth: 2  # Only show H1&2 in TOC
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg

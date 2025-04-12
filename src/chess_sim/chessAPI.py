@@ -1,10 +1,9 @@
-''' File for all Chess.com related functions '''
-# LiChess Token: lip_x73cN37xXXVy7EkHCbDa
+''' File for all Chess.com/LiChess related functions '''
 import berserk
 import re
 import time
 import requests
-# Alex's personal API token, I don't mind everyone using it 
+# Alex's personal API token
 API_TOKEN = 'lip_x73cN37xXXVy7EkHCbDa'
 BASE_URL = "https://lichess.org/api"
 session = berserk.TokenSession(API_TOKEN)
