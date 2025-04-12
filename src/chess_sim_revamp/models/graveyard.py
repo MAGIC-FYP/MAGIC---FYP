@@ -213,12 +213,23 @@ class Graveyard():
         print('Graveyard occupation:', self.occupied_position)
 
     def revive_piece(self, piece: chess.Piece):
+        '''Unsure if this works, as unsure if it will know which pawn to take to the graveyard, might have to add the pawn as an  input'''
+        # Move pawn to an available graveyard spot
+        pawn_piece = chess.Piece(chess.PAWN, piece.color)
+        pawn_coord = self.place_piece(pawn_piece)
+
+        if not pawn_coord:
+            print("No space available to place pawn in graveyard.")
+            return None, None
+
+        # Find and remove the promoted piece (e.g., Queen) from the graveyard
         for square, occupied in self.occupied_position.items():
             if isinstance(occupied, chess.Piece) and occupied.piece_type == piece.piece_type and occupied.color == piece.color:
-                self.occupied_position[square] = False  # Free up the spot
-                return square  # Or return coord if needed
-        print('Not in graveyard, please place that piece on the board')
-        return None  # No matching piece found
+                self.occupied_position[square] = False
+                return square, pawn_coord  # Square the piece was revived from, and pawn's new grave spot
+
+        print(f"No matching piece in graveyard to revive: {piece}")
+        return None, pawn_coord  # Pawn was placed, but no piece to revive
 
 '''This function will automatically assign the GY locations for all pieces'''
 def generate_graveyard_coordinates():
