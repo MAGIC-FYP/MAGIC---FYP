@@ -212,6 +212,14 @@ class Graveyard():
             print("BANG")
         print('Graveyard occupation:', self.occupied_position)
 
+    def revive_piece(self, piece: chess.Piece):
+        for square, occupied in self.occupied_position.items():
+            if isinstance(occupied, chess.Piece) and occupied.piece_type == piece.piece_type and occupied.color == piece.color:
+                self.occupied_position[square] = False  # Free up the spot
+                return square  # Or return coord if needed
+        print('Not in graveyard, please place that piece on the board')
+        return None  # No matching piece found
+
 '''This function will automatically assign the GY locations for all pieces'''
 def generate_graveyard_coordinates():
     graveyard_coords = {}

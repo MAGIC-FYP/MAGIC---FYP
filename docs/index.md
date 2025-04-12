@@ -141,6 +141,15 @@ At the start of the game each piece is given a spot in the grave, as pieces are 
             Inputs: fen: str
             Outputs: None
             Purpose: Goes through a given FEN string and determines which pieces have been captured, and places them in the graveyard.
+        
+        Graveyard.revive_piece(piece: chess.Piece):
+            Input: piece (The promoted piece type and player colour)
+            Output: Graveyard coord square or None if there are no spare pieces in there
+            Purpose: Revives a matching piece from the graveyard for promotion.
+                     Removes the first matching piece found and returns its original graveyard square.
+            Current how to use:
+            promotion_piece = chess.Piece(chess.QUEEN, chess.WHITE)
+            revived_square = graveyard.revive_piece(promotion_piece)
 
     generate_graveyard_coordinates():
         Inputs: None

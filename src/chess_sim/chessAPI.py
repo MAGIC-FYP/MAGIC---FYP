@@ -99,7 +99,7 @@ def get_active_game():
                 print(game)
                 return game["gameId"]
                 
-    print('Whomp Whomp: No Active Game Where It’s Your Turn')
+    print("Whomp Whomp: No Active Game Where It’s Your Turn")
     return None
 
 
@@ -125,7 +125,10 @@ else:
 #####################################
 ######## OLD CHESS.COM TESTS ########
 #####################################
-# import chessdotcom 
+######### No API access :( ##########
+#####################################
+
+# # import chessdotcom 
 # from chessdotcom import get_player_game_archives
 # import requests
 # import chess.pgn
