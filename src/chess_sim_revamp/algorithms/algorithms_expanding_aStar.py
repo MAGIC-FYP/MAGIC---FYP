@@ -117,7 +117,7 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard, ra
             
             state['unavailable_squares'].append(nearest_square)
             
-            print(f"nearest_pieces: {nearest_pieces}\n")
+            #print(f"nearest_pieces: {nearest_pieces}\n")
             # Find target square to move the piece to
             target_square, better_square = _find_target_square(
                 board, graveyard, path, state, nearest_square
