@@ -23,7 +23,7 @@ def main():
     chess_board.setup_players(white_player, black_player)
     #chess_board.set_fen('8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1')
     
-    fen = 'r1b2b1r/ppp1pkpp/8/8/2Pn4/2N2qP1/PP1P1P1P/R1B2RK1 w - - 4 11'
+    fen = 'rnbqkb1r/pppppppp/7n/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 1 2'
     chess_board.set_fen(fen)
     
     # Start the game

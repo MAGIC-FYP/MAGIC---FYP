@@ -196,7 +196,7 @@ class Graveyard():
         for piece in letters:
             if piece in initial_pieces:
                 initial_pieces.remove(piece)
-        print('To place:', initial_pieces)
+        # print('To place:', initial_pieces)
         # The remaining pieces need to be placed in the graveyard
         # Convert to chess.Piece objects before placing
         piece_mapping = {
@@ -210,7 +210,7 @@ class Graveyard():
             piece_obj = chess.Piece(piece_type, color)
             self.place_piece(piece_obj)
             print("BANG")
-        print('Graveyard occupation:', self.occupied_position)
+        #print('Graveyard occupation:', self.occupied_position)
 
     def revive_piece(self, piece: chess.Piece):
         '''Unsure if this works, as unsure if it will know which pawn to take to the graveyard, might have to add the pawn as an  input'''
