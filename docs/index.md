@@ -213,3 +213,118 @@ Important stuff:
         How it works:
         - Uses a POST request to the /board/game/{game_id}/move/{move} endpoint with authorization.
         - Returns the result of the request for logging or debugging.
+
+## chess_gui.py
+#### Notes
+This file contains all functions for chess GUI handling.
+
+    class Display:
+        Purpose: Handles the display of the chess board and graveyard.
+        Key Attributes:
+                    - board_size: Size of the board in pixels.
+                    - logger: Boolean indicating if logging is enabled.
+                    - screen_size: Size of the screen in pixels.
+                    - screen: Pygame screen object.
+                    - selected_square: Boolean indicating if a square is selected.
+                    - message: String to be displayed on the screen.
+                    - path: Dictionary storing path information for display.
+                    - path_extra: Additional path information for display.
+                    - show_path: Boolean indicating if paths should be shown.
+                    - legal_moves: List of legal moves.
+                    - show_mouse_coords: Boolean indicating if mouse coordinates should be shown.
+                    - output_state_button: Button for outputting board state.
+                    - reset_button: Button for resetting the game.
+                    - mouse_loc_button: Button for showing mouse coordinates.
+                    - show_path_button: Button for showing paths.
+                    - graveyard_squares_white: List of white graveyard squares.
+                    - graveyard_squares_black: List of black graveyard squares.
+                    - graveyard_squares: Combined list of graveyard squares.
+
+        disp_board(board, graveyard, current_player):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player)
+            Outputs: None
+            Purpose: Displays the chess board and graveyard.
+
+        _disp_graveyard(graveyard):
+            Inputs: graveyard (Graveyard)
+            Outputs: None
+            Purpose: Displays the graveyard.
+
+        _disp_playing_board(board):
+            Inputs: board (chess.Board)
+            Outputs: None
+            Purpose: Displays the playing board.
+
+        _top_text(current_player):
+            Inputs: current_player (Player)
+            Outputs: None
+            Purpose: Displays the current player's turn at the top of the screen.
+
+        _disp_button(button, button_label):
+            Inputs: button (pygame.Rect), button_label (str)
+            Outputs: None
+            Purpose: Displays a button on the screen with a given label.
+
+        display_promotion_box(board, graveyard, current_player, piece, to_square):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player), piece (chess.Piece), to_square (int)
+            Outputs: str
+            Purpose: Displays a box with promotion options and returns the selected piece.
+
+        close_disp():
+            Inputs: None
+            Outputs: None
+            Purpose: Closes the display.
+
+        handle_events(board):
+            Inputs: board (chess.Board)
+            Outputs: bool
+            Purpose: Handles the events in the game.
+
+        handle_mouse_click(board, graveyard, current_player):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player)
+            Outputs: int
+            Purpose: Handles the mouse click events and returns the board coordinates of the mouse click.
+
+        get_next_move_from_click(board, graveyard, current_player):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player)
+            Outputs: chess.Move
+            Purpose: Handles the mouse click events and returns the next move.
+
+        display_promotion_box(board, graveyard, current_player, piece, to_square):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player), piece (chess.Piece), to_square (int)
+            Outputs: str
+            Purpose: Displays a box with promotion options and returns the selected piece.
+
+        close_disp():
+            Inputs: None
+            Outputs: None
+            Purpose: Closes the display.
+
+        handle_events(board):
+            Inputs: board (chess.Board)
+            Outputs: bool
+            Purpose: Handles the events in the game.
+
+        handle_mouse_click(board, graveyard, current_player):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player)
+            Outputs: int
+            Purpose: Handles the mouse click events and returns the board coordinates of the mouse click.
+
+        get_next_move_from_click(board, graveyard, current_player):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player)
+            Outputs: chess.Move
+            Purpose: Handles the mouse click events and returns the next move.
+
+        display_promotion_box(board, graveyard, current_player, piece, to_square):
+            Inputs: board (chess.Board), graveyard (Graveyard), current_player (Player), piece (chess.Piece), to_square (int)
+            Outputs: str
+            Purpose: Displays a box with promotion options and returns the selected piece.
+
+        close_disp():
+            Inputs: None
+            Outputs: None
+            Purpose: Closes the display.
+
+        handle_events(board):
+            Inputs: board (chess.Board)
+            Outputs: bool
