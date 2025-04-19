@@ -8,6 +8,8 @@ For full documentation visit [mkdocs.org](https://www.mkdocs.org).
 * `mkdocs serve` - Start the live-reloading docs server.
 * `mkdocs build` - Build the documentation site.
 * `mkdocs -h` - Print help message and exit.
+* `pip install mkdocs` - might need to install to open
+* `pip install mkdocs-material` - might need to install to open
 
 ### Project layout
 
@@ -17,7 +19,7 @@ For full documentation visit [mkdocs.org](https://www.mkdocs.org).
         ...       # Other markdown pages, images and other files.
 
 
-## player.py
+## models/player.py
 #### Notes
 This file is used to set up the players in the game, there are multiple types of chess players. It defines a base class (BasePlayer) and several subclasses to represent human players, simple computer opponents, an AI-powered player using Stockfish, and a replay system for archived games.
 
@@ -55,7 +57,7 @@ Each player class implements the get_move(board) method to move pieces.
                     - current_move_index: Tracks replay progress.
 
 
-## GRAVEYARD.py
+## models/graveyard.py
 #### Notes
 King will never be in the grave so we will have a queen already located in the graveyard.
 
@@ -158,7 +160,7 @@ At the start of the game each piece is given a spot in the grave, as pieces are 
         Outputs: None
         Purpose: The function will automatically assign the GY locations for all pieces. This will be used by the gantry.
 
-## chessAPI.py
+## models/chessAPI.py
 #### Notes
 Just like the name suggests this file handles all API related functions. All functions are currently only for LiChess.org, however may
 use Chess.com eventually. 
@@ -214,7 +216,7 @@ Important stuff:
         - Uses a POST request to the /board/game/{game_id}/move/{move} endpoint with authorization.
         - Returns the result of the request for logging or debugging.
 
-## chess_gui.py
+## gui/chess_gui.py
 #### Notes
 This file contains all functions for chess GUI handling.
 
@@ -328,3 +330,224 @@ This file contains all functions for chess GUI handling.
         handle_events(board):
             Inputs: board (chess.Board)
             Outputs: bool
+
+## algorithms/a_star.py
+#### Notes
+This file contains the implementation of the A* pathfinding algorithm.
+
+    astar(map, start_pos, end_pos, allow_diagonal_movement = True, surface_size=[5*12,5*8], res = 100):
+        Inputs:
+            - map (list of lists): 2D representation of the environment.
+            - start_pos (list of two ints): Starting position of the path.
+            - end_pos (list of two ints): Ending position of the path.
+            - allow_diagonal_movement (bool): Flag to allow diagonal movement.
+            - surface_size (list of two ints): Size of the surface in pixels.
+            - res (int): Resolution of the surface.
+        Outputs:
+            - list of tuples: The path from start to end.
+        Purpose: Finds the shortest path between two points in a 2D environment using the A* algorithm.
+        How it works:
+            - Initializes the start and end nodes.
+            - Uses a priority queue to explore the environment.
+            - Calculates the cost of reaching each node and the heuristic cost to the end.
+            - Backtracks from the end node to find the shortest path.
+
+    simplify_path(points, epsilon=1.0):
+        Inputs:
+            - points (list of tuples): List of (x, y) coordinates representing the path.
+            - epsilon (float): Sensitivity threshold to control the simplification.
+        Outputs:
+            - list of tuples: Simplified list of (x, y) points.
+        Purpose: Simplifies a given path by removing intermediate points in straight segments.
+        How it works:
+            - Finds the point with the maximum distance from the line formed by the first and last points.
+            - Recursively simplifies the two halves if the maximum distance is greater than epsilon.
+            - Merges results, excluding the duplicate point at the junction.
+
+    perpendicular_distance(point, start, end):
+        Inputs:
+            - point (tuple of two ints): Point to calculate distance for.
+            - start (tuple of two ints): Starting point of the line.
+            - end (tuple of two ints): Ending point of the line.
+        Outputs:
+            - float: The perpendicular distance from the point to the line.
+        Purpose: Calculates the perpendicular distance from a point to a line.
+        How it works:
+            - Uses the formula for perpendicular distance to calculate the distance.
+
+    calculate_h_cost(pos1, pos2):
+        Inputs:
+            - pos1 (tuple of two ints): First position.
+            - pos2 (tuple of two ints): Second position.
+        Outputs:
+            - float: The heuristic cost using octile distance.
+        Purpose: Calculates the heuristic cost using octile distance.
+        How it works:
+            - Uses the formula for octile distance to calculate the heuristic cost.
+
+    convert_to_grid_coords(pos, surface_size, res):
+        Inputs:
+            - pos (tuple of two ints): Position to convert.
+            - surface_size (list of two ints): Size of the surface in pixels.
+            - res (int): Resolution of the surface.
+        Outputs:
+            - list of two ints: Converted position in grid coordinates.
+        Purpose: Converts a position from pixel coordinates to grid coordinates.
+        How it works:
+            - Divides the position by the resolution to get the grid coordinates.
+
+    is_within_bounds(target, surface_size=[5*12,5*8]):
+        Inputs:
+            - target (tuple of two ints): Position to check.
+            - surface_size (list of two ints): Size of the surface in pixels.
+        Outputs:
+            - bool: True if the target is within bounds, False otherwise.
+        Purpose: Checks if a position is within the bounds of the surface.
+        How it works:
+            - Checks if the target position is within the bounds of the surface size.
+
+    Node:
+        Attributes:
+            - parent (Node): Parent node.
+            - position (tuple of two ints): Position of the node.
+            - g (int): Cost from the start node to this node.
+            - h (int): Heuristic cost from this node to the end node.
+            - f (int): Total cost of the node (g + h).
+        Methods:
+            - __eq__(other): Checks if two nodes are equal.
+            - __repr__(): Represents the node as a string.
+            - __lt__(other): Compares two nodes based on their f value.
+            - __gt__(other): Compares two nodes based on their f value.
+
+## algorithms/algorithms_expanding_aStar.py
+#### Overview
+This module handles pathfinding and obstacle avoidance for chess piece movement, including interactions between the main board and graveyard areas. It uses A* pathfinding with dynamic obstacle management to plan piece trajectories.
+
+#### Coordinate Systems
+1. **Chess Square Coordinates**: Standard 0-63 chess board representation
+2. **Surface Coordinates**: Pixel-based coordinates for pathfinding
+3. **Screen Coordinates**: Display coordinates for rendering
+
+### Core Functions
+
+#### Coordinate Conversion Functions
+    square_to_surface_coord(sq: chess.Square, surface_size=[5*12,5*8])
+        Inputs: 
+            - sq: chess square (0-63)
+            - surface_size: dimensions of playing surface
+        Outputs: (x, y) surface coordinates
+        Purpose: Converts chess board positions to pathfinding coordinates
+
+    surface_to_square_coord(coord, surface_size=[5*12,5*8])
+        Inputs: surface coordinates
+        Outputs: chess square (0-63)
+        Purpose: Converts pathfinding coordinates back to board positions
+
+    screen_to_surface_coord(coord, screen_size, surface_size=[5*12,5*8])
+        Inputs: screen pixel coordinates
+        Outputs: surface coordinates
+        Purpose: Maps display pixels to pathfinding space
+
+    is_on_playing_surface(coord, surface_size=[5*12,5*8])
+        Inputs: coordinates to check
+        Outputs: boolean
+        Purpose: Determines if coordinates are within main board bounds
+
+#### Pathfinding Functions
+    find_path(move: chess.Move, board: chess.Board)
+        Inputs:
+            - move: chess move to plan
+            - board: current board state
+        Outputs: List of path coordinates
+        Purpose: Finds obstacle-free path for a chess move using A*
+
+    get_obstacle_list(board: chess.Board, move, graveyard: Graveyard, ...)
+        Inputs:
+            - board: current board state
+            - move: planned move
+            - graveyard: graveyard instance
+            - exclusion/inclusion lists
+        Outputs: List of obstacle coordinates
+        Purpose: Compiles all obstacles for pathfinding
+
+#### Main Crowd Control Function
+    crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard, ...)
+        Inputs:
+            - board: current board state
+            - move: attempted move
+            - graveyard: graveyard instance
+            - radius: search radius
+            - check_interval: radius increment
+            - surface_size: dimensions
+            - log: logging flag
+        Outputs: Dictionary containing:
+            - moved_pieces_paths: paths for temporarily moved pieces
+            - path: final main path
+            - undo_moves: reversal paths
+        Purpose: Main function that:
+            1. Attempts direct path
+            2. Identifies and temporarily moves blocking pieces
+            3. Returns complete movement plan
+
+### Helper Functions (Internal)
+
+#### Movement Management
+    _move_piece_between_surfaces(board, graveyard, from_square, to_square)
+        Purpose: Handles piece transfers between board and graveyard
+        Returns: Moved piece object
+
+    _undo_all_moves(board, graveyard, state)
+        Purpose: Reverts all temporary moves after pathfinding
+
+#### Path Analysis
+    _find_nearest_pieces(board, graveyard, path, state, move)
+        Purpose: Identifies pieces blocking the path
+        Returns: Tuple of (nearest_piece, nearest_square, nearest_pieces)
+
+    _find_target_square(board, graveyard, path, state, nearest_square)
+        Purpose: Finds valid relocation spots for blocking pieces
+        Returns: Tuple of (target_square, better_square)
+
+#### Utility Functions
+    _check_timeout(state, log)
+        Purpose: Monitors operation duration
+        Returns: True if timeout reached
+
+    _update_nearest_pieces(...)
+        Purpose: Distance calculations for obstacle identification
+
+    _evaluate_square(...)
+        Purpose: Scores potential relocation squares
+
+    _move_piece_and_record_path(...)
+        Purpose: Executes and records temporary piece movements
+
+### Algorithm Characteristics
+1. **Dynamic Radius**: Expands search radius incrementally
+2. **Temporary Relocation**: Can move blocking pieces to:
+   - Empty board squares
+   - Graveyard positions
+3. **Time-aware**: Includes timeout protection
+4. **Bidirectional**: Handles both board and graveyard interactions
+
+### Usage Example
+```python
+# Initialize components
+board = chess.Board()
+graveyard = Graveyard()
+move = chess.Move(chess.E2, chess.E4)  # Sample move
+
+# Get movement plan
+result = crowd_control(
+    board=board,
+    move=move,
+    graveyard=graveyard,
+    radius=3,
+    check_interval=0.2
+)
+
+# Execute movements
+if result:
+    main_path = result["path"]
+    temp_moves = result["moved_pieces_paths"]
+    undo_paths = result["undo_moves"]
