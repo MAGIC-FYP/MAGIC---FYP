@@ -83,7 +83,6 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard, ra
         'piece_dist_tolerance': 0.2,
         'time_out': 10,
         'start_time': time.time()
-
     }
     
     start = state['start']
@@ -101,39 +100,62 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard, ra
     while state['r'] < radius:
         try:
             path = aStar.astar_activate(start, goal=finish, radius=state['r'], 
-                                        obstacle_list=obstacle_list)
+                                      obstacle_list=obstacle_list)
             state['r'] += check_interval
         except:
             if _check_timeout(state, log):
                 return False
             
-            # Find nearest pieces to path
-            nearest_piece, nearest_square, nearest_pieces = _find_nearest_pieces(
+            # Find all nearest pieces to path
+            nearest_pieces = _find_all_nearest_pieces(
                 board, graveyard, path, state, move
             )
             
-            if not nearest_piece:
+            if not nearest_pieces:
                 raise Exception("No pieces found near the path.")
             
-            state['unavailable_squares'].append(nearest_square)
-            
-            #print(f"nearest_pieces: {nearest_pieces}\n")
-            # Find target square to move the piece to
-            target_square, better_square = _find_target_square(
-                board, graveyard, path, state, nearest_square
-            )
-            
-            if target_square:
-                if better_square:
-                    target_square = better_square
+            # Try moving each piece to find a solution with just one move
+            solution_found = False
+            for nearest_piece, nearest_square in nearest_pieces:
+                if nearest_square in state['unavailable_pieces']:
+                    continue
+                    
+                state['unavailable_squares'].append(nearest_square)
                 
-                # Move the piece and record the path
-                _move_piece_and_record_path(
-                    board, graveyard, nearest_square, target_square, 
-                    state, radius, start, finish
+                # Find target square to move the piece to
+                target_square, better_square = _find_target_square(
+                    board, graveyard, path, state, nearest_square
                 )
-            else:
-                state['unavailable_pieces'].append(nearest_square)
+                
+                if target_square:
+                    if better_square:
+                        target_square = better_square
+                    
+                    # Try moving this piece to see if it creates a valid path
+                    _move_piece_and_record_path(
+                        board, graveyard, nearest_square, target_square, 
+                        state, radius, start, finish
+                    )
+                    
+                    # Check if this move created a valid path
+                    try:
+                        new_obstacle_list = get_obstacle_list(board, (start, finish), graveyard)
+                        path = aStar.astar_activate(start, goal=finish, radius=radius, 
+                                                  obstacle_list=new_obstacle_list)
+                        solution_found = True
+                        break
+                    except:
+                        # Undo this move and try the next piece
+                        _undo_last_move(board, graveyard, state)
+                        continue
+                else:
+                    state['unavailable_pieces'].append(nearest_square)
+            
+            if solution_found:
+                break
+                
+            if not solution_found and not nearest_pieces:
+                raise Exception("Couldn't find a solution by moving any single piece.")
             
             obstacle_list = get_obstacle_list(board, (start, finish), graveyard)
     
@@ -145,6 +167,68 @@ def crowd_control(board: chess.Board, move: chess.Move, graveyard: Graveyard, ra
         "path": path, 
         "undo_moves": state['undo_moves']
     }
+
+def _find_all_nearest_pieces(board, graveyard, path, state, move):
+    """Find all pieces near the given path, sorted by distance."""
+    nearest_pieces = []
+    
+    # Check board pieces
+    for square in range(64):
+        piece = board.piece_at(square)
+        if piece and square not in [move.from_square, move.to_square] and square_to_surface_coord(square) not in state['unavailable_pieces']:
+            distance = _calculate_min_distance_to_path(path, square_to_surface_coord(square))
+            if distance <= state['close_piece_dist'] + state['piece_dist_tolerance']:
+                nearest_pieces.append((piece, square_to_surface_coord(square), distance))
+    
+    # Check graveyard pieces
+    for piece_type in ['black', 'white']:
+        pieces = graveyard.get_black_pieces_positions() if piece_type == 'black' else graveyard.get_white_pieces_positions()
+        for piece in pieces:
+            if piece and graveyard.get_surface_from_gy_coord(piece[0]) not in state['unavailable_pieces']:
+                surface_coord = graveyard.get_surface_from_gy_coord(piece[0])
+                distance = _calculate_min_distance_to_path(path, surface_coord)
+                if distance <= state['close_piece_dist'] + state['piece_dist_tolerance']:
+                    nearest_pieces.append((piece, surface_coord, distance))
+    
+    # Sort by distance to path
+    nearest_pieces.sort(key=lambda x: x[2])
+    return [(p[0], p[1]) for p in nearest_pieces]
+
+def _calculate_min_distance_to_path(path, point):
+    """Calculate the minimum distance from a point to any point on the path."""
+    min_distance = float('inf')
+    for path_point in path:
+        distance = ((path_point[0] - point[0]) ** 2 + (path_point[1] - point[1]) ** 2) ** 0.5
+        if distance < min_distance:
+            min_distance = distance
+    return min_distance
+
+def _undo_last_move(board, graveyard, state):
+    """Undo the last move made during pathfinding."""
+    if not state['moved_pieces']:
+        return
+    
+    last_move = state['moved_pieces'].pop()
+    nearest_square = last_move[0]
+    target_square = last_move[1]
+    piece = last_move[2]
+    
+    if is_on_playing_surface(nearest_square):
+        if is_on_playing_surface(target_square):
+            board.remove_piece_at(surface_to_square_coord(target_square))
+            board.set_piece_at(surface_to_square_coord(nearest_square), piece)
+        else:
+            graveyard.remove_piece_at(target_square)
+            board.set_piece_at(surface_to_square_coord(nearest_square), piece)
+    else:
+        if is_on_playing_surface(target_square):
+            board.remove_piece_at(surface_to_square_coord(target_square))
+            graveyard.place_piece_at(nearest_square, piece)
+        else:
+            graveyard.remove_piece_at(target_square)
+            graveyard.place_piece_at(nearest_square, piece)
+    
+    state['moved_pieces_paths'].pop()
 
 # Helper functions
 

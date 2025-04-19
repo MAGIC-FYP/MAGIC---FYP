@@ -216,6 +216,173 @@ Important stuff:
         - Uses a POST request to the /board/game/{game_id}/move/{move} endpoint with authorization.
         - Returns the result of the request for logging or debugging.
 
+## models/log.py
+#### Overview
+This module implements a timestamped file logging system with automatic log rotation. Logs are stored in a dedicated directory with chronological organization and automatic cleanup of old files.
+
+### Key Features
+- Automatic daily log file creation
+- Timestamped log entries
+- Built-in log rotation
+- Thread-safe file operations
+- Clean shutdown handling
+
+### Class: logger
+#### Initialization
+    logger(log_name="log")
+        Inputs:
+            - log_name: Base name for log files (default: "log")
+        Initializes:
+            - Creates 'logs' directory if missing
+            - Generates timestamped log file
+            - Writes initialization header
+            - Performs log cleanup
+
+        File Naming Convention:
+            logs/log_name_YYYY-MM-DD_HH-MM-SS.txt
+
+#### Core Methods
+    log(message)
+        Inputs:
+            - message: String to log
+        Outputs: None
+        Behavior:
+            - Appends timestamped message to current log file
+            - Timestamp format: [YYYY-MM-DD HH:MM:SS]
+
+    end_log()
+        Inputs: None
+        Outputs: None
+        Purpose: 
+            - Writes termination marker to log
+            - Ensures clean log file closure
+
+#### Private Methods
+    _cleanup_old_logs(log_dir, keep=10)
+        Inputs:
+            - log_dir: Directory to clean
+            - keep: Number of recent logs to preserve
+        Behavior:
+            - Retains newest 'keep' log files
+            - Deletes older logs based on modification time
+        Sorting:
+            - Files sorted by mtime (newest first)
+
+#### File Management
+- Log Directory: ./logs/ (hardcoded)
+- File Encoding: System default
+- Write Mode: Append ('a')
+- Line Endings: OS-appropriate (\n or \r\n)
+
+#### Usage Example
+```python
+# Initialize logger
+log = logger("chess_engine")
+
+# Log events
+log.log("Initializing board")
+log.log(f"Detected {piece_count} pieces")
+
+# Application shutdown
+log.end_log()
+```
+
+## models/board.py
+#### Overview
+This module implements the core chess game logic, integrating player management, move validation, graveyard handling, and GUI interaction. It serves as the central controller for chess gameplay.
+
+### Key Components
+- **Chess Engine**: Uses python-chess for rules enforcement
+- **Player System**: Supports human and AI players
+- **Graveyard Integration**: Tracks captured pieces
+- **Pathfinding**: Uses A* for physical piece movement
+- **GUI Interface**: Optional graphical display
+
+### Class: Board
+#### Initialization
+    Board(controller: Controller)
+        Inputs:
+            - controller: Hardware controller interface
+        Initializes:
+            - Chess board state
+            - Graveyard system
+            - Logger instance
+            - Path tracking structures
+            - Player references (None initially)
+
+#### Core Methods
+    set_fen(fen: str) -> None
+        Inputs: FEN string representing board state
+        Behavior:
+            - Loads board position
+            - Updates current player
+            - Preloads graveyard with captured pieces
+
+    setup_players(white_player: BasePlayer, black_player: BasePlayer) -> None
+        Inputs: Two player instances (white and black)
+        Purpose: Assigns players to the game
+
+    switch_player() -> None
+        Purpose: Alternates current player between white and black
+
+    make_move(move: chess.Move) -> bool
+        Inputs: Chess move to attempt
+        Returns: True if move was valid and executed
+        Behavior:
+            - Handles piece capture/graveyard placement
+            - Updates move history
+            - Pushes move to chess engine
+
+    is_game_over() -> bool
+        Returns: True if game termination condition reached
+        Checks: Checkmate, stalemate, or draw conditions
+
+#### Gameplay Methods
+    play_game() -> None
+        Purpose: Runs console-based game loop
+        Flow:
+            1. Validates player setup
+            2. Alternates turns until game ends
+            3. Prints board state each turn
+
+    play_game_gui() -> None
+        Purpose: Runs GUI-based game loop
+        Features:
+            - Graphical board display
+            - Human player input via GUI
+            - AI player automatic moves
+            - Path visualization
+            - Comprehensive logging
+
+#### Supporting Attributes
+- path: Dictionary storing current move path data
+- path_extra: Additional path storage
+- move_history: List of all moves made
+- dead_pieces: List of captured pieces
+- logger: Logging instance
+
+### Integration Points
+1. **Controller**: Hardware interface for physical movement
+2. **Graveyard**: Captured piece management
+3. **Display**: GUI visualization (chess_gui.py)
+4. **Players**: Human/AI player implementations
+5. **Algorithms**: Pathfinding (algorithms_expanding_aStar.py)
+
+### Usage Example
+```python
+# Initialize system
+controller = Controller()
+board = Board(controller)
+
+# Set up players
+human = HumanPlayer()
+ai = AIPlayer()
+board.setup_players(human, ai)
+
+# Start GUI game
+board.play_game_gui()
+```
+
 ## gui/chess_gui.py
 #### Notes
 This file contains all functions for chess GUI handling.
@@ -650,10 +817,3 @@ print(f"Current position: ({status['x_pos']}, {status['y_pos']})")
 gantry.stop()
 ```
 
-# Crowd Control
-
-Description of the crowd control functionality...
-
-## Subheadings (if needed)
-
-More details...
