@@ -189,14 +189,14 @@ Important stuff:
         Output: None (prints the latest moves to the console, there is a delay to prevent cheating sadly)
         Purpose: Get real time moves from an online game
         How it works:
-        - Finds the user’s current live game using export_by_player(..., ongoing=True).
+        - Finds the user's current live game using export_by_player(..., ongoing=True).
         - Tracks the number of moves already made.
         - In a loop, repeatedly checks for new moves using client.games.export.
         - Prints new moves as they are made by each player (delayed though).
 
     get_active_game():
         Input: None
-        Output: gameId (str or None): Returns the game ID if it’s your turn; otherwise returns None
+        Output: gameId (str or None): Returns the game ID if it's your turn; otherwise returns None
         Purpose: This function is linked to the API token (will only work with the token owners games)
                  Detect if there is an active game where it's the logged-in user's turn.
                  This function will be used with 'send_move()'
@@ -551,3 +551,109 @@ if result:
     main_path = result["path"]
     temp_moves = result["moved_pieces_paths"]
     undo_paths = result["undo_moves"]
+```
+
+## gantry_control/gantry.py
+#### Overview
+This module implements precise control for a dual-motor gantry system, converting Cartesian coordinates to motor movements with velocity control. The system models physical gantry behavior including position tracking and motor kinematics.
+
+### Coordinate Systems
+1. **Cartesian Coordinates**: (x, y) positions in centimeters
+2. **Motor Coordinates**: Left/right motor positions in radians
+3. **Velocity Space**: Movement velocities in cm/s (Cartesian) and rad/s (motor)
+
+### Class: GantryControl
+#### Initialization
+    GantryControl(max_x: float, max_y: float, motor_radius: float)
+        Inputs:
+            - max_x: Maximum x-axis travel (cm)
+            - max_y: Maximum y-axis travel (cm)
+            - motor_radius: Radius of drive motors (cm)
+        Initializes:
+            - Position tracking (x, y, motor angles)
+            - Velocity tracking
+            - Transformation matrix M for motor control
+
+#### Core Methods
+    initialise()
+        Inputs: None
+        Outputs: None
+        Purpose: Placeholder for system initialization routine
+        TODO: Implement hardware initialization sequence
+
+    move(x: float, y: float, vel: float)
+        Inputs:
+            - x: Target x-position (cm)
+            - y: Target y-position (cm)
+            - vel: Movement velocity (cm/s)
+        Outputs: None
+        Behavior:
+            1. Validates target position
+            2. Calculates movement vector
+            3. Converts to motor velocities
+            4. Simulates movement over time
+            5. Updates position tracking
+        Throws:
+            - ValueError if target exceeds bounds
+
+    stop()
+        Inputs: None
+        Outputs: None
+        Purpose: Immediately halts all movement
+        TODO: Implement hardware stop command
+
+    home()
+        Inputs: None
+        Outputs: None
+        Purpose: Homes the gantry system
+        TODO: Implement homing routine/position recovery
+
+    get_status()
+        Inputs: None
+        Outputs: Dictionary containing:
+            - x_pos: Current x-position (cm)
+            - y_pos: Current y-position (cm)
+            - l_motor_pos: Left motor position (rad)
+            - r_motor_pos: Right motor position (rad)
+            - l_motor_vel: Left motor velocity (rad/s)
+            - r_motor_vel: Right motor velocity (rad/s)
+        TODO: Replace with actual encoder readings
+
+#### Movement Mathematics
+The class implements the following motor control equations:
+
+1. **Velocity Conversion**:
+[ω_l] (1/r) [ 1 -1][v_x]
+[ω_r] = [-1 -1][v_y]
+Where:
+- ω = motor angular velocity (rad/s)
+- r = motor radius (cm)
+- v = Cartesian velocity (cm/s)
+
+2. **Position Tracking**:
+- Cartesian positions updated via linear interpolation
+- Motor positions integrated from velocities over time
+
+#### Usage Example
+```python
+# Initialize gantry with 100cm x 100cm workspace and 5cm motor radius
+gantry = GantryControl(max_x=100, max_y=100, motor_radius=5)
+
+# Move to position (50, 30) at 10cm/s velocity
+gantry.move(x=50, y=30, vel=10)
+
+# Get current status
+status = gantry.get_status()
+print(f"Current position: ({status['x_pos']}, {status['y_pos']})")
+
+# Emergency stop
+gantry.stop()
+```
+
+# Crowd Control
+
+Description of the crowd control functionality...
+
+## Subheadings (if needed)
+
+More details...
