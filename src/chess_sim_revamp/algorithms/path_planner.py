@@ -230,7 +230,7 @@ class Board:
             symbol = self.piece_symbols['Q' if is_white else 'q']
             text_color = 'black' if is_white else 'white'
             
-            circle = Circle((x, y), self.square_size / 3, 
+            circle = Circle((x, y), 20, 
                           facecolor=facecolor, edgecolor=edgecolor, alpha=0.7)
             ax.add_patch(circle)
             ax.text(x, y, symbol, ha='center', va='center', color=text_color, fontsize=16)
@@ -269,7 +269,7 @@ class Board:
         piece = self.get_piece_at_position(x, y, tolerance)
 
         G = nx.Graph()
-        G.add_node((x,y))
+        G.add_node((x,y)) # Addition of the starting point to the graph
         grid_points = []
         for i in range(self.width):
             for j in range(self.height):
@@ -285,7 +285,8 @@ class Board:
         
         for point in list(G.nodes()):
             point_x, point_y = point
-            diagonal_weight = 2
+            diagonal_weight = 4
+            L_shape_weight = 10
             
             straight_directions = [
                 (point_x + 50, point_y, 1),  # right
@@ -300,8 +301,19 @@ class Board:
                 (point_x - 50, point_y + 50, diagonal_weight),  # up-left
                 (point_x - 50, point_y - 50, diagonal_weight)   # down-left
             ]
+
+            L_shape_directions = [  
+                (point_x + 100, point_y+50, L_shape_weight),
+                (point_x + 100, point_y-50, L_shape_weight),
+                (point_x - 100, point_y+50, L_shape_weight),
+                (point_x - 100, point_y-50, L_shape_weight),
+                (point_x + 50, point_y+100, L_shape_weight),
+                (point_x + 50, point_y-100, L_shape_weight),
+                (point_x - 50, point_y+100, L_shape_weight),
+                (point_x - 50, point_y-100, L_shape_weight),
+            ]
             
-            for adjacent_x, adjacent_y, weight in straight_directions + diagonal_directions:
+            for adjacent_x, adjacent_y, weight in straight_directions + diagonal_directions + L_shape_directions:
                 if (adjacent_x, adjacent_y) in G.nodes():
                     G.add_edge(point, (adjacent_x, adjacent_y), weight=weight)
         
@@ -346,8 +358,8 @@ class Board:
                 if target_point:
                     path_to_target = paths[target_point]
                     return path_to_target
-
-            return distances, paths
+            
+            return None, distances, paths
         except nx.NetworkXNoPath:
             return {}
 
@@ -550,23 +562,27 @@ class Board:
     def get_path_from_move(self, move: chess.Move) -> List[Tuple[int, int]]:
         pass
         
-        
+if __name__ == "__main__":
+    board = Board()
+    random_fen = generate_random_fen(total_pieces=18)
+    board.place_from_fen('5K2/P1k2P1P/2N1P1p1/1p2bppQ/Pp1P1R2/1NRP2p1/bBPqnpp1/1rrn3B w - - 0 1')
+    #print(board.get_piece_at_position(75,125))
 
-board = Board()
-random_fen = generate_random_fen(total_pieces=18)
-print(random_fen)
-board.place_from_fen('2n1R3/P2b2Q1/1Brpppn1/p2Pb3/k2NN1K1/P1p1p2P/Pp1pP1PP/1qR5 w - - 0 1')
-#print(board.get_piece_at_position(75,125))
-
-# #Get List of moves for piece id 11
-# moves = board.pychess_board.legal_moves
-# print(moves)
+    # #Get List of moves for piece id 11
+    # moves = board.pychess_board.legal_moves
+    # print(moves)
 
 
-path = board.path_to_graveyard(125,225)
-print(path)
+    #path = board.path_to_graveyard(125,325)
+    # path2 = board.path_to_graveyard(425,25)
+
+    #print(path)
+    # print(path2[0]) 
+
+    # print(len(path))
+    # print(len(path2))
 
 
-# board.move_piece_diagonal(11, 'a3c5')
-board.render()
+    # # board.move_piece_diagonal(11, 'a3c5')
+    board.render()
 
