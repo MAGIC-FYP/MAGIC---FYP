@@ -9,7 +9,7 @@ BASE_URL = "https://lichess.org/api"
 session = berserk.TokenSession(API_TOKEN)
 client = berserk.Client(session=session)
 
-# Get the last game played
+# Get the last game played by user
 def archived_game(username):
     games = list(client.games.export_by_player(username, max=1, moves=True, pgn_in_json=True))
     
@@ -30,6 +30,40 @@ def archived_game(username):
     print(moves)
 
     return moves, white_name, black_name
+
+# Using a game ID to find an archived game 
+def extract_game_id(url):
+    match = re.search(r'lichess\.org/([a-zA-Z0-9]+)', url)
+    return match.group(1) if match else None
+
+def extract_clean_moves(raw_moves):
+    cleaned_moves = []
+    for token in raw_moves:
+        # Skip annotations, evals, clocks, and brackets
+        if token in ['{', '}'] or token.startswith('[') or token.startswith('%') or re.match(r'\[%.*\]', token):
+            continue
+        # Skip dots for black moves (e.g. '..')
+        if token == '..':
+            continue
+        cleaned_moves.append(token)
+    return cleaned_moves
+
+def get_game_by_id(url):
+    game_id = extract_game_id(url)
+
+    try:
+        game_data = client.games.export(game_id, as_pgn=True)
+        game_pgn = game_data.split('\n\n')[1]  # Get the moves part
+        moves = re.sub(r'\d+\.\s*', '', game_pgn)
+        moves = re.sub(r'1-0|0-1|1/2-1/2|\*', '', moves).strip().split()
+        
+        clean_moves = extract_clean_moves(moves)
+        print("Moves:", clean_moves)
+        return clean_moves
+    
+    except Exception as e:
+        print(f"Failed to get game: {e}")
+        return None
 
 def online_game(username):
     # Find an ongoing game for the user
@@ -109,14 +143,21 @@ def send_move(game_id, move):
     response = requests.post(url, headers=headers)
     return response.status_code, response.text
 
-game_id = get_active_game()
-if game_id:
-    move = input("Enter your move (e.g., e2e4): ")
-    status, result = send_move(game_id, move)
-    print(f"Move sent: {status}, Response: {result}")
-else:
-    print("No active game found.")
+# game_id = get_active_game()
+# if game_id:
+#     move = input("Enter your move (e.g., e2e4): ")
+#     status, result = send_move(game_id, move)
+#     print(f"Move sent: {status}, Response: {result}")
+# else:
+#     print("No active game found.")
 
+
+username = 'uniaccount'
+
+
+archived_game(username)
+print('NEW')
+get_game_by_id('https://lichess.org/tbibfPRy')
 # online_game('MNZS1927')
 # archived_game('anatoliy324')
 
