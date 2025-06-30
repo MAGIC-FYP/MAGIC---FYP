@@ -5,6 +5,7 @@ from models.controller import Controller
 from models.graveyard import Graveyard
 from gui.chess_gui import Display
 from models.log import logger
+from algorithms.path_planner import Board as PathPlannerBoard
 import time
 from algorithms.algorithms_expanding_aStar import find_path, crowd_control
 
@@ -21,6 +22,7 @@ class Board:
         self.current_player: Optional[BasePlayer] = None
         self.move_history: List[chess.Move] = []
         self.dead_pieces: List[chess.Piece] = []
+        self.path_planner_board = PathPlannerBoard()
 
     def set_fen(self, fen: str) -> None:
         self.board.set_fen(fen)
@@ -112,8 +114,15 @@ class Board:
 
             if move:
                 self.logger.log(f"attempted move:\t{move}")
+                self.path_planner_board.place_from_fen(self.board.fen())
                 if self.make_move(move):
-                    self.path = crowd_control(self.board, move, self.graveyard, 4, log = self.logger)
+
+                    #self.path = crowd_control(self.board, move, self.graveyard, 4, log = self.logger) #aStar algorithm
+                    
+                    self.path = self.path_planner_board.get_full_path(chess.Move.uci(move))
+                    #print(self.path)
+                    self.logger.log(f"Path:\t{self.path}")
+
                     if self.path == False:
                         break
                     display.path = self.path 

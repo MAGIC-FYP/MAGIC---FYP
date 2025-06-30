@@ -3,7 +3,7 @@ import chess
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from typing import List, Tuple
-from fen import generate_random_fen
+#from fen import generate_random_fen
 import networkx as nx
 
 class Piece:
@@ -372,8 +372,8 @@ class Board:
                     return []  # No valid graveyard location found
 
                 if target_point:
-                    path_to_target = paths[target_point]
-                    return path_to_target
+                    path_to_target_mm = paths[target_point]
+                    return [(point[0] / 10, point[1] / 10) for point in path_to_target_mm]
             
             return None, distances, paths
         except nx.NetworkXNoPath:
@@ -414,7 +414,8 @@ class Board:
 
         target_point = (target_x, target_y)
         if target_point in distances:
-            return paths[target_point]
+            path_mm = paths[target_point]
+            return [(point[0] / 10, point[1] / 10) for point in path_mm]
         return []
 
     def coord_from_uci(self, uci: str) -> Tuple[int, int]:
@@ -549,9 +550,9 @@ class Board:
 
 if __name__ == "__main__":
     board = Board()
-    board.place_from_fen('4k2r/6r1/8/8/8/8/3R4/R3K3 w Qk - 0 1')
+    board.place_from_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
     print(board.pychess_board.is_castling(chess.Move.from_uci('e1c1')))
-    path = board.get_full_path('e1c1')
-    print(path)
+    #path = board.get_full_path('e1c1')
+    #print(path)
     board.render()
 
