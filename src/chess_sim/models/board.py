@@ -58,12 +58,8 @@ class Board:
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
             return
-            
+              
         print("Starting new chess game!")
-
-        # # Ensure the controller is calibrated
-        # if not self.controller.calibrated:
-        #     self.controller.calibrate()
         
         while not self.is_game_over():
             print("\n" + "-" * 40)
@@ -93,9 +89,6 @@ class Board:
         print("Starting new chess game!")
         self.logger.log("Starting new chess game")
 
-        # # Ensure the controller is calibrated
-        # if not self.controller.calibrated:
-        #     self.controller.calibrate()
         display = Display(log= self.logger)
         
         while not self.is_game_over():
@@ -106,23 +99,15 @@ class Board:
             if type(self.current_player) == HumanPlayer:
                 move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
                 
-                
-                
             else:
-                #time.sleep(5) #just to see player path 
                 move = self.current_player.get_move(self.board)
 
             if move:
                 self.logger.log(f"attempted move:\t{move}")
                 self.path_planner_board.place_from_fen(self.board.fen())
                 if self.make_move(move):
-
-                    #self.path = crowd_control(self.board, move, self.graveyard, 4, log = self.logger) #aStar algorithm
-                    
                     self.path = self.path_planner_board.get_full_path(chess.Move.uci(move))
-                    #print(self.path)
                     self.logger.log(f"Path:\t{self.path}")
-
                     if self.path == False:
                         break
                     display.path = self.path 
@@ -135,6 +120,7 @@ class Board:
                 break
 
         result = self.board.result()
+
         if result == "1-0":
             self.logger.log("Game over, result: White wins")
             print("White wins!")

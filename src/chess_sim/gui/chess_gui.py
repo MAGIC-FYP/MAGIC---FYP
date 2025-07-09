@@ -55,7 +55,7 @@ class Display:
         self._disp_button(self.mouse_loc_button, "Show Coords" if not self.show_mouse_coords else "Hide Coords")
         self._disp_button(self.show_path_button, "Show Path" if not self.show_path else "Hide Path")
         if self.show_path:
-            self.display_path(board, graveyard)
+            self.display_path()
         
         # Update the display
         pygame.display.update()
@@ -99,7 +99,7 @@ class Display:
         text_rect = text.get_rect(center=(self.screen_size[0] // 2, (self.board_size/9)/2))
         self.screen.blit(text, text_rect)
 
-    def display_path(self, board: chess.Board, graveyard: Graveyard):
+    def display_path(self):
         """
         Displays the path of a move on the board.
         
@@ -307,7 +307,7 @@ class Display:
                 colour = (119-gray, 149-gray, 86-gray) if (row + col) % 2 == 0 else (235-gray, 236-gray, 208-gray)
                 pygame.draw.circle(self.screen, colour, ((col + 2) * (self.board_size // 8) + (self.board_size // 16), row * (self.board_size // 8) + (self.board_size // 16) + (self.board_size // 8)), self.board_size // 40)
                     
-    def handle_events(self, board: chess.Board):
+    def handle_events(self):
         """
         Handle the events in the game.
         """
@@ -324,7 +324,7 @@ class Display:
         """
         while True:
             self.disp_board(board, graveyard, current_player)  # Display the board before handling events
-            self.handle_events(board)  # Handle any events before checking for mouse clicks
+            self.handle_events()  # Handle any events before checking for mouse clicks
             event = pygame.event.wait()  # Wait for an event 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -385,12 +385,12 @@ class Display:
                         (piece.color == chess.BLACK and target < 8)
                     ):
                         # Display a little box on the GUI with a piece to promote
-                        promotion = self.display_promotion_box(board, graveyard, current_player, piece, target)
+                        promotion = self.display_promotion_box(current_player, piece, target)
                         promotion = chess.Piece.from_symbol(promotion).piece_type # Can directly link the buttons to be chess.QUEEN etc
                     move = chess.Move(from_square=position, to_square=target, promotion = promotion)
                     return(move)
     
-    def display_promotion_box(self, board: chess.Board, graveyard: Graveyard, current_player, piece: chess.Piece, to_square):
+    def display_promotion_box(self, current_player, piece: chess.Piece, to_square):
         """
         This method displays a box with the options for promotion and returns the selected piece.
         """
