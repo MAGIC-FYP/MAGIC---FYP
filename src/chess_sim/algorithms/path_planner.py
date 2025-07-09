@@ -367,7 +367,7 @@ class Board:
                     target_point = max(primary_targets, key=lambda x: x[0][1])[0] if piece.color == "w" else min(primary_targets, key=lambda x: x[0][1])[0]
                 elif backup_targets:
                     # Same logic for backup targets
-                    target_point = max(backup_targets, key=lambda x: x[0][1])[0] if piece.color == "w" else min(backup_targets, key=lambda x: x[0][1])[0]
+                    target_point = min(backup_targets, key=lambda x: x[0][1])[0] if piece.color == "w" else max(backup_targets, key=lambda x: x[0][1])[0]
                 else:
                     return []  # No valid graveyard location found
 

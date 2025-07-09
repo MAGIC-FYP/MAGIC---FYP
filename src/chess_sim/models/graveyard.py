@@ -93,7 +93,6 @@ class Graveyard():
             return "Invalid graveyard square."      
     
     def get_white_pieces_positions(self):
-        """THIS IS NEEDED"""
         white_pieces_positions = []
         for sq, piece in self.occupied_position.items():
             if piece and piece.color == chess.WHITE:
@@ -101,7 +100,6 @@ class Graveyard():
         return white_pieces_positions
 
     def get_black_pieces_positions(self):
-        """THIS IS NEEDED"""
         black_pieces_positions = []
         for sq, piece in self.occupied_position.items():
             if piece and piece.color == chess.BLACK:
@@ -110,7 +108,6 @@ class Graveyard():
     
 
     def pre_loaded_graveyard(self, fen):  # Dont think its reading the global file correctly
-        """THIS IS NEEDED"""
         print('Gameloading')
         print('FEN:', fen)
         # List of all pieces (both colors) at the start of a game
