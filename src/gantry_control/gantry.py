@@ -8,9 +8,9 @@ class GantryControl:
         self.L_DIR = 17   # Direction
         self.L_STEP = 27  # Step pulse
         self.L_EN = 22    # Enable (LOW = enabled)
-        self.R_DIR = 26   # Direction
-        self.R_STEP = 19  # Step pulse
-        self.R_EN = 13    # Enable (LOW = enabled)
+        self.R_DIR = 25   # Direction
+        self.R_STEP = 24  # Step pulse
+        self.R_EN = 23    # Enable (LOW = enabled)
         
         # Motor control parameters
         self.start_delay = 0.005   # 5ms (slow start)
@@ -34,7 +34,9 @@ class GantryControl:
         
         # Steps per revolution (typical for stepper motors)
         self.steps_per_rev = 200  # Adjust based on your motor
-        self.cm_per_step = (2 * np.pi * self.motor_radius) / self.steps_per_rev
+        self.cm_per_step = 11.135/1000#(2 * np.pi * self.motor_radius) / self.steps_per_rev
+
+
 
     def initialise(self):
         # Setup
@@ -106,17 +108,21 @@ class GantryControl:
         all_delays_left = accel_delays_left + [end_delay] * const_steps_left + decel_delays_left
         all_delays_right = accel_delays_right + [end_delay] * const_steps_right + decel_delays_right
         
+        
         for i in range(max(num_steps_left, num_steps_right)):
-            if i < num_steps_left:
-                GPIO.output(self.L_STEP, GPIO.HIGH)
-                time.sleep(pulse_width)
-                GPIO.output(self.L_STEP, GPIO.LOW)
-                time.sleep(all_delays_left[i] if i < len(all_delays_left) else 0)
             if i < num_steps_right:
                 GPIO.output(self.R_STEP, GPIO.HIGH)
-                time.sleep(pulse_width)
+                time.sleep(self.pulse_width)
                 GPIO.output(self.R_STEP, GPIO.LOW)
                 time.sleep(all_delays_right[i] if i < len(all_delays_right) else 0)
+            if i < num_steps_left:
+                GPIO.output(self.L_STEP, GPIO.HIGH)
+                time.sleep(self.pulse_width)
+                GPIO.output(self.L_STEP, GPIO.LOW)
+                time.sleep(all_delays_left[i] if i < len(all_delays_left) else 0)
+            
+            
+            
             # Update position tracking
             step_distance_left = self.cm_per_step * (1 if direction_left == GPIO.HIGH else -1)
             step_distance_right = self.cm_per_step * (1 if direction_right == GPIO.HIGH else -1)
@@ -136,24 +142,30 @@ class GantryControl:
         delta_x = x - self.x_pos
         delta_y = y - self.y_pos
         distance = np.sqrt((delta_x**2) + (delta_y**2))
+        print(f"Distance: {distance}, Delta x: {delta_x}, Delta y: {delta_y}")
         
         if distance < 0.01:  # Already at target
             return
             
         # Calculate required motor movements
-        angle = np.arctan2(delta_y, delta_x)
-        a = vel * np.cos(angle)
-        b = vel * np.sin(angle)
-        d_dot = np.array([[a-b], [-a-b]])
-        w_dot = (1/self.motor_radius) * self.M * d_dot
+        # angle = np.arctan2(delta_y, delta_x)
+        # a = vel * np.cos(angle)
+        # b = vel * np.sin(angle)
+        # d_dot = np.array([[a-b], [-a-b]])
+        # w_dot = (1/self.motor_radius) * self.M * d_dot
         
-        # Convert to steps
-        left_steps = int(abs(w_dot[0, 0]) * distance / vel / self.cm_per_step)
-        right_steps = int(abs(w_dot[1, 0]) * distance / vel / self.cm_per_step)
+        # # Convert to steps
+        # left_steps = int(abs(w_dot[0, 0]) * distance / self.cm_per_step)
+        # right_steps = int(abs(w_dot[1, 0]) * distance / self.cm_per_step)
+
+
         
+        left_steps = int(abs(delta_x-delta_y) / self.cm_per_step)
+        right_steps = int(abs(-delta_x-delta_y) / self.cm_per_step)
+
         # Determine directions
-        left_dir = GPIO.HIGH if w_dot[0, 0] > 0 else GPIO.LOW
-        right_dir = GPIO.HIGH if w_dot[1, 0] > 0 else GPIO.LOW
+        left_dir = GPIO.HIGH if  delta_x-delta_y> 0 else GPIO.LOW
+        right_dir = GPIO.HIGH if  -delta_x-delta_y> 0 else GPIO.LOW
         
         print(f"Moving to ({x:.2f}, {y:.2f}) - Left: {left_steps} steps, Right: {right_steps} steps")
         
@@ -165,7 +177,7 @@ class GantryControl:
         # Update final position
         self.x_pos = x
         self.y_pos = y
-        print(f"Move complete. Position: ({self.x_pos:.2f}, {self.y_pos:.2f})")
+        #print(f"Move complete. Position: ({self.x_pos:.2f}, {self.y_pos:.2f})")
         
     def stop(self):
         """Stop all motors"""
@@ -196,23 +208,56 @@ class GantryControl:
     def cleanup(self):
         """Clean up GPIO pins"""
         print("Cleaning up GPIO...")
-        GPIO.output(self.EN, GPIO.HIGH)  # Disable driver
+        GPIO.output(self.L_EN, GPIO.HIGH)  # Disable left motor
+        GPIO.output(self.R_EN, GPIO.HIGH)  # Disable right motor
         GPIO.cleanup()
         print("GPIO cleanup complete.")
 
 
+    def test_stepper(self):
+        for i in range(100):
+            GPIO.output(self.R_STEP, GPIO.HIGH)
+            time.sleep(self.pulse_width)
+            GPIO.output(self.R_STEP, GPIO.LOW)
+            time.sleep(0.005)
+
+        for i in range(100):
+            GPIO.output(self.L_STEP, GPIO.HIGH)
+            time.sleep(self.pulse_width)
+            GPIO.output(self.L_STEP, GPIO.LOW)
+            time.sleep(0.005)
+
 
 gantry = GantryControl(max_x=600, max_y=450)
+gantry.initialise()
 print(gantry.get_status())
-radius = 10  # Define the radius of the circle
-for angle in range(0, 360, 10):
+
+
+gantry.move(0, 5, 0.3)
+gantry.move(5, 5, 0.3)
+gantry.move(5, 0, 0.3)
+gantry.move(0, 0, 0.3)
+
+radius = 5  # Define the radius of the circle
+for angle in range(0, 360, 5):
     x = radius * np.cos(np.radians(angle))
     y = radius * np.sin(np.radians(angle))
     gantry.move(x, y, 1.0)
     print(gantry.get_status())
+gantry.move(0, 0, 1.0)
+
+# 3.5 girth penis
+# x = np.linspace(-3, 3, 100)
+# y = (np.abs(np.sin(x)) + 5 * np.exp(-x**100) * np.cos(x))*3.5
+
+# for i in range(len(x)):
+#     gantry.move(x[i]*3.5, y[i], 0.1)
+#     print(gantry.get_status())
+
+
+print(gantry.get_status())
 gantry.stop()
 print(gantry.get_status())
 gantry.home()
 print(gantry.get_status())
 gantry.cleanup()
-
