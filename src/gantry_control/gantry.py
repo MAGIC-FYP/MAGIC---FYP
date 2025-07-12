@@ -204,8 +204,12 @@ class GantryControl:
 
 gantry = GantryControl(max_x=600, max_y=450)
 print(gantry.get_status())
-gantry.move(10, 10, 1.0)
-print(gantry.get_status())
+radius = 10  # Define the radius of the circle
+for angle in range(0, 360, 10):
+    x = radius * np.cos(np.radians(angle))
+    y = radius * np.sin(np.radians(angle))
+    gantry.move(x, y, 1.0)
+    print(gantry.get_status())
 gantry.stop()
 print(gantry.get_status())
 gantry.home()
