@@ -5,9 +5,12 @@ import time
 class GantryControl:
     def __init__(self, max_x: float, max_y: float, motor_radius: float = 0.95):
         # Pin definitions (using BCM numbering)
-        self.DIR = 17   # Direction
-        self.STEP = 27  # Step pulse
-        self.EN = 22    # Enable (LOW = enabled)
+        self.L_DIR = 17   # Direction
+        self.L_STEP = 27  # Step pulse
+        self.L_EN = 22    # Enable (LOW = enabled)
+        self.R_DIR = 26   # Direction
+        self.R_STEP = 19  # Step pulse
+        self.R_EN = 13    # Enable (LOW = enabled)
         
         # Motor control parameters
         self.start_delay = 0.005   # 5ms (slow start)
@@ -36,24 +39,31 @@ class GantryControl:
     def initialise(self):
         # Setup
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.DIR, GPIO.OUT)
-        GPIO.setup(self.STEP, GPIO.OUT)
-        GPIO.setup(self.EN, GPIO.OUT)
+        GPIO.setup(self.L_DIR, GPIO.OUT)
+        GPIO.setup(self.L_STEP, GPIO.OUT)
+        GPIO.setup(self.L_EN, GPIO.OUT)
+        GPIO.setup(self.R_DIR, GPIO.OUT)
+        GPIO.setup(self.R_STEP, GPIO.OUT)
+        GPIO.setup(self.R_EN, GPIO.OUT)
 
         # Initialize pins
-        GPIO.output(self.STEP, GPIO.LOW)
-        GPIO.output(self.DIR, GPIO.LOW)
-        GPIO.output(self.EN, GPIO.HIGH)  # Start disabled
+        GPIO.output(self.L_STEP, GPIO.LOW)
+        GPIO.output(self.L_DIR, GPIO.LOW)
+        GPIO.output(self.L_EN, GPIO.HIGH)  
+        GPIO.output(self.R_STEP, GPIO.LOW)
+        GPIO.output(self.R_DIR, GPIO.LOW)
+        GPIO.output(self.R_EN, GPIO.HIGH)  # Start disabled
 
         print("Pins initialized. Enabling driver...")
         time.sleep(1)
 
         # Enable driver
-        GPIO.output(self.EN, GPIO.LOW)
+        GPIO.output(self.L_EN, GPIO.LOW)
+        GPIO.output(self.R_EN, GPIO.LOW)
         print("Driver enabled.")
         return True
 
-    def move_steps(self, direction, num_steps, start_delay=None, end_delay=None, pulse_width=None):
+    def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None):
         """Move stepper motor with acceleration/deceleration ramps"""
         if start_delay is None:
             start_delay = self.start_delay
@@ -62,38 +72,61 @@ class GantryControl:
         if pulse_width is None:
             pulse_width = self.pulse_width
             
-        GPIO.output(self.DIR, direction)
+        GPIO.output(self.L_DIR, direction_left)
+        GPIO.output(self.R_DIR, direction_right)
         
-        accel_steps = min(10, num_steps // 3)
-        decel_steps = min(10, num_steps // 3)
-        const_steps = num_steps - accel_steps - decel_steps
+        accel_steps_left = min(10, num_steps_left // 3)
+        decel_steps_left = min(10, num_steps_left // 3)
+        const_steps_left = num_steps_left - accel_steps_left - decel_steps_left
+
+        accel_steps_right = min(10, num_steps_right // 3)
+        decel_steps_right = min(10, num_steps_right // 3)
+        const_steps_right = num_steps_right - accel_steps_right - decel_steps_right
         
         # Ensure we have enough steps for constant speed
-        if const_steps < 50:
-            accel_steps = (num_steps - 50) // 2
-            decel_steps = (num_steps - 50) // 2
-            const_steps = 50
+        if const_steps_left < 50:
+            accel_steps_left = (num_steps_left - 50) // 2
+            decel_steps_left = (num_steps_left - 50) // 2
+            const_steps_left = 50
+
+        if const_steps_right < 50:
+            accel_steps_right = (num_steps_right - 50) // 2
+            decel_steps_right = (num_steps_right - 50) // 2
+            const_steps_right = 50
         
         # Create acceleration ramp
-        accel_delays = [start_delay + (end_delay - start_delay) * i / max(accel_steps - 1, 1) for i in range(accel_steps)]
+        accel_delays_left = [start_delay + (end_delay - start_delay) * i / max(accel_steps_left - 1, 1) for i in range(accel_steps_left)]
+        accel_delays_right = [start_delay + (end_delay - start_delay) * i / max(accel_steps_right - 1, 1) for i in range(accel_steps_right)]
         
         # Create deceleration ramp (reverse of acceleration)
-        decel_delays = [end_delay + (start_delay - end_delay) * i / max(decel_steps - 1, 1) for i in range(decel_steps)]
+        decel_delays_left = [end_delay + (start_delay - end_delay) * i / max(decel_steps_left - 1, 1) for i in range(decel_steps_left)]
+        decel_delays_right = [end_delay + (start_delay - end_delay) * i / max(decel_steps_right - 1, 1) for i in range(decel_steps_right)]
         
         # Combine all delays
-        all_delays = accel_delays + [end_delay] * const_steps + decel_delays
+        all_delays_left = accel_delays_left + [end_delay] * const_steps_left + decel_delays_left
+        all_delays_right = accel_delays_right + [end_delay] * const_steps_right + decel_delays_right
         
-        for i in range(num_steps):
-            GPIO.output(self.STEP, GPIO.HIGH)
-            time.sleep(pulse_width)
-            GPIO.output(self.STEP, GPIO.LOW)
-            time.sleep(all_delays[i])
-            
+        for i in range(max(num_steps_left, num_steps_right)):
+            if i < num_steps_left:
+                GPIO.output(self.L_STEP, GPIO.HIGH)
+                time.sleep(pulse_width)
+                GPIO.output(self.L_STEP, GPIO.LOW)
+                time.sleep(all_delays_left[i] if i < len(all_delays_left) else 0)
+            if i < num_steps_right:
+                GPIO.output(self.R_STEP, GPIO.HIGH)
+                time.sleep(pulse_width)
+                GPIO.output(self.R_STEP, GPIO.LOW)
+                time.sleep(all_delays_right[i] if i < len(all_delays_right) else 0)
             # Update position tracking
-            step_distance = self.cm_per_step * (1 if direction == GPIO.HIGH else -1)
+            step_distance_left = self.cm_per_step * (1 if direction_left == GPIO.HIGH else -1)
+            step_distance_right = self.cm_per_step * (1 if direction_right == GPIO.HIGH else -1)
             # This is a simplified update - in reality you'd need to track both motors
-            self.x_pos += step_distance * 0.5  # Assuming equal contribution from both motors
-            self.y_pos += step_distance * 0.5
+            self.x_pos += step_distance_left * 0.5  # Assuming equal contribution from both motors
+            self.y_pos += step_distance_right * 0.5
+
+    
+
+        return True
 
     def move(self, x: float, y: float, vel: float):
         """Move to target position with specified velocity"""
@@ -125,10 +158,9 @@ class GantryControl:
         print(f"Moving to ({x:.2f}, {y:.2f}) - Left: {left_steps} steps, Right: {right_steps} steps")
         
         # Move both motors (simplified - in reality you'd need to coordinate them)
-        if left_steps > 0:
-            self.move_steps(left_dir, left_steps)
-        if right_steps > 0:
-            self.move_steps(right_dir, right_steps)
+        if left_steps+right_steps > 0:
+            self.move_steps(left_dir, right_dir, left_steps, right_steps)
+        
             
         # Update final position
         self.x_pos = x
