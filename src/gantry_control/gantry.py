@@ -34,7 +34,7 @@ class GantryControl:
         
         # Steps per revolution (typical for stepper motors)
         self.steps_per_rev = 200  # Adjust based on your motor
-        self.cm_per_step = 11.135/1000#(2 * np.pi * self.motor_radius) / self.steps_per_rev
+        self.cm_per_step = 0.011134999999999999#(2 * np.pi * self.motor_radius) / self.steps_per_rev
 
 
 
@@ -47,9 +47,11 @@ class GantryControl:
         GPIO.setup(self.R_DIR, GPIO.OUT)
         GPIO.setup(self.R_STEP, GPIO.OUT)
         GPIO.setup(self.R_EN, GPIO.OUT)
+        GPIO.setup(6, GPIO.OUT)
 
         # Initialize pins
         GPIO.output(self.L_STEP, GPIO.LOW)
+        GPIO.output(6, GPIO.HIGH)
         GPIO.output(self.L_DIR, GPIO.LOW)
         GPIO.output(self.L_EN, GPIO.HIGH)  
         GPIO.output(self.R_STEP, GPIO.LOW)
@@ -109,19 +111,28 @@ class GantryControl:
         all_delays_right = accel_delays_right + [end_delay] * const_steps_right + decel_delays_right
         
         
-        for i in range(max(num_steps_left, num_steps_right)):
-            if i < num_steps_right:
-                GPIO.output(self.R_STEP, GPIO.HIGH)
-                time.sleep(self.pulse_width)
-                GPIO.output(self.R_STEP, GPIO.LOW)
-                time.sleep(all_delays_right[i] if i < len(all_delays_right) else 0)
-            if i < num_steps_left:
+        left_steps = num_steps_left
+        right_steps = num_steps_right
+        max_steps = max(left_steps, right_steps)
+
+        left_counter = 0
+        right_counter = 0
+
+        for i in range(max_steps):
+            if (i * left_steps) // max_steps > left_counter:
                 GPIO.output(self.L_STEP, GPIO.HIGH)
                 time.sleep(self.pulse_width)
                 GPIO.output(self.L_STEP, GPIO.LOW)
-                time.sleep(all_delays_left[i] if i < len(all_delays_left) else 0)
-            
-            
+                time.sleep(all_delays_left[left_counter] if left_counter < len(all_delays_left) else 0)
+                left_counter += 1
+
+            if (i * right_steps) // max_steps > right_counter:
+                GPIO.output(self.R_STEP, GPIO.HIGH)
+                time.sleep(self.pulse_width)
+                GPIO.output(self.R_STEP, GPIO.LOW)
+                time.sleep(all_delays_right[right_counter] if right_counter < len(all_delays_right) else 0)
+                right_counter += 1
+
             
             # Update position tracking
             step_distance_left = self.cm_per_step * (1 if direction_left == GPIO.HIGH else -1)
@@ -215,6 +226,9 @@ class GantryControl:
 
 
     def test_stepper(self):
+        GPIO.output(self.R_STEP, GPIO.HIGH)
+        time.sleep(self.pulse_width)
+        GPIO.output(self.R_STEP, GPIO.LOW)
         for i in range(100):
             GPIO.output(self.R_STEP, GPIO.HIGH)
             time.sleep(self.pulse_width)
@@ -226,25 +240,61 @@ class GantryControl:
             time.sleep(self.pulse_width)
             GPIO.output(self.L_STEP, GPIO.LOW)
             time.sleep(0.005)
+    
+    def calibrate(self):
+        """Calibrate the gantry"""
+        print("Calibrating gantry...")
+        self.move(0, 0, 0.3)
+        for i in range(500):
+            GPIO.output(self.R_STEP, GPIO.HIGH)
+            time.sleep(self.pulse_width)
+            GPIO.output(self.R_STEP, GPIO.LOW)
+            time.sleep(0.005)
+
+        
+        cm = float(input("Enter cm to moved: "))
+        cm_per_step = ((cm*np.sqrt(2)) / (500))
+        self.x_pos += -cm/np.sqrt(2)
+        self.y_pos += cm/np.sqrt(2)
+        
+        print(f"cm_per_step: {self.cm_per_step}")
+        for i in range(500):
+            GPIO.output(self.L_STEP, GPIO.HIGH)
+            time.sleep(self.pulse_width)
+            GPIO.output(self.L_STEP, GPIO.LOW)
+            time.sleep(0.005)
+        
+        self.x_pos += cm/np.sqrt(2)
+        self.y_pos += -cm/np.sqrt(2)
+        yN = input(f"is this {cm}cm y/n? ")
+        if yN == "y":
+            self.cm_per_step = cm_per_step
+            gantry.move(0, 0, 0.3)
+            return True
+        else:
+            self.calibrate()
+        print("Calibration complete.")
 
 
 gantry = GantryControl(max_x=600, max_y=450)
 gantry.initialise()
 print(gantry.get_status())
 
+gantry.calibrate()
 
-gantry.move(0, 5, 0.3)
-gantry.move(5, 5, 0.3)
-gantry.move(5, 0, 0.3)
+gantry.move(0, 2, 0.3)
+gantry.move(2, 2, 0.3)
+gantry.move(2, 0, 0.3)
 gantry.move(0, 0, 0.3)
 
 radius = 5  # Define the radius of the circle
-for angle in range(0, 360, 5):
+angles = np.arange(0, 360, 5)
+for angle in angles:
     x = radius * np.cos(np.radians(angle))
     y = radius * np.sin(np.radians(angle))
     gantry.move(x, y, 1.0)
     print(gantry.get_status())
-gantry.move(0, 0, 1.0)
+gantry.move(radius * np.cos(np.radians(0)), radius * np.sin(np.radians(0)), 1.0)
 
 # 3.5 girth penis
 # x = np.linspace(-3, 3, 100)
@@ -261,3 +311,4 @@ print(gantry.get_status())
 gantry.home()
 print(gantry.get_status())
 gantry.cleanup()
+
