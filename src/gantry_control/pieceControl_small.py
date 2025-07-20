@@ -47,6 +47,7 @@ max_threshold = max_val - 0.05
 min_threshold = min_avg + 0.05
 print("Thresholds — max:", max_threshold, "min:", min_threshold)
 
+#******************************************************************#
 # 4. Run test loop (simulate 1 pickup + place)
 print("\nRunning sensor change detection...\n")
 previous_states = read_all_sensors()
@@ -67,6 +68,48 @@ try:
 except KeyboardInterrupt:
     print("Stopped.")
 
+#*********Continuous*********************************************************#
+'''
+def normalize(val, vmin, vmax):
+    """Return value scaled 0.0 to 1.0"""
+    return max(0.0, min((val - vmin) / (vmax - vmin), 1.0))
+
+print("\nRunning continuous position detection...\n")
+
+try:
+    while True:
+        voltages = read_all_sensors()
+        norm_vals = [normalize(v, min_avg, max_voltages) for v in voltages]
+
+        # Find top 2 sensors by normalized signal
+        sorted_indices = sorted(range(len(norm_vals)), key=lambda i: norm_vals[i], reverse=True)
+        top = sorted_indices[0]
+        second = sorted_indices[1]
+
+        top_val = norm_vals[top]
+        second_val = norm_vals[second]
+
+        # Get square names
+        row_top, col_top = divmod(top, 3)
+        row_sec, col_sec = divmod(second, 3)
+
+        square_top = square_map[row_top][col_top]
+        square_second = square_map[row_sec][col_sec]
+
+        if top_val < 0.2:
+            print("No magnet detected.")
+        elif top_val > 0.6 and second_val < 0.3:
+            print(f"Magnet is over {square_top} (normalized: {top_val:.2f})")
+        elif top_val > 0.4 and second_val > 0.4:
+            print(f"Magnet is between {square_top} and {square_second} (vals: {top_val:.2f}, {second_val:.2f})")
+        else:
+            print(f"Magnet may be near {square_top} (weak signal)")
+
+        time.sleep(0.5)
+
+except KeyboardInterrupt:
+    print("Stopped.")
+'''
 ##########################################
 ##########################################
 # Old Nathan Code
