@@ -3,7 +3,9 @@ Actual piece detection code.
 Still work in progress!
 
 Notes: 
-Logic may need to be updated as if piece is picked up and placed 5 seconds later it won't register as 1 move.
+- Logic may need to be updated as if piece is picked up and placed 5 seconds later it won't register as 1 move.
+
+- No logic for the sensor on the electromagnet
 """
 
 import time
