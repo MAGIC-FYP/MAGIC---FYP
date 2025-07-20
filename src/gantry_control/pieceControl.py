@@ -1,6 +1,9 @@
 """
 Actual piece detection code.
 Still work in progress!
+
+Notes: 
+Logic may need to be updated as if piece is picked up and placed 5 seconds later it won't register as 1 move.
 """
 
 import time
@@ -32,17 +35,41 @@ GPIO.setup([S0, S1, S2, S3] + MUX_ENABLE_PINS, GPIO.OUT)
 # GLOBAL CONFIG
 # --------------------------
 
-NUM_SENSORS = 96    # Will be changed
-
-VOLT_THRESH = 2  # Change in voltage threshold to detect movement, current 2V     
+NUM_SENSORS = 96    # Will be changed  
 sensor_states = [0.0] * NUM_SENSORS  # Initial baseline state
 
 # --------------------------
 # HELPER FUNCTIONS
 # --------------------------
-######
-###### Should make a calibration function for setting the upper and lower threshold
-######
+
+# This finds the max and minimum sensor voltages 
+def cali_sensor(mux_channels_with_magnet, mux_channels_without_magnet, mux_select_fn, ads_read_fn):
+    magnet_vals = []
+    no_magnet_vals = []
+
+    # Read values for channels with magnet (expected HIGH)
+    for channel in mux_channels_with_magnet:
+        mux_select_fn(channel)
+        time.sleep(0.01)  # small delay for stability
+        val = ads_read_fn()
+        magnet_vals.append(val)
+
+    # Read values for channels without magnet (expected LOW)
+    for channel in mux_channels_without_magnet:
+        mux_select_fn(channel)
+        time.sleep(0.01)
+        val = ads_read_fn()
+        no_magnet_vals.append(val)
+
+    # Compute averages
+    avg_on = sum(magnet_vals) / len(magnet_vals)
+    avg_off = sum(no_magnet_vals) / len(no_magnet_vals)
+
+    # Apply ±5% buffer
+    lower_thresh = avg_off + 0.05
+    upper_thresh = avg_on - 0.05
+
+    return lower_thresh, upper_thresh
 
 def sensor_index_to_square(index):  # Converts sensor number to chess location
     total_cols = 12  # 2 graveyard cols + 8 board cols + 2 graveyard cols
@@ -82,10 +109,10 @@ def read_all_sensors():
             sensor_values.append(adc_channel.voltage)
     return sensor_values
 
-def detect_changes(old_state, new_state, threshold=VOLT_THRESH):
+def detect_changes(old_state, new_state, thresholds):
     changes = []
     for i in range(NUM_SENSORS):
-        if abs(old_state[i] - new_state[i]) > threshold:
+        if abs(old_state[i] - new_state[i]) > thresholds[i]:
             square = sensor_index_to_square(i)
             change_type = "removed" if new_state[i] < old_state[i] else "placed"
             changes.append((square, change_type))
@@ -112,7 +139,21 @@ while True:
 
     previous_state = current_state.copy()
 
-"""""
-May need to be adjusted as when someone picks up a piece there will be a change in voltage but no placement of that piece.
-The loop maybe too fast, so we will need to test + change it so it waits for the piece to be placed
-"""""
+
+'''
+Possible logic fix:
+
+pending_removal = None
+
+for square, action in changes:
+    if action == "removed":
+        pending_removal = square
+    elif action == "placed" and pending_removal:
+        print(f"Moved from {pending_removal} to {square}")
+        pending_removal = None
+
+Only time this could crash is during setup as multiple pieces are moving
+'''
+
+
+
