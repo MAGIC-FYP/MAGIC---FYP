@@ -73,6 +73,9 @@ def cali_sensor(mux_channels_with_magnet, mux_channels_without_magnet, mux_selec
 
     return lower_thresh, upper_thresh
 
+################################
+# Graveyard has no sensors now just 1 for users to place 
+################################
 def sensor_index_to_square(index):  # Converts sensor number to chess location
     total_cols = 12  # 2 graveyard cols + 8 board cols + 2 graveyard cols
     row = index // total_cols
