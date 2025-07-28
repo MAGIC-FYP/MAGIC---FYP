@@ -104,7 +104,11 @@ def enable_mux(index):
     for i, pin in enumerate(MUX_ENABLE_PINS):
         GPIO.output(pin, GPIO.LOW if i == index else GPIO.HIGH)
 
-def read_all_sensors():
+def read_all_sensors():     #Hall effect grid class, self.values in those values there is a dictionary of all sensors, 2 dictionaies in it
+    # 1 for all sensors and the other the continuos ones. 
+    # We want a method that populates the dictionary when called.
+    # using this we can use the weighted graph to figure out where pieces are on the board. 
+    # needs to figure out when state changes to trigger this function as itll have to run continuosly. 
     sensor_values = []
     for mux_index in range(6):  # 6 MUX chips × 16 channels = 96 sensors
         enable_mux(mux_index)
