@@ -174,4 +174,4 @@ def generate_graveyard_coordinates():
     return graveyard_coords
 
 graveyard_coordinates = generate_graveyard_coordinates()
-print(graveyard_coordinates)
+#print(graveyard_coordinates)
