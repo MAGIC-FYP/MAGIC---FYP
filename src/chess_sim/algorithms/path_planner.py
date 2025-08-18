@@ -426,6 +426,41 @@ class Board:
     def process_path(self, path: List[Tuple[float, float]]):
         pass
 
+    def simplify_path(self, path: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+        """
+        Simplify a path by merging parallel segments that are one after the other into a single long span.
+        Args:
+            path: List of path segments.
+        Returns:
+            Simplified path with merged parallel segments.
+        """
+
+        num_changes = 0
+        path = path[0]
+        simplified_path = [path[0]]
+        while True:
+            for i in range(1, len(path)-1):
+                # Check if the current segment is parallel to the next one
+                if (path[i][0] - path[i-1][0]) * (path[i+1][1] - path[i][1]) == (path[i][1] - path[i-1][1]) * (path[i+1][0] - path[i][0]):
+                    # If parallel, merge the segments by removing the current point
+                    simplified_path.append(path[i+1])
+                    #print(f"merged {path[i-1]}, {path[i]} and {path[i+1]}")
+                    num_changes += 1
+                else:
+                    # If not parallel, add the current point to the simplified path
+                    simplified_path.append(path[i])
+            # Add the last point of the original path to the simplified path
+            if path[-1] != simplified_path[-1]:
+                simplified_path.append(path[-1])
+    
+            if num_changes == 0:
+                return [simplified_path]
+            else:
+                num_changes = 0
+                path = simplified_path
+                simplified_path = [path[0]]
+        
+
     def get_full_path(self, move: str) -> List[Tuple[float, float]]:
         """
         This is the main function that builds the path for a move, handling regular moves, captures, and promotions.
@@ -532,7 +567,7 @@ class Board:
         path = []
 
         if captured_piece:
-            print("here")
+            ##print("here")
             graveyard_path = self.path_to_graveyard(to_x, to_y)
             if graveyard_path:
                 path.append(graveyard_path)
@@ -543,7 +578,13 @@ class Board:
         
         
         path.append(self.path_to_target(from_x, from_y, to_x, to_y))
-
+        return path
+    
+    def get_full_path_simpli(self, move: str) -> List[Tuple[float, float]]:
+        path = self.get_full_path(move)
+        print(f"original path: {path}")
+        path = self.simplify_path(path)
+        print(f"path: {path}")
         return path
         
 

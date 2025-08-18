@@ -106,7 +106,7 @@ class Board:
                 self.logger.log(f"attempted move:\t{move}")
                 self.path_planner_board.place_from_fen(self.board.fen())
                 if self.make_move(move):
-                    self.path = self.path_planner_board.get_full_path(chess.Move.uci(move))
+                    self.path = self.path_planner_board.get_full_path_simpli(chess.Move.uci(move))
                     self.logger.log(f"Path:\t{self.path}")
                     if self.path == False:
                         break

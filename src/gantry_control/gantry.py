@@ -1,7 +1,6 @@
 import numpy as np
-import RPi.GPIO as GPIO
+import lgpio
 import time
-
 
 def s_curve_delays(start_delay, end_delay, steps):
     """
@@ -56,41 +55,41 @@ class GantryControl:
 
     def initialise(self):
         # Setup
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.L_DIR, GPIO.OUT)
-        GPIO.setup(self.L_STEP, GPIO.OUT)
-        GPIO.setup(self.L_EN, GPIO.OUT)
-        GPIO.setup(self.R_DIR, GPIO.OUT)
-        GPIO.setup(self.R_STEP, GPIO.OUT)
-        GPIO.setup(self.R_EN, GPIO.OUT)
-        GPIO.setup(26, GPIO.OUT) # Stand in for 5v pin
-        #GPIO.setup(self.E_MAG, GPIO.OUT) # Stand in for 5v pin
-        GPIO.setup(self.x_sw, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.y_sw, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        lg = lgpio.gpiochip_open(0)
+        lgpio.gpio_claim_output(lg, self.L_DIR)
+        lgpio.gpio_claim_output(lg, self.L_STEP)
+        lgpio.gpio_claim_output(lg, self.L_EN)
+        lgpio.gpio_claim_output(lg, self.R_DIR)
+        lgpio.gpio_claim_output(lg, self.R_STEP)
+        lgpio.gpio_claim_output(lg, self.R_EN)
+        lgpio.gpio_claim_output(lg, 26) # Stand in for 5v pin
+        #lgpio.gpio_claim_output(lg, self.E_MAG) # Stand in for 5v pin
+        lgpio.gpio_claim_input(lg, self.x_sw)
+        lgpio.gpio_claim_input(lg, self.y_sw)
 
         # Initialize pins
-        GPIO.output(self.L_STEP, GPIO.LOW)
-        GPIO.output(self.L_DIR, GPIO.LOW)
-        GPIO.output(self.L_EN, GPIO.HIGH)  # Start disabled
-        GPIO.output(self.R_STEP, GPIO.LOW)
-        GPIO.output(self.R_DIR, GPIO.LOW)
-        GPIO.output(self.R_EN, GPIO.HIGH)  # Start disabled
-        #GPIO.output(self.E_MAG, GPIO.LOW)
+        lgpio.gpio_write(lg, self.L_STEP, 0)
+        lgpio.gpio_write(lg, self.L_DIR, 0)
+        lgpio.gpio_write(lg, self.L_EN, 1)  # Start disabled
+        lgpio.gpio_write(lg, self.R_STEP, 0)
+        lgpio.gpio_write(lg, self.R_DIR, 0)
+        lgpio.gpio_write(lg, self.R_EN, 1)  # Start disabled
+        #lgpio.gpio_write(lg, self.E_MAG, 0)
 
-        GPIO.output(26, GPIO.HIGH)
+        lgpio.gpio_write(lg, 26, 1)
 
         print("Pins initialized. Enabling driver...")
         # Enable driver
-        GPIO.output(self.L_EN, GPIO.LOW)
-        GPIO.output(self.R_EN, GPIO.LOW)
+        lgpio.gpio_write(lg, self.L_EN, 0)
+        lgpio.gpio_write(lg, self.R_EN, 0)
         print("Driver enabled.")
         return True
 
     def electromagnet(self, on: bool):
         if on:
-            GPIO.output(self.E_MAG, GPIO.HIGH)
+            lgpio.gpio_write(lg, self.E_MAG, 1)
         else:
-            GPIO.output(self.E_MAG, GPIO.LOW)
+            lgpio.gpio_write(lg, self.E_MAG, 0)
 
     def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None):
         """Move stepper motor with acceleration/deceleration ramps"""
@@ -101,8 +100,8 @@ class GantryControl:
         if pulse_width is None:
             pulse_width = self.pulse_width
             
-        GPIO.output(self.L_DIR, direction_left)
-        GPIO.output(self.R_DIR, direction_right)
+        lgpio.gpio_write(lg, self.L_DIR, direction_left)
+        lgpio.gpio_write(lg, self.R_DIR, direction_right)
         
         steps_left = abs(num_steps_left)
         steps_right = abs(num_steps_right)
@@ -135,22 +134,22 @@ class GantryControl:
                     step_left = True
                     error -= steps_right
             if step_left and left_counter < steps_left:
-                GPIO.output(self.L_STEP, GPIO.HIGH)
+                lgpio.gpio_write(lg, self.L_STEP, 1)
                 time.sleep(pulse_width)
-                GPIO.output(self.L_STEP, GPIO.LOW)
+                lgpio.gpio_write(lg, self.L_STEP, 0)
                 left_counter += 1
             if step_right and right_counter < steps_right:
-                GPIO.output(self.R_STEP, GPIO.HIGH)
+                lgpio.gpio_write(lg, self.R_STEP, 1)
                 time.sleep(pulse_width)
-                GPIO.output(self.R_STEP, GPIO.LOW)
+                lgpio.gpio_write(lg, self.R_STEP, 0)
                 right_counter += 1
             # Shared delay for both motors
             time.sleep(delays[i] if i < len(delays) else end_delay)
 
             
             # Update position tracking
-            step_distance_left = self.cm_per_step * (1 if direction_left == GPIO.HIGH else -1)
-            step_distance_right = self.cm_per_step * (1 if direction_right == GPIO.HIGH else -1)
+            step_distance_left = self.cm_per_step * (1 if direction_left == 1 else -1)
+            step_distance_right = self.cm_per_step * (1 if direction_right == 1 else -1)
             # This is a simplified update - in reality you'd need to track both motors
             # self.x_pos += step_distance_left * 0.5  # Assuming equal contribution from both motors
             # self.y_pos += step_distance_right * 0.5
@@ -178,8 +177,8 @@ class GantryControl:
         right_steps = int(abs(-delta_x-delta_y) / self.cm_per_step)
 
         # Determine directions
-        left_dir = GPIO.HIGH if  -delta_x+delta_y> 0 else GPIO.LOW
-        right_dir = GPIO.HIGH if  delta_x+delta_y> 0 else GPIO.LOW
+        left_dir = 1 if  -delta_x+delta_y> 0 else 0
+        right_dir = 1 if  delta_x+delta_y> 0 else 0
         
         
         #print(f"Moving to ({x:.2f}, {y:.2f}) - Left: {left_steps} steps, Right: {right_steps} steps")
@@ -198,18 +197,18 @@ class GantryControl:
     def home(self):
         """Home the gantry to origin"""
         print("Homing to origin...")
-        while GPIO.input(self.y_sw)== GPIO.HIGH:
+        while lgpio.gpio_read(lg, self.y_sw)== 1:
             self.move_steps(0,0,1,1)
         self.move_steps(1,1,100,100)
-        while GPIO.input(self.y_sw)== GPIO.HIGH:
+        while lgpio.gpio_read(lg, self.y_sw)== 1:
             self.move_steps(0,0,1,1)
         self.move_steps(1,1,20,20)
         print("Homed Y")
 
-        while GPIO.input(self.x_sw)== GPIO.HIGH:
+        while lgpio.gpio_read(lg, self.x_sw)== 1:
             self.move_steps(1,0,1,1)
         self.move_steps(0,1,100,100)
-        while GPIO.input(self.x_sw)== GPIO.HIGH:
+        while lgpio.gpio_read(lg, self.x_sw)== 1:
             self.move_steps(1,0,1,1)
         self.move_steps(0,1,20,20)
         print("Homed X")
@@ -233,26 +232,26 @@ class GantryControl:
     def cleanup(self):
         """Clean up GPIO pins"""
         print("Cleaning up GPIO...")
-        GPIO.output(self.L_EN, GPIO.HIGH)  # Disable left motor
-        GPIO.output(self.R_EN, GPIO.HIGH)  # Disable right motor
-        GPIO.cleanup()
+        lgpio.gpio_write(lg, self.L_EN, 1)  # Disable left motor
+        lgpio.gpio_write(lg, self.R_EN, 1)  # Disable right motor
+        lgpio.gpiochip_close(lg)
         print("GPIO cleanup complete.")
 
 
     def test_stepper(self):
-        GPIO.output(self.R_STEP, GPIO.HIGH)
+        lgpio.gpio_write(lg, self.R_STEP, 1)
         time.sleep(self.pulse_width)
-        GPIO.output(self.R_STEP, GPIO.LOW)
+        lgpio.gpio_write(lg, self.R_STEP, 0)
         for i in range(100):
-            GPIO.output(self.R_STEP, GPIO.HIGH)
+            lgpio.gpio_write(lg, self.R_STEP, 1)
             time.sleep(self.pulse_width)
-            GPIO.output(self.R_STEP, GPIO.LOW)
+            lgpio.gpio_write(lg, self.R_STEP, 0)
             time.sleep(0.005)
 
         for i in range(100):
-            GPIO.output(self.L_STEP, GPIO.HIGH)
+            lgpio.gpio_write(lg, self.L_STEP, 1)
             time.sleep(self.pulse_width)
-            GPIO.output(self.L_STEP, GPIO.LOW)
+            lgpio.gpio_write(lg, self.L_STEP, 0)
             time.sleep(0.005)
 
     def test_square(self, length=2):
@@ -396,9 +395,9 @@ class GantryControl:
         self.move(0, 0, 0.3)
         pulse_width = 0.003
         for i in range(500):
-            GPIO.output(self.R_STEP, GPIO.HIGH)
+            lgpio.gpio_write(lg, self.R_STEP, 1)
             time.sleep(pulse_width)
-            GPIO.output(self.R_STEP, GPIO.LOW)
+            lgpio.gpio_write(lg, self.R_STEP, 0)
             time.sleep(pulse_width)
 
         

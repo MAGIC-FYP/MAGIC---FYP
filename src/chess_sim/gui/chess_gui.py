@@ -22,7 +22,7 @@ class Display:
         """
         self.board_size = board_size
         self.logger = log
-        self.screen_size = (self.board_size+(self.board_size/2), self.board_size+(self.board_size/8))
+        self.screen_size = (self.board_size+(self.board_size/2), self.board_size+(2*self.board_size/8))
         self.screen = pygame.display.set_mode(self.screen_size)
         self.selected_square = False
         self.message = ""

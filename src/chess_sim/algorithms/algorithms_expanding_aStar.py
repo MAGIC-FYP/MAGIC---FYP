@@ -15,11 +15,11 @@ def surface_to_square_coord(coord, surface_size=[5*12,5*8]):
     return int(x) + int(y) * 8
 
 def screen_to_surface_coord(coord, screen_size, surface_size=[5*12,5*8]):
-    screen_size = (screen_size[0], screen_size[1]- screen_size[1]/9)
+    screen_size = (screen_size[0], screen_size[1]- screen_size[1]/5)
     return (coord[0] * (surface_size[0] / screen_size[0]), (coord[1] * (surface_size[1] / screen_size[1]))-5)
 
 def surface_to_screen_coord(coord, screen_size, surface_size=[5*12,5*8]):
-    adjusted_screen_size = (screen_size[0], screen_size[1] - screen_size[1]/8)
+    adjusted_screen_size = (screen_size[0], screen_size[1] - screen_size[1]/5)
     return ((coord[0] * adjusted_screen_size[0] / surface_size[0]), ((coord[1]+5) * adjusted_screen_size[1] / surface_size[1]))
 
 def is_on_playing_surface(coord, surface_size=[5*12,5*8]):
