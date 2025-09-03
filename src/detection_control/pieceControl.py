@@ -92,12 +92,6 @@ def sensor_index_to_square(index):  # Converts sensor number to chess location
         gy_col = chr(ord('A') + (col - 10))
         return f"GYB[{gy_col}][{row}]"
 
-def select_mux_channel(channel):
-    # Set S0–S3 for the channel (0–15)
-    GPIO.output(S0, channel & 0x01)
-    GPIO.output(S1, (channel >> 1) & 0x01)
-    GPIO.output(S2, (channel >> 2) & 0x01)
-    GPIO.output(S3, (channel >> 3) & 0x01)
 
 def enable_mux(index):
     # Enable one MUX at a time (active LOW)
