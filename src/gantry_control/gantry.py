@@ -16,21 +16,22 @@ def s_curve_delays(start_delay, end_delay, steps):
 class GantryControl:
     def __init__(self, max_x: float, max_y: float, motor_radius: float = 0.95):
         # Pin definitions (using BCM numbering)
-        self.L_DIR = 17   # Direction
-        self.L_STEP = 27  # Step pulse
-        self.L_EN = 22    # Enable (LOW = enabled)
-        self.R_DIR = 25   # Direction
-        self.R_STEP = 24  # Step pulse
-        self.R_EN = 23    # Enable (LOW = enabled)
-        self.E_MAG = 5    # Electromagnet
+        self.L_DIR = 9   # Direction
+        self.L_STEP = 8  # Step pulse
+        self.R_DIR = 11   # Direction
+        self.R_STEP = 10  # Step pulse
 
-        self.x_sw = 6
-        self.y_sw = 5
+        self.E_MAG = 12   # Electromagnet
+
+        self.LED = 13
+
+        self.x_sw = 14
+        self.y_sw = 15
         
         # Motor control parameters
         self.start_delay = 0.003   # 3ms (gentle start)
-        self.end_delay = 0.0015    # 1.5ms (gentle max speed)
-        self.pulse_width = 0.00003 # 30us
+        self.end_delay = 0.0005    # 1.5ms (gentle max speed)
+        self.pulse_width = 0.003 # 30us
         
         # Physical parameters
         self.max_x = max_x                  # in cm
@@ -48,50 +49,47 @@ class GantryControl:
         self.M = np.array([[1,0],[0,-1]])
         
         # Steps per revolution (typical for stepper motors)
-        self.steps_per_rev = 200  # Adjust based on your motor
-        self.cm_per_step = 0.016
+        self.cm_per_step = 0.008
 
 
 
     def initialise(self):
         # Setup
-        lg = lgpio.gpiochip_open(0)
-        lgpio.gpio_claim_output(lg, self.L_DIR)
-        lgpio.gpio_claim_output(lg, self.L_STEP)
-        lgpio.gpio_claim_output(lg, self.L_EN)
-        lgpio.gpio_claim_output(lg, self.R_DIR)
-        lgpio.gpio_claim_output(lg, self.R_STEP)
-        lgpio.gpio_claim_output(lg, self.R_EN)
-        lgpio.gpio_claim_output(lg, 26) # Stand in for 5v pin
-        #lgpio.gpio_claim_output(lg, self.E_MAG) # Stand in for 5v pin
-        lgpio.gpio_claim_input(lg, self.x_sw)
-        lgpio.gpio_claim_input(lg, self.y_sw)
+        self.lg = lgpio.gpiochip_open(0)
+        lgpio.gpio_claim_output(self.lg, self.L_DIR)
+        lgpio.gpio_claim_output(self.lg, self.L_STEP)
+
+        lgpio.gpio_claim_output(self.lg, self.R_DIR)
+        lgpio.gpio_claim_output(self.lg, self.R_STEP)
+
+        lgpio.gpio_claim_output(self.lg, self.E_MAG)
+        lgpio.gpio_claim_output(self.lg, self.LED)
+
+        lgpio.gpio_claim_input(self.lg, self.x_sw)
+        lgpio.gpio_claim_input(self.lg, self.y_sw)
 
         # Initialize pins
-        lgpio.gpio_write(lg, self.L_STEP, 0)
-        lgpio.gpio_write(lg, self.L_DIR, 0)
-        lgpio.gpio_write(lg, self.L_EN, 1)  # Start disabled
-        lgpio.gpio_write(lg, self.R_STEP, 0)
-        lgpio.gpio_write(lg, self.R_DIR, 0)
-        lgpio.gpio_write(lg, self.R_EN, 1)  # Start disabled
-        #lgpio.gpio_write(lg, self.E_MAG, 0)
+        lgpio.gpio_write(self.lg, self.L_STEP, 0)
+        lgpio.gpio_write(self.lg, self.L_DIR, 0)
 
-        lgpio.gpio_write(lg, 26, 1)
+        lgpio.gpio_write(self.lg, self.R_STEP, 0)
+        lgpio.gpio_write(self.lg, self.R_DIR, 0)
 
-        print("Pins initialized. Enabling driver...")
-        # Enable driver
-        lgpio.gpio_write(lg, self.L_EN, 0)
-        lgpio.gpio_write(lg, self.R_EN, 0)
-        print("Driver enabled.")
+        lgpio.gpio_write(self.lg, self.E_MAG, 0)
+        lgpio.gpio_write(self.lg, self.LED, 0)
+
+        print("Pins initialized")
         return True
 
     def electromagnet(self, on: bool):
         if on:
-            lgpio.gpio_write(lg, self.E_MAG, 1)
+            lgpio.gpio_write(self.lg, self.E_MAG, 1)
+            lgpio.gpio_write(self.lg, self.LED, 1)
         else:
-            lgpio.gpio_write(lg, self.E_MAG, 0)
+            lgpio.gpio_write(self.lg, self.E_MAG, 0)
+            lgpio.gpio_write(self.lg, self.LED, 0)
 
-    def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None):
+    def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None, emag=False):
         """Move stepper motor with acceleration/deceleration ramps"""
         if start_delay is None:
             start_delay = self.start_delay
@@ -100,8 +98,8 @@ class GantryControl:
         if pulse_width is None:
             pulse_width = self.pulse_width
             
-        lgpio.gpio_write(lg, self.L_DIR, direction_left)
-        lgpio.gpio_write(lg, self.R_DIR, direction_right)
+        lgpio.gpio_write(self.lg, self.L_DIR, direction_left)
+        lgpio.gpio_write(self.lg, self.R_DIR, direction_right)
         
         steps_left = abs(num_steps_left)
         steps_right = abs(num_steps_right)
@@ -133,19 +131,21 @@ class GantryControl:
                 if error * 2 >= steps_right:
                     step_left = True
                     error -= steps_right
+            
             if step_left and left_counter < steps_left:
-                lgpio.gpio_write(lg, self.L_STEP, 1)
+                lgpio.gpio_write(self.lg, self.L_STEP, 1)
                 time.sleep(pulse_width)
-                lgpio.gpio_write(lg, self.L_STEP, 0)
+                lgpio.gpio_write(self.lg, self.L_STEP, 0)
                 left_counter += 1
             if step_right and right_counter < steps_right:
-                lgpio.gpio_write(lg, self.R_STEP, 1)
+                lgpio.gpio_write(self.lg, self.R_STEP, 1)
                 time.sleep(pulse_width)
-                lgpio.gpio_write(lg, self.R_STEP, 0)
+                lgpio.gpio_write(self.lg, self.R_STEP, 0)
                 right_counter += 1
             # Shared delay for both motors
+            
             time.sleep(delays[i] if i < len(delays) else end_delay)
-
+            
             
             # Update position tracking
             step_distance_left = self.cm_per_step * (1 if direction_left == 1 else -1)
@@ -158,15 +158,14 @@ class GantryControl:
 
         return True
 
-    def move(self, x: float, y: float, vel: float):
+    def move(self, x: float, y: float, vel: float, emag=False):
         """Move to target position with specified velocity"""
         x = -x  # Flip the x-axis
-        y = -y  # Flip the y-axis
         if not (x < self.max_x or y < self.max_y):
             raise ValueError("Target position out of bounds")
         
         delta_x = -x - self.x_pos
-        delta_y = -y - self.y_pos
+        delta_y = -y + self.y_pos
         distance = np.sqrt((delta_x**2) + (delta_y**2))
         #print(f"Distance: {distance}, Delta x: {delta_x}, Delta y: {delta_y}")
         
@@ -181,42 +180,57 @@ class GantryControl:
         right_dir = 1 if  delta_x+delta_y> 0 else 0
         
         
+        if vel <= 0:
+            calculated_pulse_width = self.pulse_width
+        else:
+            calculated_pulse_width = self.cm_per_step / (2 * vel)
+        
+        # Clamp the calculated pulse_width within the defined min/max limits
+        pulse_width = calculated_pulse_width
+        
         #print(f"Moving to ({x:.2f}, {y:.2f}) - Left: {left_steps} steps, Right: {right_steps} steps")
         
         # Move both motors (simplified - in reality you'd need to coordinate them)
         if left_steps+right_steps > 0:
-            self.move_steps(left_dir, right_dir, left_steps, right_steps)
+            self.move_steps(left_dir, right_dir, left_steps, right_steps, pulse_width=pulse_width, emag=emag)
         
             
         # Update final position
         self.x_pos = -x
-        self.y_pos = -y
+        self.y_pos = y
+        return True
+    
+    def move_reletive(self, x: float, y: float, vel: float, emag=False):
+        x_abs = self.x_pos + x
+        y_abs = self.y_pos + y
+        print(f"Moving to ({x_abs}, {y_abs})")
+        self.move(x_abs, y_abs, vel, emag=emag)
         return True
     
 
     def home(self):
-        """Home the gantry to origin"""
-        print("Homing to origin...")
-        while lgpio.gpio_read(lg, self.y_sw)== 1:
-            self.move_steps(0,0,1,1)
-        self.move_steps(1,1,100,100)
-        while lgpio.gpio_read(lg, self.y_sw)== 1:
-            self.move_steps(0,0,1,1)
-        self.move_steps(1,1,20,20)
-        print("Homed Y")
-
-        while lgpio.gpio_read(lg, self.x_sw)== 1:
+        while lgpio.gpio_read(self.lg, self.x_sw) == 0:
             self.move_steps(1,0,1,1)
         self.move_steps(0,1,100,100)
-        while lgpio.gpio_read(lg, self.x_sw)== 1:
+        while lgpio.gpio_read(self.lg, self.x_sw) == 0:
             self.move_steps(1,0,1,1)
         self.move_steps(0,1,20,20)
         print("Homed X")
-       
 
+        """Home the gantry to origin"""
+        print("Homing to origin...")
+        while lgpio.gpio_read(self.lg, self.y_sw) == 0:
+            self.move_steps(1,1,1,1)
+        self.move_steps(0,0,100,100)
+        while lgpio.gpio_read(self.lg, self.y_sw) == 0:
+            self.move_steps(1,1,1,1)
+        self.move_steps(0,0,20,20)
+        print("Homed Y")
+    
         self.x_pos = 0
         self.y_pos = 0
         print("Homing complete.")
+        return True
 
     def get_status(self):
         """Get current status"""
@@ -232,26 +246,24 @@ class GantryControl:
     def cleanup(self):
         """Clean up GPIO pins"""
         print("Cleaning up GPIO...")
-        lgpio.gpio_write(lg, self.L_EN, 1)  # Disable left motor
-        lgpio.gpio_write(lg, self.R_EN, 1)  # Disable right motor
-        lgpio.gpiochip_close(lg)
+        lgpio.gpiochip_close(self.lg)
         print("GPIO cleanup complete.")
 
 
     def test_stepper(self):
-        lgpio.gpio_write(lg, self.R_STEP, 1)
+        lgpio.gpio_write(self.lg, self.R_STEP, 1)
         time.sleep(self.pulse_width)
-        lgpio.gpio_write(lg, self.R_STEP, 0)
+        lgpio.gpio_write(self.lg, self.R_STEP, 0)
         for i in range(100):
-            lgpio.gpio_write(lg, self.R_STEP, 1)
+            lgpio.gpio_write(self.lg, self.R_STEP, 1)
             time.sleep(self.pulse_width)
-            lgpio.gpio_write(lg, self.R_STEP, 0)
+            lgpio.gpio_write(self.lg, self.R_STEP, 0)
             time.sleep(0.005)
 
         for i in range(100):
-            lgpio.gpio_write(lg, self.L_STEP, 1)
+            lgpio.gpio_write(self.lg, self.L_STEP, 1)
             time.sleep(self.pulse_width)
-            lgpio.gpio_write(lg, self.L_STEP, 0)
+            lgpio.gpio_write(self.lg, self.L_STEP, 0)
             time.sleep(0.005)
 
     def test_square(self, length=2):
@@ -285,10 +297,10 @@ class GantryControl:
         return True
     
     def test_axis(self):
-        self.move(2, 0, 0.3)
-        self.move(0, 0, 0.3)
-        self.move(0, 2, 0.3)
-        self.move(0, 0, 0.3)
+        self.move(2, 0, 4)
+        self.move(0, 0, 4)
+        self.move(0, 2, 4)
+        self.move(0, 0, 4)
         return True
             
     def test_constantcy(self, length=2):
@@ -392,12 +404,13 @@ class GantryControl:
     def calibrate(self):
         """Calibrate the gantry"""
         print("Calibrating gantry...")
-        self.move(0, 0, 0.3)
+        self.move(0, 0, 1)
         pulse_width = 0.003
         for i in range(500):
-            lgpio.gpio_write(lg, self.R_STEP, 1)
+            lgpio.gpio_write(self.lg, self.R_STEP, 1)
+
             time.sleep(pulse_width)
-            lgpio.gpio_write(lg, self.R_STEP, 0)
+            lgpio.gpio_write(self.lg, self.R_STEP, 0)
             time.sleep(pulse_width)
 
         
@@ -408,12 +421,12 @@ class GantryControl:
         print(f"x_pos: {self.x_pos}, y_pos: {self.y_pos}")
         
         print(f"cm_per_step: {self.cm_per_step}")
-        self.move(0,cm*2/np.sqrt(2),0.3)
+        self.move(0,cm*2/np.sqrt(2),1)
         print(f"x_pos: {self.x_pos}, y_pos: {self.y_pos}")
         yN = input(f"is this {cm}cm y/n? ")
         if yN == "y":
             self.cm_per_step = cm_per_step
-            gantry.move(0, 0, 0.3)
+            gantry.move(0, 0, 1)
             return True
         else:
             self.calibrate()
@@ -424,7 +437,7 @@ gantry = GantryControl(max_x=600, max_y=450)
 gantry.initialise()
 print(gantry.get_status())
 #gantry.test_axis()
-# gantry.calibrate()
+#gantry.calibrate()
 #gantry.test_square(length=2)
 #gantry.test_constantcy()
 #gantry.draw_cool_dimond()
@@ -437,9 +450,21 @@ print(gantry.get_status())
 #     gantry.home()
 #     print(gantry.get_status())
 # gantry.move(radius * np.cos(np.radians(0)), radius * np.sin(np.radians(0)), 1.0)
+#gantry.move(5,0,2)
 
 gantry.home()
-gantry.move(30,30,0.3)
-gantry.move(0,0,0.3)
+gantry.move(5,0,2)
+gantry.move(5,5,1)
+
+
+while True:
+    input("Press keyborad turn on mag")
+    gantry.electromagnet(True) 
+    gantry.move_reletive(3,0,2, emag=False)
+    input("Press keyborad turn off mag")
+    gantry.electromagnet(False)
+    gantry.move_reletive(-3,0,2, emag=False)
+
+    
 gantry.cleanup()
 
