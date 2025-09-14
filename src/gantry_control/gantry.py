@@ -89,7 +89,7 @@ class GantryControl:
             lgpio.gpio_write(self.lg, self.E_MAG, 0)
             lgpio.gpio_write(self.lg, self.LED, 0)
 
-    def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None, emag=False):
+    def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None, emag=False, monitor=False):
         """Move stepper motor with acceleration/deceleration ramps"""
         if start_delay is None:
             start_delay = self.start_delay
@@ -137,13 +137,35 @@ class GantryControl:
                 time.sleep(pulse_width)
                 lgpio.gpio_write(self.lg, self.L_STEP, 0)
                 left_counter += 1
+                self.x_pos -= 0.5*((direction_left*2)-1)*self.cm_per_step
+                self.y_pos -= 0.5*((direction_left*2)-1)*self.cm_per_step
             if step_right and right_counter < steps_right:
                 lgpio.gpio_write(self.lg, self.R_STEP, 1)
                 time.sleep(pulse_width)
                 lgpio.gpio_write(self.lg, self.R_STEP, 0)
                 right_counter += 1
-            # Shared delay for both motors
+                self.x_pos += 0.5*((direction_right*2)-1)*self.cm_per_step
+                self.y_pos -= 0.5*((direction_right*2)-1)*self.cm_per_step
             
+            # Shared delay for both motors
+            if monitor:
+                sw_state = (lgpio.gpio_read(self.lg, self.x_sw)+(lgpio.gpio_read(self.lg, self.y_sw)*2))
+                if (sw_state) != 0:
+                    if sw_state == 1:
+                        self.x_pos = 0
+                        self.move_steps(0,1,20,20)
+                    elif sw_state == 2:
+                        self.y_pos = 0
+                        self.move_steps(0,0,20,20)
+                    elif sw_state == 3:
+                        self.x_pos = 0
+                        self.y_pos = 0
+                        self.move_steps(0,1,20,20)
+                        self.move_steps(0,0,20,20)
+                    print(f"switch hit, Sw state: {sw_state}")
+                    return False
+            
+            #print(f"x_pos: {self.x_pos}, y_pos: {self.y_pos}")
             time.sleep(delays[i] if i < len(delays) else end_delay)
             
             
@@ -166,10 +188,11 @@ class GantryControl:
         
         delta_x = -x - self.x_pos
         delta_y = -y + self.y_pos
+        print(f"Delta x: {delta_x}, Delta y: {delta_y}")
         distance = np.sqrt((delta_x**2) + (delta_y**2))
         #print(f"Distance: {distance}, Delta x: {delta_x}, Delta y: {delta_y}")
         
-        if distance < 0.01:  # Already at target
+        if distance < 0.1:  # Already at target
             return
 
         left_steps = int(abs(delta_x-delta_y) / self.cm_per_step)
@@ -192,7 +215,16 @@ class GantryControl:
         
         # Move both motors (simplified - in reality you'd need to coordinate them)
         if left_steps+right_steps > 0:
-            self.move_steps(left_dir, right_dir, left_steps, right_steps, pulse_width=pulse_width, emag=emag)
+            while True:
+                if self.move_steps(left_dir, right_dir, left_steps, right_steps, pulse_width=pulse_width, emag=emag, monitor=True):
+                    break
+                else:
+                    time.sleep(0.8)
+                    
+                    self.move(-x, y, vel, emag=emag)
+                    self.x_pos = -x
+                    self.y_pos = y
+                    return True
         
             
         # Update final position
@@ -433,7 +465,7 @@ class GantryControl:
         print("Calibration complete.")
 
 
-gantry = GantryControl(max_x=600, max_y=450)
+gantry = GantryControl(max_x=36, max_y=32)
 gantry.initialise()
 print(gantry.get_status())
 #gantry.test_axis()
@@ -453,17 +485,19 @@ print(gantry.get_status())
 #gantry.move(5,0,2)
 
 gantry.home()
-gantry.move(5,0,2)
-gantry.move(5,5,1)
+gantry.move(36,0,1)
+time.sleep(3)
+gantry.move(0,0,1)
+# gantry.move(-10,5,1)
 
 
 while True:
     input("Press keyborad turn on mag")
-    gantry.electromagnet(True) 
-    gantry.move_reletive(3,0,2, emag=False)
+    #gantry.electromagnet(True) 
+    gantry.move_reletive(10,0,2, emag=False)
     input("Press keyborad turn off mag")
-    gantry.electromagnet(False)
-    gantry.move_reletive(-3,0,2, emag=False)
+    #gantry.electromagnet(False)
+    gantry.move_reletive(-10,0,2, emag=False)
 
     
 gantry.cleanup()
