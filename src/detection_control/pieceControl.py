@@ -1,11 +1,8 @@
 """
-Actual piece detection code.
-Still work in progress!
+Created: 15/09/25
+Piece detection control for the continous board using 4x 16-channel multiplexers and an ADS1115 ADC.
 
-Notes: 
-- Logic may need to be updated as if piece is picked up and placed 5 seconds later it won't register as 1 move.
-
-- No logic for the sensor on the electromagnet
+This file should create a heat map showing which sensors on the board are detecting the magnet.
 """
 
 import time
@@ -15,6 +12,10 @@ import RPi.GPIO as GPIO  # Assuming Raspberry Pi for GPIO control
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
 # --------------------------
 # INITIAL SETUP
 # --------------------------
@@ -23,27 +24,120 @@ from adafruit_ads1x15.analog_in import AnalogIn
 i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c)
 
-# ADS1115 analog input (shared between MUX outputs)
-adc_channel = AnalogIn(ads, ADS.P0)  # Assuming all MUXes feed into A0
+# Define ADC channels for each mux
+adc_channels = [
+    AnalogIn(ads, ADS.P0),  # MUX1
+    AnalogIn(ads, ADS.P1),  # MUX2
+    AnalogIn(ads, ADS.P2),  # MUX3
+    AnalogIn(ads, ADS.P3)   # MUX4
+]
 
-# GPIO pin setup for multiplexer
-S0, S1, S2, S3 = 13, 14, 15, 16  # GPIO pins
-MUX_ENABLE_PINS = [17,18, 19, 20, 21]  # Enable pins for MUX1E–MUX6E 
+# GPIO pin setup
+S0, S1, S2, S3 = 22, 23, 24, 25  # MUX select pins for all 4 muxes
+MUX_ENABLE = 5
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup([S0, S1, S2, S3] + MUX_ENABLE_PINS, GPIO.OUT)
 
-# --------------------------
-# GLOBAL CONFIG
-# --------------------------
+# Setup select pins
+GPIO.setup([S0, S1, S2, S3], GPIO.OUT)
 
-NUM_SENSORS = 96    # Will be changed  
-sensor_states = [0.0] * NUM_SENSORS  # Initial baseline state
+# Setup and enable muxes (active LOW)
+GPIO.setup(MUX_ENABLE, GPIO.OUT)
+GPIO.output(MUX_ENABLE, GPIO.LOW)
+
+NUM_SENSORS = 64
+NUM_ROWS = 8
+NUM_COLS = 8
 
 # --------------------------
 # HELPER FUNCTIONS
 # --------------------------
+def select_mux_channel(channel):
+    """Set S0-S3 to pick a mux channel 0-15."""
+    GPIO.output(S0, channel & 0x01)
+    GPIO.output(S1, (channel >> 1) & 0x01)
+    GPIO.output(S2, (channel >> 2) & 0x01)
+    GPIO.output(S3, (channel >> 3) & 0x01)
 
+def read_all_sensors():
+    """Read all 64 sensors (4 muxes x 16 channels)."""
+    sensor_values = []
+    for ch in range(16):
+        select_mux_channel(ch)
+        time.sleep(0.001)  # settle
+
+        # read 4 mux outputs at once
+        for mux_adc in adc_channels:
+            sensor_values.append(mux_adc.voltage)
+
+    return sensor_values
+# --------------------------
+# CALIBRATION
+# --------------------------
+
+def calibrate_sensors(samples=50, delay=0.01):
+    readings = []
+    for _ in range(samples):
+        readings.append(read_all_sensors())
+        time.sleep(delay)
+    avg_vals = np.mean(readings, axis=0)
+
+    mins = avg_vals
+    maxs = avg_vals + 0.5  # initial guess range
+    return mins, maxs
+# --------------------------
+# NORMALISATION + HEATMAP
+# --------------------------
+
+def update_heatmap(vals, mins, maxs):
+    # Expand max dynamically
+    for i, v in enumerate(vals):
+        if v > maxs[i]:
+            maxs[i] = v
+
+    norm_vals = (np.array(vals) - mins) / (maxs - mins)
+    norm_vals = np.clip(norm_vals, 0, 1)
+    grid = norm_vals.reshape((NUM_ROWS, NUM_COLS))
+    return grid, maxs
+# --------------------------
+# MAIN
+# --------------------------
+
+def main():
+    mins, maxs = calibrate_sensors()
+    print("Calibration complete.")
+
+    plt.ion()
+    fig, ax = plt.subplots()
+    cmap = plt.cm.inferno
+    norm = mcolors.Normalize(vmin=0, vmax=1)
+    im = ax.imshow(np.zeros((NUM_ROWS, NUM_COLS)), cmap=cmap, norm=norm)
+
+    while True:
+        vals = read_all_sensors()
+        grid, maxs = update_heatmap(vals, mins, maxs)
+
+        im.set_data(grid)
+        plt.draw()
+        plt.pause(0.05)
+
+if __name__ == "__main__":
+    try:
+        main()
+    finally:
+        GPIO.cleanup()
+
+
+
+
+
+
+
+
+
+
+
+ """"   
 # This finds the max and minimum sensor voltages 
 def cali_sensor(mux_channels_with_magnet, mux_channels_without_magnet, mux_select_fn, ads_read_fn):
     magnet_vals = []
@@ -143,20 +237,4 @@ while True:
     previous_state = current_state.copy()
 
 
-'''
-Possible logic fix:
-
-pending_removal = None
-
-for square, action in changes:
-    if action == "removed":
-        pending_removal = square
-    elif action == "placed" and pending_removal:
-        print(f"Moved from {pending_removal} to {square}")
-        pending_removal = None
-
-Only time this could crash is during setup as multiple pieces are moving
-'''
-
-
-
+"""
