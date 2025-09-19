@@ -1,100 +1,124 @@
-import time
+#!/usr/bin/env python3
+import time, sys, os
 import smbus2
+from smbus2 import i2c_msg
 import RPi.GPIO as GPIO
+#RUN BOARD AT #3.3V
+# ========= CONFIG =========
+BUS_ID     = 1
+ADDR       = 0x10       # TLA2528 I2C address
+AVDD       = 5.0 #Leave this       
+MUX_PINS   = [16,17,18,19]  # BCM: S0..S3
+MUX_SETTLE = 0.002
+ADC_CHS    = [0,1,2,3,4]    # AIN0..AIN4 (5 mux boards)
 
-# ---------------------
-# TLA2528 ADC Driver
-# ---------------------
-class TLA2528:
-    # Register map (partial, check datasheet for full)
-    REG_RESULT   = 0x00
-    REG_CONFIG   = 0x01
-    REG_INPUTMUX = 0x02
-    REG_CONFIG2  = 0x03
+# ========= Thresholds =========
+BASE_V  = 2.5   # mid-level in volts (Change to 2.5 if running at 5V, 0r 1.65 at 3.3v)
+THRESH  = 0.20
+LOWER, UPPER = BASE_V - THRESH, BASE_V + THRESH
 
-    def __init__(self, bus_id=1, address=0x18, vref=5.0):
-        self.bus = smbus2.SMBus(bus_id)
-        self.addr = address
-        self.vref = vref  # Reference voltage (adjust for your circuit!)
+def is_magnet(v: float) -> int: #Check if the magnet is there
+    return 1 if (v < LOWER or v > UPPER) else 0
 
-        # Default config: 16-bit, OSR=128 (high precision)
-        # CONFIG2 bits: [7:6]=OSR, [5:4]=Resolution, others reserved
-        # Example: 0b01000011 -> OSR=128, 16-bit mode
-        self.config2 = 0x43
-        self.bus.write_byte_data(self.addr, self.REG_CONFIG2, self.config2)
+# ========= ADC (TLA2528, MANUAL MODE) =========
+READ_TRIES = 3
 
-    def read_raw(self, channel: int) -> int:
-        """
-        Perform a single-shot conversion on the given channel (0–7).
-        Returns raw 16-bit ADC value.
-        """
-        if not (0 <= channel <= 7):
-            raise ValueError("Channel must be 0–7")
-
-        # Select channel
-        self.bus.write_byte_data(self.addr, self.REG_INPUTMUX, channel & 0x07)
-
-        # Start single-shot conversion
-        config = 0x80  # Bit 7 = START
-        self.bus.write_byte_data(self.addr, self.REG_CONFIG, config)
-
-        # Wait for conversion (~2ms worst case at 16-bit OSR=128)
-        time.sleep(0.002)
-
-        # Read result (2 bytes)
-        data = self.bus.read_i2c_block_data(self.addr, self.REG_RESULT, 2)
-        raw = (data[0] << 8) | data[1]
-
-        return raw
-
-    def read_voltage(self, channel: int) -> float:
-        """Return voltage value from ADC channel (scaled by Vref)."""
-        raw = self.read_raw(channel)
-        voltage = (raw / 65535.0) * self.vref
-        return voltage
-
-    def close(self):
-        self.bus.close()
-
-
-# ---------------------
-# Multiplexer Setup
-# ---------------------
-MUX_PINS = [17, 27, 22, 23]  # BCM GPIO numbers for S0–S3
-ADC_CHANNEL = 0              # TLA2528 input tied to mux output
-
-GPIO.setmode(GPIO.BCM)
-for pin in MUX_PINS:
-    GPIO.setup(pin, GPIO.OUT, initial=GPIO.LOW)
-
-def set_mux_channel(channel: int):
-    """Select one of the 16 mux channels (0–15)."""
-    for i, pin in enumerate(MUX_PINS):
-        GPIO.output(pin, (channel >> i) & 1)
-
-
-# ---------------------
-# MAIN PROGRAM
-# ---------------------
-def main():
-    adc = TLA2528(bus_id=1, address=0x18, vref=5.0)  # adjust vref!
+def general_call_reset(bus):
     try:
+        bus.write_i2c_block_data(0x00, 0x06, [])
+        time.sleep(0.01)
+    except Exception:
+        pass
+
+def adc_init(bus):
+    REG_DATA_CFG      = 0x02
+    REG_OSR_CFG       = 0x03
+    REG_PIN_CFG       = 0x05
+    REG_SEQUENCE_CFG  = 0x10
+    bus.write_byte_data(ADDR, REG_SEQUENCE_CFG, 0x00)  # manual mode
+    bus.write_byte_data(ADDR, REG_PIN_CFG,      0x00)  # all analog
+    bus.write_byte_data(ADDR, REG_OSR_CFG,      0x00)  # no OSR
+    bus.write_byte_data(ADDR, REG_DATA_CFG,     0x00)  # default frame
+    time.sleep(0.002)
+
+def adc_select_channel(bus, ch: int):
+    wr = i2c_msg.write(ADDR, [0x08, 0x11, ch & 0x0F])
+    bus.i2c_rdwr(wr)
+
+def adc_read_code12(bus):
+    for _ in range(READ_TRIES):
+        try:
+            rd = i2c_msg.read(ADDR, 3)
+            bus.i2c_rdwr(rd)
+            b = list(rd)
+            return ((b[0] << 8) | b[1]) >> 4
+        except Exception:
+            time.sleep(0.0005)
+    rd = i2c_msg.read(ADDR, 2)
+    bus.i2c_rdwr(rd)
+    b = list(rd)
+    return ((b[0] << 8) | b[1]) >> 4
+
+def adc_read_voltage(bus, ch: int) -> float:
+    adc_select_channel(bus, ch)
+    code12 = adc_read_code12(bus)
+    return (code12 & 0x0FFF) * AVDD / 4095.0
+
+# ========= 4067 (GPIO) =========
+def mux_init():
+    GPIO.setmode(GPIO.BCM)
+    for p in MUX_PINS:
+        GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
+
+def mux_set(ch: int):
+    for i, pin in enumerate(MUX_PINS):
+        GPIO.output(pin, (ch >> i) & 1)
+
+def mux_cleanup():
+    GPIO.cleanup()
+
+# ========= Terminal helpers =========
+def clear_screen():
+    sys.stdout.write("\033[H\033[J")  # cursor home, clear screen
+    sys.stdout.flush()
+
+# ========= MAIN =========
+def main():
+    mux_init()
+    bus = smbus2.SMBus(BUS_ID)
+    try:
+        general_call_reset(bus)
+        adc_init(bus)
+
         while True:
-            readings = []
-            for ch in range(16):
-                set_mux_channel(ch)
-                time.sleep(0.001)  # allow mux to settle
-                value = adc.read_voltage(ADC_CHANNEL)
-                readings.append(round(value, 3))  # round to mV precision
-            print("Sensor voltages (V):", readings)
-            time.sleep(1)
+            # --- Build bitmap (10×8 grid = 80 sensors) ---
+            bitmap = []
+            for ain in ADC_CHS:          # 5 rows of 16 each
+                row = []
+                for m in range(16):
+                    mux_set(m)
+                    time.sleep(MUX_SETTLE)
+                    v = adc_read_voltage(bus, ain)
+                    row.append(is_magnet(v))
+                bitmap.append(row)
+
+            # --- Draw on terminal ---
+            clear_screen()
+            print("Live 10×8 Sensor Map (AIN0–AIN4 × mux 0–15):\n")
+            for ain_idx, row in enumerate(bitmap):
+                top = row[:8]
+                bot = row[8:][::-1]  # reverse second half for orientation
+                print("RowTop (AIN%d): " % ain_idx + " ".join(str(x) for x in top))
+                print("RowBot (AIN%d): " % ain_idx + " ".join(str(x) for x in bot))
+            print("\n[Press Ctrl+C to stop]")
+
+            time.sleep(0.01)  # refresh rate
 
     except KeyboardInterrupt:
         pass
     finally:
-        adc.close()
-        GPIO.cleanup()
-
+        bus.close()
+        mux_cleanup()
 
 if __name__ == "__main__":
     main()

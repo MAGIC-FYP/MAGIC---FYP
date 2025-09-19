@@ -23,7 +23,7 @@ class GantryControl:
 
         self.E_MAG = 12   # Electromagnet
 
-        self.LED = 13
+        self.LED = 26
 
         self.x_sw = 14
         self.y_sw = 15
@@ -63,7 +63,7 @@ class GantryControl:
         lgpio.gpio_claim_output(self.lg, self.R_STEP)
 
         lgpio.gpio_claim_output(self.lg, self.E_MAG)
-        lgpio.gpio_claim_output(self.lg, self.LED)
+        lgpio.gpio_claim_input(self.lg, self.LED)
 
         lgpio.gpio_claim_input(self.lg, self.x_sw)
         lgpio.gpio_claim_input(self.lg, self.y_sw)
@@ -84,12 +84,15 @@ class GantryControl:
     def electromagnet(self, on: bool):
         if on:
             lgpio.gpio_write(self.lg, self.E_MAG, 1)
-            lgpio.gpio_write(self.lg, self.LED, 1)
+            time.sleep(0.2)
+            #lgpio.gpio_write(self.lg, self.LED, 1) ## this line here
+            print(on)
         else:
             lgpio.gpio_write(self.lg, self.E_MAG, 0)
             lgpio.gpio_write(self.lg, self.LED, 0)
+        return True
 
-    def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None, emag=False, monitor=False):
+    def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None, monitor=False):
         """Move stepper motor with acceleration/deceleration ramps"""
         if start_delay is None:
             start_delay = self.start_delay
@@ -180,7 +183,7 @@ class GantryControl:
 
         return True
 
-    def move(self, x: float, y: float, vel: float, emag=False):
+    def move(self, x: float, y: float, vel: float):
         """Move to target position with specified velocity"""
         x = -x  # Flip the x-axis
         if not (x < self.max_x or y < self.max_y):
@@ -216,7 +219,7 @@ class GantryControl:
         # Move both motors (simplified - in reality you'd need to coordinate them)
         if left_steps+right_steps > 0:
             while True:
-                if self.move_steps(left_dir, right_dir, left_steps, right_steps, pulse_width=pulse_width, emag=emag, monitor=True):
+                if self.move_steps(left_dir, right_dir, left_steps, right_steps, pulse_width=pulse_width, monitor=True):
                     break
                 else:
                     time.sleep(0.8)
@@ -232,11 +235,11 @@ class GantryControl:
         self.y_pos = y
         return True
     
-    def move_reletive(self, x: float, y: float, vel: float, emag=False):
+    def move_reletive(self, x: float, y: float, vel: float):
         x_abs = self.x_pos + x
         y_abs = self.y_pos + y
         print(f"Moving to ({x_abs}, {y_abs})")
-        self.move(x_abs, y_abs, vel, emag=emag)
+        self.move(x_abs, y_abs, vel)
         return True
     
 
@@ -484,20 +487,21 @@ print(gantry.get_status())
 # gantry.move(radius * np.cos(np.radians(0)), radius * np.sin(np.radians(0)), 1.0)
 #gantry.move(5,0,2)
 
-gantry.home()
-gantry.move(36,0,1)
-time.sleep(3)
-gantry.move(0,0,1)
+#gantry.home()
+gantry.move(100,0,2)
+# time.sleep(3)
+#gantry.move(0,0,1)
 # gantry.move(-10,5,1)
 
 
 while True:
     input("Press keyborad turn on mag")
-    #gantry.electromagnet(True) 
-    gantry.move_reletive(10,0,2, emag=False)
+    #gantry.electromagnet(True)
+    #time.sleep(1)
+    gantry.move_reletive(-1,0,2)
     input("Press keyborad turn off mag")
-    #gantry.electromagnet(False)
-    gantry.move_reletive(-10,0,2, emag=False)
+    gantry.electromagnet(False)
+    gantry.move_reletive(1,0,2)
 
     
 gantry.cleanup()
