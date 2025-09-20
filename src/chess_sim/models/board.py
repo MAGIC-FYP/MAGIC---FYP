@@ -1,10 +1,12 @@
 import chess
+import numpy as np
 from typing import List, Optional, Tuple
 from models.player import BasePlayer, HumanPlayer
 from models.controller import Controller
 from models.graveyard import Graveyard
 from gui.chess_gui import Display
 from models.log import logger
+from gantry_control.tiles import TileSensor
 from algorithms.path_planner import Board as PathPlannerBoard
 import time
 from algorithms.algorithms_expanding_aStar import find_path, crowd_control
@@ -15,6 +17,7 @@ class Board:
         self.controller = controller
         self.graveyard = Graveyard()
         self.logger = logger()
+        self.Surface = TileSensor()
         self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.path_extra = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.white_player: Optional[BasePlayer] = None
@@ -80,6 +83,48 @@ class Board:
         print("\n" + "=" * 40)
         print("Game over!")
         print(self.board)
+
+    def get_move_from_surface(self, board: chess.Board):
+
+        prev_bitmap = np.zeros((8, 8))
+        for rank_idx in range(8): # Iterate through ranks (rows) from 0 to 7
+            for file_idx in range(8): # Iterate through files (columns) from 0 to 7                
+                square_index = rank_idx * 8 + file_idx
+                if board.piece_at(square_index):
+                    prev_bitmap[rank_idx, file_idx] = 1 # Piece is present
+
+
+        change = 0
+        while change == 0:
+            cur_bitmap = np.array(self.Surface.get_sensor_bitmap())[:, 1:9]
+            dif_bitmap = np.zeros((8, 8))
+            for i in range(8):
+                for j in range(8):
+                    if cur_bitmap[i][j] != prev_bitmap[i][j]:
+                        dif_bitmap[i, j] = 1
+                        from_square = chess.square(j, i)
+            change = np.sum(dif_bitmap)        
+        prev_bitmap = cur_bitmap
+
+
+        change = 0
+        while change == 0:
+            cur_bitmap = self.Surface.get_sensor_bitmap()
+            dif_bitmap = np.zeros((8, 8))
+            for i in range(8):
+                for j in range(8):
+                    if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                        dif_bitmap[i, j] = 1
+                        to_square = chess.square(j, i)
+            change = np.sum(dif_bitmap) 
+
+        move = chess.Move(from_square, to_square)
+        print(f"move: {move}")
+        # The 'bitmap' variable now holds the 8x8 representation as requested.
+        # For example, bitmap[0][0] corresponds to a1, bitmap[0][7] to h1,
+        # bitmap[7][0] to a8, and bitmap[7][7] to h8.
+
+        return move
     
     def play_game_gui(self) -> None:
         if not self.white_player or not self.black_player:
@@ -91,14 +136,16 @@ class Board:
 
         display = Display(log= self.logger)
         
-        while not self.is_game_over():
+        #while not self.is_game_over():
+        while True:
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
             display.disp_board(self.board, self.graveyard, self.current_player)
             self.logger.log(f"board fen:\t{self.board.fen()}")
             if type(self.current_player) == HumanPlayer:
-                move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
-                
+                #move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
+                #move = self.get_move_from_surface(self.board)
+                move = display.get_move_from_surface_gui(self.board, self.Surface, self.graveyard, self.current_player)
             else:
                 move = self.current_player.get_move(self.board)
 

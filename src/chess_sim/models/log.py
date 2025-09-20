@@ -11,7 +11,7 @@ class logger:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.log_file = os.path.join(log_dir, f"{log_name}_{timestamp}.txt")
         with open(self.log_file, "a") as f:
-            f.write(f"{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} --- Start of Log ---\n")
+            f.write(f"{datetime.now().strftime('[%Y-%m-%d %H:%M:%S]')} --- Start of Log ---\n")
         self._cleanup_old_logs(log_dir, keep=10)
 
     def _cleanup_old_logs(self, log_dir, keep=10):

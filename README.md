@@ -16,3 +16,28 @@ Should be noted that the inspiration for this project came from 'Harry Potter an
 project ;)
 
 
+here is how to run this on th epi and see pygame
+
+1. download real vnc and make an acount
+
+2. run this in terminal:
+    sudo apt update
+    sudo apt install xvfb x11vnc
+
+3. then run this in terminal from inside the chess_sim file:
+    # Start virtual framebuffer
+    Xvfb :1 -screen 0 1024x768x24 &
+
+    # Set display
+    export DISPLAY=:1
+
+    # Run your pygame app
+    /usr/bin/python /home/magicpi/MAGIC---FYP/src/chess_sim/main.py &
+
+    # Start VNC server
+    x11vnc -display :1 -nopw -listen localhost -xkb
+
+4. on your computer run this in terminal, and enter the pwd raspberry:
+    ssh -L 5900:localhost:5900 magicpi@192.168.10.48
+    
+5. open real VNC and connect to localhost:5900 

@@ -1,12 +1,14 @@
 """
 This file contains all functions for chess GUI handling
 """
-
+import os
 import pygame
 import sys
 import chess
 import math
+import numpy as np
 from models.graveyard import Graveyard
+from gantry_control.tiles import TileSensor
 import time
 from algorithms.algorithms_expanding_aStar import find_path, screen_to_surface_coord, surface_to_screen_coord
 
@@ -359,7 +361,49 @@ class Display:
                 
                 self.disp_board(board, graveyard, current_player)
 
-                    
+    def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, graveyard: Graveyard ,current_player):
+        prev_bitmap = np.zeros((8, 8))
+        for rank_idx in range(8): # Iterate through ranks (rows) from 0 to 7
+            for file_idx in range(8): # Iterate through files (columns) from 0 to 7                
+                square_index = rank_idx * 8 + file_idx
+                if board.piece_at(square_index):
+                    prev_bitmap[rank_idx, file_idx] = 1 # Piece is present
+
+
+        change = 0
+        while change == 0:
+            cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
+            dif_bitmap = np.zeros((8, 8))
+            for i in range(8):
+                for j in range(8):
+                    if cur_bitmap[i][j] != prev_bitmap[i][j]:
+                        dif_bitmap[i, j] = 1
+                        from_square = chess.square(j, i)
+            change = np.sum(dif_bitmap) 
+        piece = board.piece_at(from_square)
+        if piece:       
+            self.selected_square = from_square
+            if piece.color == current_player.colour:
+                self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == from_square]
+                self.disp_board(board, graveyard, current_player)
+        prev_bitmap = cur_bitmap
+
+
+        change = 0
+        while change == 0:
+            cur_bitmap = Surface.get_sensor_bitmap()
+            dif_bitmap = np.zeros((8, 8))
+            for i in range(8):
+                for j in range(8):
+                    if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                        dif_bitmap[i, j] = 1
+                        to_square = chess.square(j, i)
+            change = np.sum(dif_bitmap) 
+
+        move = chess.Move(from_square, to_square)
+        print(f"move: {move}")
+
+        return move    
                 
     def get_next_move_from_click(self, board: chess.Board, graveyard: Graveyard, current_player):
         """

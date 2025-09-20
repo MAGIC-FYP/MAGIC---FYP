@@ -138,7 +138,7 @@ class Graveyard():
             piece_type = piece_mapping[piece_symbol.upper()]
             piece_obj = chess.Piece(piece_type, color)
             self.place_piece(piece_obj)
-            print("BANG")
+            #print("BANG")
         #print('Graveyard occupation:', self.occupied_position)
 
 
