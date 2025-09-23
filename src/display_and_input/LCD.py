@@ -4,10 +4,14 @@ import time
 
 
 #TODO:
+
 # - Add a function to clear the LCD
 # - Add a function to display a message on the LCD that scrolls properly
 # - Add higher level function that handles conversion of menu into LCD
+# - Add a function to display a message on the LCD for a certain amount of time
+# - Add a function to display a message on the LCD for a certain amount of time
 
+class LCD:
     def __init__(self, pi_rev = 2, i2c_addr = 0x27, backlight = True):
 
         # device constants
