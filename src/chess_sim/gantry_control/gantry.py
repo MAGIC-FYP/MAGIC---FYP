@@ -19,8 +19,7 @@ class GantryControl:
         self.y_sw = 15
         
         # Initialize GPIO handles to None
-        self.lg = None  # Main GPIO handle for steppers and switches
-        self.lg_emag = None  # Separate GPIO handle for electromagnet and LED
+        self.lg = None  # Main GPIO handle
         
         # Motor control parameters
         self.start_delay = 0.003   # 3ms (gentle start)
@@ -52,7 +51,6 @@ class GantryControl:
     def initialise(self):
         # Setup
         self.lg = lgpio.gpiochip_open(0)
-        self.lg_emag = lgpio.gpiochip_open(0)
         #stepper pins
         lgpio.gpio_claim_output(self.lg, self.L_DIR)
         lgpio.gpio_claim_output(self.lg, self.L_STEP)
@@ -60,7 +58,7 @@ class GantryControl:
         lgpio.gpio_claim_output(self.lg, self.R_STEP)
 
         #electromagnet pins
-        lgpio.gpio_claim_output(self.lg_emag, self.E_MAG)
+        lgpio.gpio_claim_output(self.lg, self.E_MAG)
         #led pin
         lgpio.gpio_claim_output(self.lg, self.LED)
 
@@ -72,10 +70,10 @@ class GantryControl:
         lgpio.gpio_write(self.lg, self.L_DIR, 0)
         lgpio.gpio_write(self.lg, self.R_STEP, 0)
         lgpio.gpio_write(self.lg, self.R_DIR, 0)
-        lgpio.gpio_write(self.lg_emag, self.E_MAG, 0)
+        lgpio.gpio_write(self.lg, self.E_MAG, 0)
         lgpio.gpio_write(self.lg, self.LED, 0)
 
-        print(f"lg: {self.lg}, lg_emag: {self.lg_emag}")
+        print(f"lg: {self.lg}")
         print("Pins initialized")
         return True
     def s_curve_delays(self,start_delay, end_delay, steps):
@@ -90,8 +88,8 @@ class GantryControl:
         return (start_delay + (end_delay - start_delay) * s).tolist()
 
     def electromagnet(self, on: bool):
-        lgpio.gpio_write(self.lg_emag, self.E_MAG, 1 if on else 0)
-        #lgpio.gpio_write(self.lg_emag, self.LED, 1 if on else 0)
+        lgpio.gpio_write(self.lg, self.E_MAG, 1 if on else 0)
+        #lgpio.gpio_write(self.lg, self.LED, 1 if on else 0)
         return True
 
 
