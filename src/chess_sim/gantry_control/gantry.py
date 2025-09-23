@@ -2,16 +2,7 @@ import numpy as np
 import lgpio
 import time
 
-def s_curve_delays(start_delay, end_delay, steps):
-    """
-    Generate an S-curve (smoothstep) delay profile for acceleration/deceleration.
-    Returns a list of delays (in seconds) for each step.
-    """
-    if steps <= 0:
-        return []
-    t = np.linspace(0, 1, steps)
-    s = 3 * t**2 - 2 * t**3  # Smoothstep S-curve
-    return (start_delay + (end_delay - start_delay) * s).tolist()
+
 
 class GantryControl:
     def __init__(self, max_x: float, max_y: float, motor_radius: float = 0.95):
@@ -21,24 +12,30 @@ class GantryControl:
         self.R_DIR = 11   # Direction
         self.R_STEP = 10  # Step pulse
 
-        self.E_MAG = 12   # Electromagnet
-
-        self.LED = 26
+        self.E_MAG = 12 
+        self.LED = 13
 
         self.x_sw = 14
         self.y_sw = 15
         
+        # Initialize GPIO handles to None
+        self.lg = None  # Main GPIO handle for steppers and switches
+        self.lg_emag = None  # Separate GPIO handle for electromagnet and LED
+        
         # Motor control parameters
         self.start_delay = 0.003   # 3ms (gentle start)
-        self.end_delay = 0.0005    # 1.5ms (gentle max speed)
+        self.end_delay = 0.005    # 1.5ms (gentle max speed)
         self.pulse_width = 0.003 # 30us
         
+        self.x_offest = 1.75
+        self.y_offest = -1.6
+
         # Physical parameters
         self.max_x = max_x                  # in cm
         self.max_y = max_y                  # in cm
-        self.x_pos = 0                      # in cm
+        self.x_pos = self.x_offest          # in cm
         self.x_vel = 0                      # in cm/s
-        self.y_pos = 0                      # in cm
+        self.y_pos = self.y_offest          # in cm
         self.y_vel = 0                      # in cm/s
         self.l_motor_pos = 0                # in rads
         self.l_motor_vel = 0                # in rads/s
@@ -52,45 +49,51 @@ class GantryControl:
         self.cm_per_step = 0.008
 
 
-
     def initialise(self):
         # Setup
         self.lg = lgpio.gpiochip_open(0)
+        self.lg_emag = lgpio.gpiochip_open(0)
+        #stepper pins
         lgpio.gpio_claim_output(self.lg, self.L_DIR)
         lgpio.gpio_claim_output(self.lg, self.L_STEP)
-
         lgpio.gpio_claim_output(self.lg, self.R_DIR)
         lgpio.gpio_claim_output(self.lg, self.R_STEP)
 
-        lgpio.gpio_claim_output(self.lg, self.E_MAG)
-        lgpio.gpio_claim_input(self.lg, self.LED)
+        #electromagnet pins
+        lgpio.gpio_claim_output(self.lg_emag, self.E_MAG)
+        #led pin
+        lgpio.gpio_claim_output(self.lg, self.LED)
 
         lgpio.gpio_claim_input(self.lg, self.x_sw)
         lgpio.gpio_claim_input(self.lg, self.y_sw)
 
-        # Initialize pins
+        # Initialize pins low
         lgpio.gpio_write(self.lg, self.L_STEP, 0)
         lgpio.gpio_write(self.lg, self.L_DIR, 0)
-
         lgpio.gpio_write(self.lg, self.R_STEP, 0)
         lgpio.gpio_write(self.lg, self.R_DIR, 0)
-
-        lgpio.gpio_write(self.lg, self.E_MAG, 0)
+        lgpio.gpio_write(self.lg_emag, self.E_MAG, 0)
         lgpio.gpio_write(self.lg, self.LED, 0)
 
+        print(f"lg: {self.lg}, lg_emag: {self.lg_emag}")
         print("Pins initialized")
         return True
+    def s_curve_delays(self,start_delay, end_delay, steps):
+        """
+        Generate an S-curve (smoothstep) delay profile for acceleration/deceleration.
+        Returns a list of delays (in seconds) for each step.
+        """
+        if steps <= 0:
+            return []
+        t = np.linspace(0, 1, steps)
+        s = 3 * t**2 - 2 * t**3  # Smoothstep S-curve
+        return (start_delay + (end_delay - start_delay) * s).tolist()
 
     def electromagnet(self, on: bool):
-        if on:
-            lgpio.gpio_write(self.lg, self.E_MAG, 1)
-            time.sleep(0.2)
-            #lgpio.gpio_write(self.lg, self.LED, 1) ## this line here
-            print(on)
-        else:
-            lgpio.gpio_write(self.lg, self.E_MAG, 0)
-            lgpio.gpio_write(self.lg, self.LED, 0)
+        lgpio.gpio_write(self.lg_emag, self.E_MAG, 1 if on else 0)
+        #lgpio.gpio_write(self.lg_emag, self.LED, 1 if on else 0)
         return True
+
 
     def move_steps(self, direction_left, direction_right, num_steps_left, num_steps_right, start_delay=None, end_delay=None, pulse_width=None, monitor=False):
         """Move stepper motor with acceleration/deceleration ramps"""
@@ -111,9 +114,9 @@ class GantryControl:
         const_steps = max_steps - 2 * ramp_steps
 
         delays = (
-            s_curve_delays(start_delay, end_delay, ramp_steps) +
+            self.s_curve_delays(start_delay, end_delay, ramp_steps) +
             [end_delay] * max(0, const_steps) +
-            s_curve_delays(end_delay, start_delay, ramp_steps)
+            self.s_curve_delays(end_delay, start_delay, ramp_steps)
         )
         # Bresenham error for sync stepping
         error = 0
@@ -155,16 +158,16 @@ class GantryControl:
                 sw_state = (lgpio.gpio_read(self.lg, self.x_sw)+(lgpio.gpio_read(self.lg, self.y_sw)*2))
                 if (sw_state) != 0:
                     if sw_state == 1:
-                        self.x_pos = 0
-                        self.move_steps(0,1,20,20)
+                        self.x_pos = self.x_offest
+                        self.move_steps(0,1,10,10)
                     elif sw_state == 2:
-                        self.y_pos = 0
-                        self.move_steps(0,0,20,20)
+                        self.y_pos = self.y_offest
+                        self.move_steps(0,0,10,10)
                     elif sw_state == 3:
-                        self.x_pos = 0
-                        self.y_pos = 0
-                        self.move_steps(0,1,20,20)
-                        self.move_steps(0,0,20,20)
+                        self.x_pos = self.x_offest
+                        self.y_pos = self.y_offest
+                        self.move_steps(0,1,10,10)
+                        self.move_steps(0,0,10,10)
                     print(f"switch hit, Sw state: {sw_state}")
                     return False
             
@@ -224,7 +227,7 @@ class GantryControl:
                 else:
                     time.sleep(0.8)
                     
-                    self.move(-x, y, vel, emag=emag)
+                    self.move(-x, y, vel)
                     self.x_pos = -x
                     self.y_pos = y
                     return True
@@ -262,8 +265,8 @@ class GantryControl:
         self.move_steps(0,0,20,20)
         print("Homed Y")
     
-        self.x_pos = 0
-        self.y_pos = 0
+        self.x_pos = self.x_offest
+        self.y_pos = self.y_offest
         print("Homing complete.")
         return True
 
@@ -487,21 +490,22 @@ print(gantry.get_status())
 # gantry.move(radius * np.cos(np.radians(0)), radius * np.sin(np.radians(0)), 1.0)
 #gantry.move(5,0,2)
 
-#gantry.home()
-gantry.move(100,0,2)
+gantry.home()
+#gantry.move(100,0,2)
 # time.sleep(3)
 #gantry.move(0,0,1)
 # gantry.move(-10,5,1)
-
+#lgpio.gpio_write(gantry.lg, gantry.E_MAG, 1)
 
 while True:
     input("Press keyborad turn on mag")
-    #gantry.electromagnet(True)
+    gantry.electromagnet(True)
     #time.sleep(1)
-    gantry.move_reletive(-1,0,2)
+    gantry.move_reletive(1,0,2)
     input("Press keyborad turn off mag")
     gantry.electromagnet(False)
-    gantry.move_reletive(1,0,2)
+    #
+    gantry.move_reletive(-1,0,2)
 
     
 gantry.cleanup()
