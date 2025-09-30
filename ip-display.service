@@ -1,0 +1,18 @@
+[Unit]
+Description=IP Display Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=magicpi
+Group=magicpi
+WorkingDirectory=/home/magicpi/MAGIC---FYP/src/display_and_input
+ExecStart=/usr/bin/python3 /home/magicpi/MAGIC---FYP/src/display_and_input/ip_disp.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

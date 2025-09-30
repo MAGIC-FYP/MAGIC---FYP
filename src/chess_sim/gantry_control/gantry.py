@@ -23,7 +23,7 @@ class GantryControl:
         
         # Motor control parameters
         self.start_delay = 0.003   # 3ms (gentle start)
-        self.end_delay = 0.005    # 1.5ms (gentle max speed)
+        self.end_delay = 0.0001    # 1.5ms (gentle max speed)
         self.pulse_width = 0.003 # 30us
         
         self.x_offest = 1.75
@@ -89,7 +89,7 @@ class GantryControl:
 
     def electromagnet(self, on: bool):
         lgpio.gpio_write(self.lg, self.E_MAG, 1 if on else 0)
-        #lgpio.gpio_write(self.lg, self.LED, 1 if on else 0)
+        lgpio.gpio_write(self.lg, self.LED, 1 if on else 0)
         return True
 
 
@@ -245,9 +245,10 @@ class GantryControl:
     
 
     def home(self):
+        fast_home_speed = 0.0005
         while lgpio.gpio_read(self.lg, self.x_sw) == 0:
-            self.move_steps(1,0,1,1)
-        self.move_steps(0,1,100,100)
+            self.move_steps(1,0,1,1, pulse_width=fast_home_speed)
+        self.move_steps(0,1,100,100, pulse_width=fast_home_speed)
         while lgpio.gpio_read(self.lg, self.x_sw) == 0:
             self.move_steps(1,0,1,1)
         self.move_steps(0,1,20,20)
@@ -256,8 +257,8 @@ class GantryControl:
         """Home the gantry to origin"""
         print("Homing to origin...")
         while lgpio.gpio_read(self.lg, self.y_sw) == 0:
-            self.move_steps(1,1,1,1)
-        self.move_steps(0,0,100,100)
+            self.move_steps(1,1,1,1, pulse_width=fast_home_speed)
+        self.move_steps(0,0,100,100, pulse_width=fast_home_speed)
         while lgpio.gpio_read(self.lg, self.y_sw) == 0:
             self.move_steps(1,1,1,1)
         self.move_steps(0,0,20,20)
@@ -489,7 +490,7 @@ print(gantry.get_status())
 #gantry.move(5,0,2)
 
 gantry.home()
-#gantry.move(100,0,2)
+gantry.move_reletive(10,10,20)
 # time.sleep(3)
 #gantry.move(0,0,1)
 # gantry.move(-10,5,1)
@@ -498,12 +499,11 @@ gantry.home()
 while True:
     input("Press keyborad turn on mag")
     gantry.electromagnet(True)
-    #time.sleep(1)
-    gantry.move_reletive(1,0,2)
+
+    gantry.move_reletive(10,0,5)
     input("Press keyborad turn off mag")
     gantry.electromagnet(False)
-    #
-    gantry.move_reletive(-1,0,2)
+    gantry.move_reletive(-10,0,5)
 
     
 gantry.cleanup()
