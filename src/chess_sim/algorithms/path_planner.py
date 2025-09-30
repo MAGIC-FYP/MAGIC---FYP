@@ -5,9 +5,17 @@ from matplotlib.patches import Circle
 from typing import List, Tuple
 #from fen import generate_random_fen
 import networkx as nx
+import yaml
+import os
+
+def load_config():
+    """Load configuration from config.yml"""
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yml')
+    with open(config_path, 'r') as file:
+        return yaml.safe_load(file)
 
 class Piece:
-    def __init__(self, piece_id: int, x: float, y: float, piece_type: str = 'P', color: str = 'w', diameter: float = 35.0):
+    def __init__(self, piece_id: int, x: float, y: float, piece_type: str = 'P', color: str = 'w', diameter: float = None):
         self.id = piece_id
         self.x = x
         self.y = y
@@ -21,13 +29,38 @@ class Piece:
         return f"Piece(id={self.id}, x={self.x:.1f}, y={self.y:.1f})"
 
 class Board:
-    def __init__(self, width: int = 12, height: int = 8, square_size: float = 50.0):
+    def __init__(self, width: int = 12, height: int = 8, square_size: float = None):
+        # Load configuration
+        self.config = load_config()
+        path_config = self.config['models']['path_finding']
+        
         self.pychess_board = None
         self.width = width
         self.height = height
-        self.square_size = square_size
-        self.board_width = width * square_size
-        self.board_height = height * square_size
+        self.square_size = square_size if square_size is not None else path_config['square_size']
+        self.piece_diameter = path_config['piece_diameter']
+        self.express_channel_size = path_config['express_channel_size']
+        self.board_width = width * self.square_size
+        self.board_height = height * self.square_size
+        
+        # Calculate derived values from config
+        self.half_square = self.square_size / 2
+        self.piece_radius = self.piece_diameter / 2
+        
+        # Calculate graveyard and board positions
+        self.chess_start_x = (self.width - 8) * self.square_size / 2
+        self.chess_start_y = (self.height - 8) * self.square_size / 2
+        
+        # Graveyard positions (2 columns on each side)
+        self.graveyard_left_col1 = self.half_square  # 25mm when square_size=50
+        self.graveyard_left_col2 = self.square_size + self.half_square  # 75mm when square_size=50
+        self.graveyard_right_col1 = self.board_width - self.half_square  # 575mm when square_size=50, width=12
+        self.graveyard_right_col2 = self.board_width - self.square_size - self.half_square  # 525mm when square_size=50, width=12
+        
+        # Express channels (top and bottom)
+        self.express_bottom_y = -self.express_channel_size
+        self.express_top_y = self.board_height + self.express_channel_size
+        
         self.gy1_count = None
         self.gy2_count = None
         self.gy11_count = None
@@ -51,13 +84,13 @@ class Board:
             'captured_w': {},
             'captured_b': {},
             'promotion': {
-                'white_queen': (75, 375),
-                'black_queen': (525, 25)
+                'white_queen': (self.graveyard_left_col2, self.board_height - self.half_square),
+                'black_queen': (self.graveyard_right_col2, self.half_square)
             }
         }
     
     def add_piece(self, piece_id: int, x: float, y: float, piece_type: str = 'P', color: str = 'w') -> Piece:
-        piece = Piece(piece_id, x, y, piece_type, color)
+        piece = Piece(piece_id, x, y, piece_type, color, self.piece_diameter)
         self.pieces[piece_id] = piece
         return piece
     
@@ -91,8 +124,8 @@ class Board:
             'captured_w': {},
             'captured_b': {},
             'promotion': {
-                'white_queen': (25, 375),
-                'black_queen': (575, 25)
+                'white_queen': (self.graveyard_left_col1, self.board_height - self.half_square),
+                'black_queen': (self.graveyard_right_col1, self.half_square)
             }
         }
         
@@ -103,8 +136,8 @@ class Board:
         piece_placement = parts[0]
         rows = piece_placement.split('/')
         
-        x_offset = (self.width - 8) * self.square_size / 2
-        y_offset = (self.height - 8) * self.square_size / 2
+        x_offset = self.chess_start_x
+        y_offset = self.chess_start_y
         
         current_pieces = {k: 0 for k in self.standard_piece_counts.keys()}
         
@@ -118,8 +151,8 @@ class Board:
                     color = 'w' if char.isupper() else 'b'
                     piece_type = char.upper()
                     
-                    x = x_offset + col_idx * self.square_size + self.square_size / 2
-                    y = y_offset + (7 - row_idx) * self.square_size + self.square_size / 2
+                    x = x_offset + col_idx * self.square_size + self.half_square
+                    y = y_offset + (7 - row_idx) * self.square_size + self.half_square
                     
                     self.add_piece(piece_id, x, y, piece_type, color)
                     self.piece_locations['active'][piece_id] = {
@@ -131,9 +164,9 @@ class Board:
                     piece_id += 1
                     col_idx += 1
 
-        start_y_w = 375
-        start_y_b = 25
-        spacing_y = 50
+        start_y_w = self.board_height - self.half_square
+        start_y_b = self.half_square
+        spacing_y = self.square_size
         col_1_count = 1
         col_2_count = 0
         col_12_count = 1
@@ -150,20 +183,20 @@ class Board:
                 for _ in range(missing):
                     if color == 'w':
                         if col_1_count <= 7:
-                            x = 25  
+                            x = self.graveyard_left_col1  
                             y = start_y_w - col_1_count * spacing_y
                             col_1_count += 1
                         else:
-                            x = 75 
+                            x = self.graveyard_left_col2 
                             y = start_y_b + col_2_count * spacing_y 
                             col_2_count += 1
                     else: 
                         if col_12_count <= 7:
-                            x = 575  
+                            x = self.graveyard_right_col1  
                             y = start_y_b + col_12_count * spacing_y
                             col_12_count += 1
                         else:
-                            x = 525  
+                            x = self.graveyard_right_col2  
                             y = start_y_w - col_11_count * spacing_y
                             col_11_count += 1
                 
@@ -192,7 +225,7 @@ class Board:
             facecolor = 'white' if piece.color == 'w' else 'black'
             edgecolor = 'black' if piece.color == 'w' else 'white'
             
-            circle = Circle((piece.x, piece.y), piece.radius, 
+            circle = Circle((piece.x, piece.y), self.piece_radius, 
                           facecolor=facecolor, edgecolor=edgecolor, alpha=0.7)
             ax.add_patch(circle)
             
@@ -207,7 +240,7 @@ class Board:
                 facecolor = 'white' if piece_info['color'] == 'w' else 'black'
                 edgecolor = 'black' if piece_info['color'] == 'w' else 'white'
                 
-                circle = Circle((x, y), 17.5, 
+                circle = Circle((x, y), self.piece_radius, 
                               facecolor=facecolor, edgecolor=edgecolor, alpha=0.7)
                 ax.add_patch(circle)
                 
@@ -224,7 +257,7 @@ class Board:
             symbol = self.piece_symbols['Q' if is_white else 'q']
             text_color = 'black' if is_white else 'white'
             
-            circle = Circle((x, y), 17.5, 
+            circle = Circle((x, y), self.piece_radius, 
                           facecolor=facecolor, edgecolor=edgecolor, alpha=0.7)
             ax.add_patch(circle)
             ax.text(x, y, symbol, ha='center', va='center', color=text_color, fontsize=16)
@@ -236,7 +269,6 @@ class Board:
         ax.set_xlabel('X Position')
         ax.set_ylabel('Y Position')
         
-        plt.grid(True)
         plt.show()
 
     def get_all_piece_locations(self):
@@ -266,14 +298,14 @@ class Board:
         
         for i in range(self.width):
             for j in range(self.height):
-                grid_x = 25 + i * 50
-                grid_y = 25 + j * 50
+                grid_x = self.half_square + i * self.square_size
+                grid_y = self.half_square + j * self.square_size
                 grid_points.append((grid_x, grid_y))
 
         # Express Travel Channels
         for i in range(self.width):
-            grid_points.append((25 + i * 50, -12.5))
-            grid_points.append((25 + i * 50, 412.5))
+            grid_points.append((self.half_square + i * self.square_size, self.express_bottom_y))
+            grid_points.append((self.half_square + i * self.square_size, self.express_top_y))
         
         for point in grid_points:
             point_x, point_y = point
@@ -286,38 +318,38 @@ class Board:
             L_shape_weight = 10
             
             straight_directions = [
-                (point_x + 50, point_y, 1),  # right
-                (point_x - 50, point_y, 1),  # left
-                (point_x, point_y + 50, 1),  # up
-                (point_x, point_y - 50, 1)   # down
+                (point_x + self.square_size, point_y, 1),  # right
+                (point_x - self.square_size, point_y, 1),  # left
+                (point_x, point_y + self.square_size, 1),  # up
+                (point_x, point_y - self.square_size, 1)   # down
             ]
             
             diagonal_directions = [
-                (point_x + 50, point_y + 50, diagonal_weight),  # up-right
-                (point_x + 50, point_y - 50, diagonal_weight),  # down-right
-                (point_x - 50, point_y + 50, diagonal_weight),  # up-left
-                (point_x - 50, point_y - 50, diagonal_weight)   # down-left
+                (point_x + self.square_size, point_y + self.square_size, diagonal_weight),  # up-right
+                (point_x + self.square_size, point_y - self.square_size, diagonal_weight),  # down-right
+                (point_x - self.square_size, point_y + self.square_size, diagonal_weight),  # up-left
+                (point_x - self.square_size, point_y - self.square_size, diagonal_weight)   # down-left
             ]
 
             L_shape_directions = [  
-                (point_x + 100, point_y+50, L_shape_weight),
-                (point_x + 100, point_y-50, L_shape_weight),
-                (point_x - 100, point_y+50, L_shape_weight),
-                (point_x - 100, point_y-50, L_shape_weight),
-                (point_x + 50, point_y+100, L_shape_weight),
-                (point_x + 50, point_y-100, L_shape_weight),
-                (point_x - 50, point_y+100, L_shape_weight),
-                (point_x - 50, point_y-100, L_shape_weight),
+                (point_x + 2*self.square_size, point_y + self.square_size, L_shape_weight),
+                (point_x + 2*self.square_size, point_y - self.square_size, L_shape_weight),
+                (point_x - 2*self.square_size, point_y + self.square_size, L_shape_weight),
+                (point_x - 2*self.square_size, point_y - self.square_size, L_shape_weight),
+                (point_x + self.square_size, point_y + 2*self.square_size, L_shape_weight),
+                (point_x + self.square_size, point_y - 2*self.square_size, L_shape_weight),
+                (point_x - self.square_size, point_y + 2*self.square_size, L_shape_weight),
+                (point_x - self.square_size, point_y - 2*self.square_size, L_shape_weight),
             ]
             
             for adjacent_x, adjacent_y, weight in straight_directions + diagonal_directions + L_shape_directions:
                 if (adjacent_x, adjacent_y) in G.nodes():
                     G.add_edge(point, (adjacent_x, adjacent_y), weight=weight)
 
-            if point_y == 25:
-                G.add_edge(point, (point_x, -12.5), weight=1)
-            if point_y == 375:
-                G.add_edge(point, (point_x, 412.5), weight=1)
+            if point_y == self.half_square:
+                G.add_edge(point, (point_x, self.express_bottom_y), weight=1)
+            if point_y == self.board_height - self.half_square:
+                G.add_edge(point, (point_x, self.express_top_y), weight=1)
         
         closest_point = None
         min_distance = float('inf')
@@ -352,15 +384,15 @@ class Board:
                 if piece.color == "w":
                     # White pieces go to left side graveyard, highest possible position
                     primary_targets = [(point, distances[point]) for point in distances.keys() 
-                                      if point[0] == 25 and point[1] >= 25 and point[1] <= 375]  # Regular graveyard
+                                      if point[0] == self.graveyard_left_col1 and point[1] >= self.half_square and point[1] <= self.board_height - self.half_square]  # Regular graveyard
                     backup_targets = [(point, distances[point]) for point in distances.keys() 
-                                     if point[0] == 75 and point[1] >= 25 and point[1] <= 375]   # Backup graveyard
+                                     if point[0] == self.graveyard_left_col2 and point[1] >= self.half_square and point[1] <= self.board_height - self.half_square]   # Backup graveyard
                 else:
                     # Black pieces go to right side graveyard, lowest possible position
                     primary_targets = [(point, distances[point]) for point in distances.keys() 
-                                      if point[0] == 575 and point[1] >= 25 and point[1] <= 375]  # Regular graveyard
+                                      if point[0] == self.graveyard_right_col1 and point[1] >= self.half_square and point[1] <= self.board_height - self.half_square]  # Regular graveyard
                     backup_targets = [(point, distances[point]) for point in distances.keys() 
-                                     if point[0] == 525 and point[1] >= 25 and point[1] <= 375]  # Backup graveyard
+                                     if point[0] == self.graveyard_right_col2 and point[1] >= self.half_square and point[1] <= self.board_height - self.half_square]  # Backup graveyard
                 
                 if primary_targets:
                     # For white pieces, get highest y-coordinate; for black, get lowest
@@ -389,14 +421,14 @@ class Board:
         for node in G.nodes():
             if start_point and node == start_point:
                 node_colors.append('red')  # Highlight start point
-            elif node[1] == -12.5 or node[1] == 412.5:
+            elif node[1] == self.express_bottom_y or node[1] == self.express_top_y:
                 node_colors.append('green')  # Express travel channel points
             else:
                 node_colors.append('blue')  # Regular grid points
         
         nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=100)
         
-        labels = {node: f"({node[0]}, {node[1]})" for node in G.nodes() if node[1] == -12.5 or node[1] == 412.5}
+        labels = {node: f"({node[0]}, {node[1]})" for node in G.nodes() if node[1] == self.express_bottom_y or node[1] == self.express_top_y}
         nx.draw_networkx_labels(G, pos, labels, font_size=8)
         
         plt.title("Movement Graph Visualization")
@@ -419,8 +451,8 @@ class Board:
         return []
 
     def coord_from_uci(self, uci: str) -> Tuple[int, int]:
-        x = 25 + (ord(uci[0]) - ord('a')) * 50 + 100
-        y = 25 + (int(uci[1]) - 1) * 50
+        x = self.half_square + (ord(uci[0]) - ord('a')) * self.square_size + (2*self.square_size)
+        y = self.half_square + (int(uci[1]) - 1) * self.square_size 
         return (x, y)
 
     def process_path(self, path: List[Tuple[float, float]]):
@@ -489,15 +521,15 @@ class Board:
 
             # Move the promoted queen to the target position based on promotion colour
             if pawn.color == 'w':
-                queen = self.get_piece_at_position(75, 375)
-                path2 = self.path_to_target(75, 375, to_x, to_y)
+                queen = self.get_piece_at_position(self.graveyard_left_col2, self.board_height - self.half_square)
+                path2 = self.path_to_target(self.graveyard_left_col2, self.board_height - self.half_square, to_x, to_y)
                 self.pieces[queen.id].x = to_x
                 self.pieces[queen.id].y = to_y
                 self.piece_locations['promotion']['white_queen'] = (to_x, to_y)
                 self.piece_locations['active'][queen.id]['position'] = (to_x, to_y)
             else:
-                queen = self.get_piece_at_position(525, 25)
-                path2 = self.path_to_target(75, 375, to_x, to_y)
+                queen = self.get_piece_at_position(self.graveyard_right_col2, self.half_square)
+                path2 = self.path_to_target(self.graveyard_right_col2, self.half_square, to_x, to_y)
                 self.pieces[queen.id].x = to_x
                 self.pieces[queen.id].y = to_y
                 self.piece_locations['promotion']['black_queen'] = (to_x, to_y)
@@ -527,7 +559,9 @@ class Board:
             if move[2] == 'c':
                 # Queen side castling 
                 king_piece = self.get_piece_at_position(from_x, from_y)
-                rook_piece = self.get_piece_at_position(125, from_y)
+                # Queen side rook position (a-file)
+                queenside_rook_x = self.chess_start_x + self.half_square
+                rook_piece = self.get_piece_at_position(queenside_rook_x, from_y)
 
                 # King moves from e1 to c1 or e8 to c8
                 path_1 = self.path_to_target(from_x, from_y, to_x, to_y) # King path
@@ -535,18 +569,20 @@ class Board:
                 self.pieces[king_piece.id].y = to_y
                 self.piece_locations['active'][king_piece.id]['position'] = (to_x, to_y)
 
-                # Rook moves from d1 to a1 or d8 to a8
-                path_2 = self.path_to_target(125 , from_y, to_x + 50, to_y) # Rook path
-                self.pieces[rook_piece.id].x = to_x
+                # Rook moves from a1 to d1 or a8 to d8
+                path_2 = self.path_to_target(queenside_rook_x, from_y, to_x + self.square_size, to_y) # Rook path
+                self.pieces[rook_piece.id].x = to_x + self.square_size
                 self.pieces[rook_piece.id].y = to_y
-                self.piece_locations['active'][rook_piece.id]['position'] = (to_x, to_y)
+                self.piece_locations['active'][rook_piece.id]['position'] = (to_x + self.square_size, to_y)
 
                 return [path_1, path_2]
 
             else:
                 # King side castling
                 king_piece = self.get_piece_at_position(from_x, from_y)
-                rook_piece = self.get_piece_at_position(475, from_y)
+                # King side rook position (h-file)
+                kingside_rook_x = self.chess_start_x + 7 * self.square_size + self.half_square
+                rook_piece = self.get_piece_at_position(kingside_rook_x, from_y)
 
                 # King moves from e1 to g1 or e8 to g8
                 path_1 = self.path_to_target(from_x, from_y, to_x, to_y) # King path
@@ -554,11 +590,11 @@ class Board:
                 self.pieces[king_piece.id].y = to_y
                 self.piece_locations['active'][king_piece.id]['position'] = (to_x, to_y)
 
-                # Rook moves from f1 to h1 or f8 to h8
-                path_2 = self.path_to_target(475, from_y, to_x - 50, to_y) # Rook path
-                self.pieces[rook_piece.id].x = to_x
+                # Rook moves from h1 to f1 or h8 to f8
+                path_2 = self.path_to_target(kingside_rook_x, from_y, to_x - self.square_size, to_y) # Rook path
+                self.pieces[rook_piece.id].x = to_x - self.square_size
                 self.pieces[rook_piece.id].y = to_y
-                self.piece_locations['active'][rook_piece.id]['position'] = (to_x, to_y)
+                self.piece_locations['active'][rook_piece.id]['position'] = (to_x - self.square_size, to_y)
 
                 return [path_1, path_2]
 

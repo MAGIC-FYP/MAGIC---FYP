@@ -4,6 +4,11 @@ project:
   description: "MAGIC CHESS FYP"
 
 models:
+  path_finding:
+    square_size: 35 #mm
+    piece_diameter: 20 #mm
+    express_channel_size: 8.75 #mm (1/4 of square_size)
+
   chess_board:
     size_x: 40.0
     size_y: 40.0
