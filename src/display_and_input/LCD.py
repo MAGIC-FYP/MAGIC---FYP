@@ -110,3 +110,7 @@ class LCD:
     def clear(self):
         # clear LCD display
         self.lcd_byte(0x01, self.LCD_CMD)
+
+if __name__ == "__main__":
+    lcd = LCD()
+    lcd.message("Hello Finn!")
