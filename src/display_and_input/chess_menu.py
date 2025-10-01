@@ -12,9 +12,14 @@ Creates a hierarchical menu for chess game configuration:
   - Start Game
 """
 
-from .menu import SubMenu, MenuItem, BackMenuItem
 from typing import Dict, Any, Callable, Optional
 import chess
+
+# Use try/except to support both relative and absolute imports
+try:
+    from .menu import SubMenu, MenuItem, BackMenuItem
+except ImportError:
+    from menu import SubMenu, MenuItem, BackMenuItem
 
 
 class ChessMenuBuilder:

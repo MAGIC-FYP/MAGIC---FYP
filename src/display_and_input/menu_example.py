@@ -5,11 +5,17 @@ This file shows how to use the Composite Pattern menu system and can be run
 independently to test the menu navigation without starting a full chess game.
 """
 
+import sys
+import os
+from signal import pause
+
+# Add parent directory to path to allow imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Now import with absolute imports
 from menu import SubMenu, MenuItem, BackMenuItem
 from menu_navigator import MenuNavigator
 from LCD import LCD
-from signal import pause
-import sys
 
 
 def example_action(name):

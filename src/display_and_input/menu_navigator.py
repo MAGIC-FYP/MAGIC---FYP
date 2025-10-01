@@ -3,10 +3,16 @@ MenuNavigator integrates the menu system with LCD display and rotary encoder inp
 """
 
 from gpiozero import Button, RotaryEncoder
-from .LCD import LCD
-from .menu import Menu, SubMenu, MenuItem
 from typing import Optional
 import time
+
+# Use try/except to support both relative and absolute imports
+try:
+    from .LCD import LCD
+    from .menu import Menu, SubMenu, MenuItem
+except ImportError:
+    from LCD import LCD
+    from menu import Menu, SubMenu, MenuItem
 
 
 class MenuNavigator:
