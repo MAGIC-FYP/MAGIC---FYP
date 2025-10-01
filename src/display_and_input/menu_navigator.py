@@ -5,6 +5,7 @@ MenuNavigator integrates the menu system with LCD display and rotary encoder inp
 from gpiozero import Button, RotaryEncoder
 from typing import Optional
 import time
+import threading
 
 # Use try/except to support both relative and absolute imports
 try:
@@ -21,7 +22,8 @@ class MenuNavigator:
     """
     
     def __init__(self, root_menu: SubMenu, lcd: Optional[LCD] = None, 
-                 encoder_a: int = 27, encoder_b: int = 22, switch_pin: int = 17):
+                 encoder_a: int = 27, encoder_b: int = 22, switch_pin: int = 17,
+                 update_delay: float = 0.1):
         """
         Initialize the menu navigator.
         
@@ -31,6 +33,7 @@ class MenuNavigator:
             encoder_a: GPIO pin for rotary encoder A
             encoder_b: GPIO pin for rotary encoder B
             switch_pin: GPIO pin for rotary encoder switch
+            update_delay: Minimum delay between display updates (seconds)
         """
         self.root_menu = root_menu
         self.current_menu = root_menu
@@ -45,6 +48,11 @@ class MenuNavigator:
         # Track encoder position
         self.last_encoder_steps = 0
         
+        # Thread safety and rate limiting
+        self.display_lock = threading.Lock()
+        self.last_update = 0
+        self.update_delay = update_delay  # Minimum time between updates
+        
         # Setup callbacks
         self.encoder.when_rotated = self._on_rotate
         self.switch.when_pressed = self._on_press
@@ -53,12 +61,16 @@ class MenuNavigator:
         self.running = False
         
         # Display initial menu
-        self.update_display()
+        self._safe_update_display()
     
     def _on_rotate(self):
-        """Handle rotary encoder rotation."""
+        """Handle rotary encoder rotation with rate limiting."""
         if not self.running:
             return
+        
+        current_time = time.time()
+        if current_time - self.last_update < self.update_delay:
+            return  # Rate limit - debounce rapid rotations
             
         current_steps = self.encoder.steps
         
@@ -66,19 +78,22 @@ class MenuNavigator:
             # Rotated clockwise - next item
             if isinstance(self.current_menu, SubMenu):
                 self.current_menu.next()
-                self.update_display()
+                self._safe_update_display()
         elif current_steps < self.last_encoder_steps:
             # Rotated counter-clockwise - previous item
             if isinstance(self.current_menu, SubMenu):
                 self.current_menu.previous()
-                self.update_display()
+                self._safe_update_display()
         
         self.last_encoder_steps = current_steps
+        self.last_update = current_time
     
     def _on_press(self):
-        """Handle rotary encoder switch press."""
+        """Handle rotary encoder switch press with debouncing."""
         if not self.running:
             return
+        
+        time.sleep(0.05)  # Debounce button press
             
         if isinstance(self.current_menu, SubMenu):
             # Execute the current selection
@@ -87,10 +102,19 @@ class MenuNavigator:
             if next_menu is not None:
                 # Navigate to the returned menu
                 self.current_menu = next_menu
-                self.update_display()
+                self._safe_update_display()
             elif next_menu is None and self.current_menu.get_parent() is None:
                 # If we're at root and execute returns None, stay at root
+                self._safe_update_display()
+    
+    def _safe_update_display(self):
+        """Thread-safe display update with error handling."""
+        with self.display_lock:
+            try:
                 self.update_display()
+            except Exception as e:
+                print(f"Display update error: {e}")
+                # Graceful degradation - don't crash
     
     def update_display(self):
         """Update the LCD display with current menu state."""
@@ -121,7 +145,7 @@ class MenuNavigator:
     def start(self):
         """Start the menu navigator (enables input handling)."""
         self.running = True
-        self.update_display()
+        self._safe_update_display()
         print("Menu navigator started. Press Ctrl+C to exit.")
     
     def stop(self):
@@ -134,7 +158,7 @@ class MenuNavigator:
         """Navigate back to the root menu."""
         self.current_menu = self.root_menu
         self.current_menu.reset_index()
-        self.update_display()
+        self._safe_update_display()
     
     def get_current_menu(self) -> Menu:
         """Get the current menu being displayed."""

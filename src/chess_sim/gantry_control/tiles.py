@@ -58,21 +58,34 @@ class TileSensor:
         self._init_hardware()
 
     def _init_hardware(self):
-        """Initializes RPi.GPIO for MUX and the I2C bus for ADC."""
+        """Initializes RPi.GPIO for MUX and the I2C bus for ADC with retry logic."""
         # MUX GPIO setup
         GPIO.setmode(GPIO.BCM)
         for p in self.mux_pins:
             GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
 
-        # I2C bus and ADC initialization
-        self.bus = smbus2.SMBus(self.bus_id)
-        try:
-            self._general_call_reset()
-            self._adc_init()
-        except Exception as e:
-            print(f"Error initializing ADC hardware: {e}", file=sys.stderr)
-            self.close() # Ensure cleanup if init fails
-            raise # Re-raise the exception to indicate failure
+        # I2C bus and ADC initialization with retries
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self.bus = smbus2.SMBus(self.bus_id)
+                self._general_call_reset()
+                self._adc_init()
+                print("ADC initialized successfully")
+                return  # Success
+            except Exception as e:
+                print(f"ADC init attempt {attempt + 1} failed: {e}", file=sys.stderr)
+                if self.bus:
+                    try:
+                        self.bus.close()
+                    except:
+                        pass
+                if attempt < max_retries - 1:
+                    time.sleep(0.5)  # Wait before retry
+                else:
+                    print("WARNING: Could not initialize ADC hardware after retries", file=sys.stderr)
+                    # Graceful degradation - set bus to None but don't crash
+                    self.bus = None
 
     def _is_magnet(self, v: float) -> int:
         """
@@ -101,6 +114,8 @@ class TileSensor:
 
     def _adc_select_channel(self, ch: int):
         """Selects the specified analog input channel on the ADC."""
+        if self.bus is None:
+            raise RuntimeError("I2C bus not initialized")
         wr = i2c_msg.write(self.addr, [0x08, 0x11, ch & 0x0F])
         self.bus.i2c_rdwr(wr)
 
@@ -109,6 +124,8 @@ class TileSensor:
         Reads a 12-bit ADC code from the TLA2528.
         Attempts multiple reads if errors occur.
         """
+        if self.bus is None:
+            raise RuntimeError("I2C bus not initialized")
         for _ in range(self.READ_TRIES):
             try:
                 rd = i2c_msg.read(self.addr, 3) # Attempt 3-byte read
@@ -152,28 +169,36 @@ class TileSensor:
         and returns a 2D list (bitmap) indicating magnet presence.
         Final output is 10x8, flipped along the anti-diagonal (top-right to bottom-left).
         """
-        n_ain = len(self.adc_chs)
-        raw_sensor_data = np.zeros((n_ain, 16), dtype=int)
+        if self.bus is None:
+            print("WARNING: I2C bus not initialized, returning empty bitmap", file=sys.stderr)
+            return np.zeros((10, 8), dtype=int).tolist()
+        
+        try:
+            n_ain = len(self.adc_chs)
+            raw_sensor_data = np.zeros((n_ain, 16), dtype=int)
 
-        # Collect all ADC readings (5 x 16)
-        for ain_idx, ain_channel in enumerate(self.adc_chs):
-            for mux_channel in range(16):
-                self._mux_set(mux_channel)
-                time.sleep(self.mux_settle)
-                v = self._adc_read_voltage(ain_channel)
-                raw_sensor_data[ain_idx, mux_channel] = self._is_magnet(v)
+            # Collect all ADC readings (5 x 16)
+            for ain_idx, ain_channel in enumerate(self.adc_chs):
+                for mux_channel in range(16):
+                    self._mux_set(mux_channel)
+                    time.sleep(self.mux_settle)
+                    v = self._adc_read_voltage(ain_channel)
+                    raw_sensor_data[ain_idx, mux_channel] = self._is_magnet(v)
 
-        # Build 10x8 bitmap
-        final_bitmap = np.zeros((n_ain * 2, 8), dtype=int)
-        final_bitmap[0::2, :] = raw_sensor_data[:, :8]               # first 8 samples → top row
-        final_bitmap[1::2, :] = raw_sensor_data[:, 8:][:, ::-1]      # last 8 samples → reversed bottom row
+            # Build 10x8 bitmap
+            final_bitmap = np.zeros((n_ain * 2, 8), dtype=int)
+            final_bitmap[0::2, :] = raw_sensor_data[:, :8]               # first 8 samples → top row
+            final_bitmap[1::2, :] = raw_sensor_data[:, 8:][:, ::-1]      # last 8 samples → reversed bottom row
 
-        # Flip along the anti-diagonal (↘)
-        flipped = np.flipud(np.fliplr(final_bitmap.T))
+            # Flip along the anti-diagonal (↘)
+            flipped = np.flipud(np.fliplr(final_bitmap.T))
 
-        final_bitmap = flipped[:, ::-1]
+            final_bitmap = flipped[:, ::-1]
 
-        return final_bitmap.tolist()
+            return final_bitmap.tolist()
+        except Exception as e:
+            print(f"Error reading sensor bitmap: {e}", file=sys.stderr)
+            return np.zeros((10, 8), dtype=int).tolist()
 
 
     def display_bitmap(self, bitmap):
