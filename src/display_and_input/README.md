@@ -52,9 +52,61 @@ Integrates menu system with hardware (LCD + rotary encoder).
 - Rotary encoder rotation → Navigate menu items
 - Rotary encoder press → Select/execute current item
 - Automatic LCD display updates
+- **Automatic text scrolling** for long strings (> 10 characters by default)
+- Configurable scroll threshold and speed
 - Two-line display format:
-  - Line 1: Current menu title
-  - Line 2: `> Current Item X/Y` (with navigation info)
+  - Line 1: Current menu title (scrolls if > threshold)
+  - Line 2: `> Current Item X/Y` (scrolls if item name > threshold)
+
+## LCD Display Format
+
+```
+┌────────────────┐
+│ Main Menu      │  ← Line 1: Current menu title
+│ > Option 1 1/3 │  ← Line 2: > Current selection + position
+└────────────────┘
+     16 chars
+```
+### Display Components:
+- **Line 1**: Current menu/submenu name (max 16 chars, scrolls if > threshold)
+- **Line 2**: 
+  - `>` : Selection indicator (1 char)
+  - ` ` : Space (1 char)
+  - Item name (variable, scrolls if > threshold, otherwise truncated)
+  - ` ` : Space (1 char)
+  - `X/Y` : Position indicator (variable length)
+
+### Scrolling Behavior
+
+**Short text (≤ 10 chars):** Displayed statically
+```
+┌────────────────┐
+│ Main Menu      │
+│ > Back       1/3│
+└────────────────┘
+```
+
+**Long text (> 10 chars):** Scrolls across display
+```
+Frame 1:  ┌────────────────┐
+          │Player vs Robot │  ← Scrolls
+          │> Robot Level 1/3│
+          └────────────────┘
+
+Frame 2:  ┌────────────────┐
+          │layer vs Robot P│  ← Scrolling...
+          │> Robot Level 1/3│
+          └────────────────┘
+
+Frame 3:  ┌────────────────┐
+          │ayer vs Robot Pl│  ← Continues...
+          │> Robot Level 1/3│
+          └────────────────┘
+```
+
+**Customizable:**
+- `scroll_threshold=10` - Minimum length before scrolling (default: 10)
+- `scroll_speed=0.3` - Seconds per scroll step (default: 0.3)
 
 ### 3. `chess_menu.py`
 Chess-specific menu builder.
@@ -140,6 +192,17 @@ navigator.start()
 
 # Keep running
 pause()
+```
+
+### Customizing Scroll Behavior
+
+```python
+# Adjust scroll threshold and speed
+navigator = MenuNavigator(
+    root,
+    scroll_threshold=10,   # Scroll text longer than 10 characters
+    scroll_speed=0.3       # 0.3 seconds per scroll step
+)
 ```
 
 ### Chess Game Integration

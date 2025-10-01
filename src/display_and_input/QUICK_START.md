@@ -101,6 +101,19 @@ navigator = MenuNavigator(
 )
 ```
 
+### Adjust Scrolling Behavior
+Control when and how text scrolls:
+
+```python
+navigator = MenuNavigator(
+    root_menu,
+    scroll_threshold=10,  # Scroll text longer than 10 chars (default)
+    scroll_speed=0.3      # Scroll speed in seconds (default: 0.3)
+)
+```
+
+**Note:** Text longer than `scroll_threshold` characters will automatically scroll across the display. For example, "Player vs Robot" (16 chars) will scroll since it's > 10 characters.
+
 ### Change LCD I2C Address
 Edit `LCD.py` or pass custom address:
 
