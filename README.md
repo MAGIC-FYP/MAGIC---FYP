@@ -39,6 +39,7 @@ here is how to run this on th epi and see pygame
 
     # Start VNC server
     x11vnc -display :1 -nopw -listen localhost -xkb
+    
 ```
 
 4. on your computer run this in terminal, and enter the pwd raspberry:

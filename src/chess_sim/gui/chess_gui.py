@@ -9,6 +9,8 @@ import math
 import numpy as np
 from models.graveyard import Graveyard
 from gantry_control.tiles import TileSensor
+from gantry_control.gantry import GantryControl
+from algorithms.path_planner import Board as PathPlannerBoard
 import time
 from algorithms.algorithms_expanding_aStar import find_path, screen_to_surface_coord, surface_to_screen_coord
 
@@ -312,12 +314,19 @@ class Display:
     def handle_events(self):
         """
         Handle the events in the game.
+        Ensures the window closes even if an error occurs during event processing.
         """
-        for event in pygame.event.get():
-            
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+        try:
+            for event in pygame.event.get():
+                
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+        except Exception as e:
+            print(f"An unexpected error occurred during event handling: {e}")
+            # Ensure Pygame resources are released and the application exits
+            pygame.quit()
+            sys.exit(1) # Exit with an error code to indicate abnormal termination
         return True  # Return True to keep the game running
     
     def handle_mouse_click(self, board: chess.Board, graveyard: Graveyard, current_player):
@@ -361,7 +370,8 @@ class Display:
                 
                 self.disp_board(board, graveyard, current_player)
 
-    def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, graveyard: Graveyard ,current_player):
+    def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, gantry: GantryControl, path_planner_board: PathPlannerBoard, graveyard: Graveyard ,current_player):
+        path_const = (3.5/5)
         prev_bitmap = np.zeros((8, 8))
         for rank_idx in range(8): # Iterate through ranks (rows) from 0 to 7
             for file_idx in range(8): # Iterate through files (columns) from 0 to 7                
@@ -388,17 +398,78 @@ class Display:
                 self.disp_board(board, graveyard, current_player)
         prev_bitmap = cur_bitmap
 
-
+        timer = 0
         change = 0
-        while change == 0:
-            cur_bitmap = Surface.get_sensor_bitmap()
-            dif_bitmap = np.zeros((8, 8))
-            for i in range(8):
-                for j in range(8):
-                    if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
-                        dif_bitmap[i, j] = 1
-                        to_square = chess.square(j, i)
-            change = np.sum(dif_bitmap) 
+        prev_to_square = None
+        to_square = None
+        while timer < 4:
+
+            while change == 0:
+                cur_bitmap = Surface.get_sensor_bitmap()
+                dif_bitmap = np.zeros((8, 8))
+                for i in range(8):
+                    for j in range(8):
+                        if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                            dif_bitmap[i, j] = 1
+                            to_square = chess.square(j, i)
+                if to_square in self.legal_moves:
+                    change = int(np.sum(dif_bitmap))
+                else: 
+                    time.sleep(0.5)
+                    gantry.chime()
+                    time.sleep(0.5)
+                    prev_to_square = to_square
+                    while change == 0:
+                        cur_bitmap = Surface.get_sensor_bitmap()
+                        dif_bitmap = np.zeros((8, 8))
+                        for i in range(8):
+                            for j in range(8):
+                                if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                                    dif_bitmap[i, j] = 1
+                                    to_square = chess.square(j, i)
+                        change = int(np.sum(dif_bitmap))
+                    if  to_square == prev_to_square:
+                        print("illegal move")
+                        path_planner_board.place_from_fen(board.fen())
+                        path = path_planner_board.get_full_path_simpli(chess.Move.uci(chess.Move(to_square, from_square)))
+                        
+                        if path == False:
+                            break
+                        display.path = path 
+                        logger.log(f"path success")
+                        gantry.move(path[0][0][0]*path_const, path[0][0][1]*path_const, 10)
+                        gantry.electromagnet(True)
+                        time.sleep(0.3)
+                        for point in path[0][1:]:
+                            
+                            gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                            
+                        gantry.electromagnet(False)
+                        time.sleep(0.3)
+                        gantry.electromagnet(True)
+                        time.sleep(0.3)
+                        gantry.electromagnet(False)
+                        time.sleep(0.4)
+                        
+                        gantry.move(17.5, 14, 10)
+
+                        return False
+
+                    
+            if  to_square == prev_to_square:
+                prev_to_square = to_square
+                
+                timer = timer + 1
+                change = 0
+            else:
+                timer = 0
+                prev_to_square = to_square
+                print("timer reset")
+                change = 0
+            
+
+          
+            
 
         move = chess.Move(from_square, to_square)
         print(f"move: {move}")
@@ -437,6 +508,7 @@ class Display:
     def display_promotion_box(self, current_player, piece: chess.Piece, to_square):
         """
         This method displays a box with the options for promotion and returns the selected piece.
+        Ensures the window closes even if an error occurs during event processing within the promotion box.
         """
         promotion_options = ['Q', 'R', 'B', 'N']  # Changed 'K' to 'N' as Knight is valid promotion option
         box_width = 50 * len(promotion_options)  # Make the box long, not tall
@@ -469,9 +541,9 @@ class Display:
             
             # Draw the piece options
             font = pygame.font.Font(None, 64)
-            for i, piece in enumerate(promotion_options):
+            for i, piece_symbol in enumerate(promotion_options): # Renamed 'piece' to 'piece_symbol' to avoid conflict
                 piece_color = (255, 255, 255) if current_player.colour == chess.WHITE else (5, 5, 5)
-                text = font.render(piece, True, piece_color)
+                text = font.render(piece_symbol, True, piece_color)
                 text_rect = text.get_rect(center=(
                     promotion_box.left + (i + 0.5) * box_width // len(promotion_options),
                     promotion_box.centery
@@ -489,19 +561,24 @@ class Display:
             pygame.display.update()
             
             # Handle events
-            for event in pygame.event.get():
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = pygame.mouse.get_pos()
-                    if promotion_box.collidepoint(mouse_pos):
-                        # Calculate which piece was clicked
-                        relative_x = mouse_pos[0] - promotion_box.left
-                        piece_index = int(relative_x // (box_width // len(promotion_options)))
-                        if 0 <= piece_index < len(promotion_options):
-                            return promotion_options[piece_index]
-                
-                elif event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+            try:
+                for event in pygame.event.get():
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+                        if promotion_box.collidepoint(mouse_pos):
+                            # Calculate which piece was clicked
+                            relative_x = mouse_pos[0] - promotion_box.left
+                            piece_index = int(relative_x // (box_width // len(promotion_options)))
+                            if 0 <= piece_index < len(promotion_options):
+                                return promotion_options[piece_index]
+                    
+                    elif event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+            except Exception as e:
+                print(f"An unexpected error occurred during promotion box event handling: {e}")
+                pygame.quit()
+                sys.exit(1) # Exit with an error code to indicate abnormal termination
             
             time.sleep(0.01)  # Prevent high CPU usage
         

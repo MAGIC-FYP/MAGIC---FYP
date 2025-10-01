@@ -7,6 +7,7 @@ from models.graveyard import Graveyard
 from gui.chess_gui import Display
 from models.log import logger
 from gantry_control.tiles import TileSensor
+from gantry_control.gantry import GantryControl
 from algorithms.path_planner import Board as PathPlannerBoard
 import time
 from algorithms.algorithms_expanding_aStar import find_path, crowd_control
@@ -18,6 +19,7 @@ class Board:
         self.graveyard = Graveyard()
         self.logger = logger()
         self.Surface = TileSensor()
+        self.gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
         self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.path_extra = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.white_player: Optional[BasePlayer] = None
@@ -26,6 +28,9 @@ class Board:
         self.move_history: List[chess.Move] = []
         self.dead_pieces: List[chess.Piece] = []
         self.path_planner_board = PathPlannerBoard()
+
+        self.gantry.initialise()
+        self.gantry.home()
 
     def set_fen(self, fen: str) -> None:
         self.board.set_fen(fen)
@@ -127,6 +132,7 @@ class Board:
         return move
     
     def play_game_gui(self) -> None:
+        path_const = (3.5/5)
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
             return
@@ -145,7 +151,10 @@ class Board:
             if type(self.current_player) == HumanPlayer:
                 #move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
                 #move = self.get_move_from_surface(self.board)
-                move = display.get_move_from_surface_gui(self.board, self.Surface, self.graveyard, self.current_player)
+                
+                move = display.get_move_from_surface_gui(self.board, self.Surface, self.gantry, self.path_planner_board, self.graveyard, self.current_player)
+                    
+                
             else:
                 move = self.current_player.get_move(self.board)
 
@@ -153,13 +162,32 @@ class Board:
                 self.logger.log(f"attempted move:\t{move}")
                 self.path_planner_board.place_from_fen(self.board.fen())
                 if self.make_move(move):
-                    self.path = self.path_planner_board.get_full_path_simpli(chess.Move.uci(move))
-                    self.logger.log(f"Path:\t{self.path}")
-                    if self.path == False:
-                        break
-                    display.path = self.path 
+                    if type(self.current_player) != HumanPlayer:
+                        self.path = self.path_planner_board.get_full_path_simpli(chess.Move.uci(move))
+                        self.logger.log(f"Path:\t{self.path}")
+                        if self.path == False:
+                            break
+                        display.path = self.path 
+                        
+                        
+                        self.logger.log(f"path success")
+                        self.gantry.move(self.path[0][0][0]*path_const, self.path[0][0][1]*path_const, 30)
+                        self.gantry.electromagnet(True)
+                        time.sleep(0.3)
+                        for point in self.path[0][1:]:
+                            
+                            self.gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                            
+                        self.gantry.electromagnet(False)
+                        time.sleep(0.3)
+                        self.gantry.electromagnet(True)
+                        time.sleep(0.3)
+                        self.gantry.electromagnet(False)
+                        time.sleep(0.4)
+                        
+                        self.gantry.move(17.5, 14, 30)
+                    
                     self.switch_player()
-                    self.logger.log(f"move success")
                 else:
                     print("Invalid move.")
             else:

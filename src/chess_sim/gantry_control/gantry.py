@@ -5,7 +5,7 @@ import time
 
 
 class GantryControl:
-    def __init__(self, max_x: float, max_y: float, motor_radius: float = 0.95):
+    def __init__(self, max_x: float, min_x: float, max_y: float, min_y: float, motor_radius: float = 0.95):
         # Pin definitions (using BCM numbering)
         self.L_DIR = 9   # Direction
         self.L_STEP = 8  # Step pulse
@@ -187,7 +187,9 @@ class GantryControl:
     def move(self, x: float, y: float, vel: float):
         """Move to target position with specified velocity"""
         x = -x  # Flip the x-axis
-        if not (x < self.max_x or y < self.max_y):
+        if not (x < self.max_x or x > self.min_x):
+            raise ValueError("Target position out of bounds")
+        if not (y < self.max_y or y > self.min_y):
             raise ValueError("Target position out of bounds")
         
         delta_x = -x - self.x_pos
@@ -438,6 +440,27 @@ class GantryControl:
         self.move(0, 0, speed)  # Close the shape
         return True
     
+    def chime(self):
+        dist = 0.11
+        speed = 50
+        if self.x_pos > (self.max_x-1):
+            print("close to edge")
+
+
+            self.move_reletive(-dist, 0, speed)
+            time.sleep(0.05)
+            for i in range(30):
+                self.move_reletive(dist, 0, speed)
+                self.move_reletive(-dist, 0, speed)
+        
+        else:
+            self.move_reletive(dist, 0, speed)
+            time.sleep(0.3)
+            for i in range(30):
+                self.move_reletive(-dist, 0, speed)
+                self.move_reletive(dist, 0, speed)
+        return True
+    
     def calibrate(self):
         """Calibrate the gantry"""
         print("Calibrating gantry...")
@@ -470,9 +493,9 @@ class GantryControl:
         print("Calibration complete.")
 
 
-gantry = GantryControl(max_x=36, max_y=32)
-gantry.initialise()
-print(gantry.get_status())
+# gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
+# gantry.initialise()
+# print(gantry.get_status())
 #gantry.test_axis()
 #gantry.calibrate()
 #gantry.test_square(length=2)
@@ -489,22 +512,28 @@ print(gantry.get_status())
 # gantry.move(radius * np.cos(np.radians(0)), radius * np.sin(np.radians(0)), 1.0)
 #gantry.move(5,0,2)
 
-gantry.home()
-gantry.move_reletive(10,10,20)
-# time.sleep(3)
-#gantry.move(0,0,1)
-# gantry.move(-10,5,1)
-#lgpio.gpio_write(gantry.lg, gantry.E_MAG, 1)
+# gantry.home()
+# gantry.move_reletive(5,5,20)
+# gantry.chime()
+# gantry.move_reletive(10,10,10)
+# gantry.move_reletive(10,0,20)
+# gantry.move_reletive(-10,0,30)
+# gantry.move_reletive(10,0,35)
+# gantry.move_reletive(-10,0,40)
+# # time.sleep(3)
+# #gantry.move(0,0,1)
+# # gantry.move(-10,5,1)
+# #lgpio.gpio_write(gantry.lg, gantry.E_MAG, 1)
 
-while True:
-    input("Press keyborad turn on mag")
-    gantry.electromagnet(True)
+# while True:
+#     input("Press keyborad turn on mag")
+#     gantry.electromagnet(True)
 
-    gantry.move_reletive(10,0,5)
-    input("Press keyborad turn off mag")
-    gantry.electromagnet(False)
-    gantry.move_reletive(-10,0,5)
+#     gantry.move_reletive(10,0,5)
+#     input("Press keyborad turn off mag")
+#     gantry.electromagnet(False)
+#     gantry.move_reletive(-10,0,5)
 
     
-gantry.cleanup()
+# gantry.cleanup()
 
