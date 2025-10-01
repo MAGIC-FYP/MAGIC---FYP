@@ -21,8 +21,7 @@ class MenuNavigator:
     """
     
     def __init__(self, root_menu: SubMenu, lcd: Optional[LCD] = None, 
-                 encoder_a: int = 27, encoder_b: int = 22, switch_pin: int = 17,
-                 scroll_threshold: int = 10, scroll_speed: float = 0.3):
+                 encoder_a: int = 27, encoder_b: int = 22, switch_pin: int = 17):
         """
         Initialize the menu navigator.
         
@@ -32,8 +31,6 @@ class MenuNavigator:
             encoder_a: GPIO pin for rotary encoder A
             encoder_b: GPIO pin for rotary encoder B
             switch_pin: GPIO pin for rotary encoder switch
-            scroll_threshold: Character count threshold for scrolling (default: 10)
-            scroll_speed: Speed of scrolling in seconds per character (default: 0.3)
         """
         self.root_menu = root_menu
         self.current_menu = root_menu
@@ -54,10 +51,6 @@ class MenuNavigator:
         
         # Flag to control running state
         self.running = False
-        
-        # Scrolling configuration
-        self.scroll_threshold = scroll_threshold
-        self.scroll_speed = scroll_speed
         
         # Display initial menu
         self.update_display()
@@ -109,35 +102,21 @@ class MenuNavigator:
             current_child_text = self.current_menu.get_current_display_text()
             nav_info = self.current_menu.get_navigation_info()
             
-            # Clear display first
-            self.lcd.clear()
-            
-            # Display Line 1 with scrolling if needed
-            if len(line1) > self.scroll_threshold:
-                self.lcd.message(line1, line=1, scroll=True, scroll_speed=self.scroll_speed)
-            else:
-                self.lcd.message(line1, line=1, scroll=False)
-            
-            # Format Line 2: "> Item Name 1/5"
+            # Format: "> Item Name 1/5"
             # Calculate available space: 16 chars - "> " - " X/Y"
             nav_info_len = len(nav_info) + 1  # +1 for space before nav_info
             available_space = 16 - 2 - nav_info_len
             
-            # Check if child text needs scrolling
-            if len(current_child_text) > self.scroll_threshold:
-                # For line 2, we need to handle scrolling differently since we have nav_info
-                # Build the full line with indicator and nav_info
-                line2_full = f"> {current_child_text} {nav_info}"
-                self.lcd.message(line2_full, line=2, scroll=True, scroll_speed=self.scroll_speed)
-            else:
-                # Truncate if needed to fit with nav_info
-                if len(current_child_text) > available_space:
-                    current_child_text = current_child_text[:available_space]
-                
-                line2 = f"> {current_child_text}"
-                # Pad to push nav_info to the right
-                line2 = line2.ljust(16 - len(nav_info)) + nav_info
-                self.lcd.message(line2, line=2, scroll=False)
+            if len(current_child_text) > available_space:
+                current_child_text = current_child_text[:available_space]
+            
+            line2 = f"> {current_child_text}"
+            # Pad to push nav_info to the right
+            line2 = line2.ljust(16 - len(nav_info)) + nav_info
+            
+            self.lcd.clear()
+            self.lcd.message(line1, line=1)
+            self.lcd.message(line2, line=2)
     
     def start(self):
         """Start the menu navigator (enables input handling)."""
