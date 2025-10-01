@@ -60,29 +60,38 @@ class MenuItem(Menu):
     Leaf node in the menu tree representing an executable action (Leaf in Composite Pattern).
     """
     
-    def __init__(self, name: str, action: Optional[Callable] = None):
+    def __init__(self, name: str, action: Optional[Callable] = None, auto_back: bool = False):
         """
         Initialize a menu item.
         
         Args:
             name: Display name for this menu item
             action: Optional callback function to execute when selected
+            auto_back: If True, automatically navigate back to parent menu after execution
         """
         super().__init__(name)
         self.action = action
+        self.auto_back = auto_back
     
     def execute(self) -> Optional['Menu']:
         """
         Execute the menu item's action.
         
         Returns:
-            None (stays on current menu after execution)
+            Parent menu if auto_back is True, or the result from action if it returns a Menu,
+            otherwise None (stays on current menu)
         """
         if self.action:
             result = self.action()
             # If action returns a menu, navigate to it
             if isinstance(result, Menu):
                 return result
+        
+        # If auto_back is enabled, navigate to parent's parent (grandparent)
+        # because parent is the submenu we're currently in
+        if self.auto_back and self.parent:
+            return self.parent.get_parent()
+        
         return None
     
     def get_display_text(self) -> str:

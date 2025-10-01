@@ -39,23 +39,25 @@ def build_simple_test_menu():
     root.add(MenuItem("Option 1", example_action("Option 1")))
     root.add(MenuItem("Option 2", example_action("Option 2")))
     
-    # Add a submenu
-    submenu1 = SubMenu("Submenu 1")
-    submenu1.add(MenuItem("Sub-Option 1", example_action("Sub-Option 1")))
-    submenu1.add(MenuItem("Sub-Option 2", example_action("Sub-Option 2")))
+    # Add a submenu with auto_back items (like color selection)
+    submenu1 = SubMenu("Select Color")
+    submenu1.add(MenuItem("Red", example_action("Red selected"), auto_back=True))
+    submenu1.add(MenuItem("Blue", example_action("Blue selected"), auto_back=True))
+    submenu1.add(MenuItem("Green", example_action("Green selected"), auto_back=True))
     submenu1.add(BackMenuItem())
     root.add(submenu1)
     
     # Add another submenu with nested submenus
-    submenu2 = SubMenu("Submenu 2")
+    submenu2 = SubMenu("Settings")
     
-    nested_submenu = SubMenu("Nested Menu")
-    nested_submenu.add(MenuItem("Nested 1", example_action("Nested 1")))
-    nested_submenu.add(MenuItem("Nested 2", example_action("Nested 2")))
+    nested_submenu = SubMenu("Difficulty")
+    nested_submenu.add(MenuItem("Easy", example_action("Easy mode"), auto_back=True))
+    nested_submenu.add(MenuItem("Medium", example_action("Medium mode"), auto_back=True))
+    nested_submenu.add(MenuItem("Hard", example_action("Hard mode"), auto_back=True))
     nested_submenu.add(BackMenuItem())
     
     submenu2.add(nested_submenu)
-    submenu2.add(MenuItem("Sub-Option 3", example_action("Sub-Option 3")))
+    submenu2.add(MenuItem("Save Settings", example_action("Settings saved")))
     submenu2.add(BackMenuItem())
     root.add(submenu2)
     

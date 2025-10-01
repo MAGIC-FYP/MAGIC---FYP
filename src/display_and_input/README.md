@@ -42,6 +42,7 @@ Core menu classes implementing the Composite Pattern.
 **Classes:**
 - `Menu`: Abstract base class
 - `MenuItem`: Leaf node for actions
+  - `auto_back`: Optional parameter to automatically return to parent after execution
 - `SubMenu`: Composite node for menu hierarchy
 - `BackMenuItem`: Special item for navigation
 
@@ -124,6 +125,29 @@ submenu.add(BackMenuItem())
 
 root.add(submenu)
 ```
+
+### Using Auto-Back Feature
+
+The `auto_back` parameter makes a menu item automatically return to the parent menu after execution. This is useful for selection items like colors or difficulty levels:
+
+```python
+# Create a color selection submenu
+color_menu = SubMenu("Select Color")
+
+# These items automatically go back to parent after selection
+color_menu.add(MenuItem("Red", lambda: set_color("red"), auto_back=True))
+color_menu.add(MenuItem("Blue", lambda: set_color("blue"), auto_back=True))
+color_menu.add(MenuItem("Green", lambda: set_color("green"), auto_back=True))
+color_menu.add(BackMenuItem())
+
+# Start Game doesn't use auto_back - it starts the game
+root.add(MenuItem("Start Game", lambda: start_game()))
+```
+
+**When to use `auto_back=True`:**
+- ✅ Selection items (colors, levels, options)
+- ✅ Configuration settings
+- ❌ Actions that start processes (Start Game, Exit, etc.)
 
 ### Using with Hardware
 
