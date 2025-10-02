@@ -26,8 +26,8 @@ class GantryControl:
         self.end_delay = 0.0001    # 1.5ms (gentle max speed)
         self.pulse_width = 0.003 # 30us
         
-        self.x_offest = 1.75
-        self.y_offest = -1.6
+        self.x_offest = 2.2
+        self.y_offest = -1.52
 
         # Physical parameters
         self.max_x = max_x                  # in cm
@@ -441,24 +441,19 @@ class GantryControl:
         return True
     
     def chime(self):
-        dist = 0.11
+        dist = 0.5
         speed = 50
         if self.x_pos > (self.max_x-1):
-            print("close to edge")
-
-
-            self.move_reletive(-dist, 0, speed)
-            time.sleep(0.05)
-            for i in range(30):
-                self.move_reletive(dist, 0, speed)
-                self.move_reletive(-dist, 0, speed)
+            self.move_reletive(-dist, -dist, 50)
+            time.sleep(0.15)
+            self.move_reletive(dist, dist, 50)
         
         else:
-            self.move_reletive(dist, 0, speed)
-            time.sleep(0.3)
-            for i in range(30):
-                self.move_reletive(-dist, 0, speed)
-                self.move_reletive(dist, 0, speed)
+            self.move_reletive(dist, dist, 50)
+            time.sleep(0.15)
+            self.move_reletive(-dist, -dist, 50)
+        
+        
         return True
     
     def calibrate(self):
@@ -495,7 +490,9 @@ class GantryControl:
 
 # gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
 # gantry.initialise()
+# gantry.chime()
 # print(gantry.get_status())
+
 #gantry.test_axis()
 #gantry.calibrate()
 #gantry.test_square(length=2)
@@ -510,9 +507,10 @@ class GantryControl:
 #     gantry.home()
 #     print(gantry.get_status())
 # gantry.move(radius * np.cos(np.radians(0)), radius * np.sin(np.radians(0)), 1.0)
-#gantry.move(5,0,2)
+# gantry.electromagnet(True)
+# gantry.move(5,5,2)
 
-# gantry.home()
+#gantry.home()
 # gantry.move_reletive(5,5,20)
 # gantry.chime()
 # gantry.move_reletive(10,10,10)

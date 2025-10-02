@@ -46,3 +46,6 @@ here is how to run this on th epi and see pygame
     `ssh -L 5900:localhost:5900 magicpi@192.168.10.48`
     
 5. open real VNC and connect to localhost:5900 
+
+6. to close script mid run manualy run this on pi's terminal
+    `pkill -f main.py`

@@ -131,6 +131,17 @@ class Board:
 
         return move
     
+    def cleanup(self, exit_code: int):
+        self.gantry.cleanup()
+        self.Surface.close()
+        if exit_code == 1:
+            self.logger.log("Keyboard interrupt")
+        self.logger.log("cleaning up")
+        self.logger.end_log()
+        display.close_disp()
+        pygame.quit()
+        sys.exit(exit_code)
+    
     def play_game_gui(self) -> None:
         path_const = (3.5/5)
         if not self.white_player or not self.black_player:
@@ -151,8 +162,10 @@ class Board:
             if type(self.current_player) == HumanPlayer:
                 #move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
                 #move = self.get_move_from_surface(self.board)
-                
-                move = display.get_move_from_surface_gui(self.board, self.Surface, self.gantry, self.path_planner_board, self.graveyard, self.current_player)
+                move = False
+                while move == False:
+                    move = display.get_move_from_surface_gui(self.board, self.Surface, self.gantry, self.graveyard, self.current_player)
+                    
                     
                 
             else:
@@ -168,24 +181,27 @@ class Board:
                         if self.path == False:
                             break
                         display.path = self.path 
-                        
-                        
+                        display.disp_board(self.board, self.graveyard, self.current_player)
+                        print(self.path)
                         self.logger.log(f"path success")
-                        self.gantry.move(self.path[0][0][0]*path_const, self.path[0][0][1]*path_const, 30)
-                        self.gantry.electromagnet(True)
-                        time.sleep(0.3)
-                        for point in self.path[0][1:]:
-                            
-                            self.gantry.move(point[0]*path_const, point[1]*path_const, 4)
-                            
-                        self.gantry.electromagnet(False)
-                        time.sleep(0.3)
-                        self.gantry.electromagnet(True)
-                        time.sleep(0.3)
-                        self.gantry.electromagnet(False)
-                        time.sleep(0.4)
+
+                        for path in self.path:
+                            self.gantry.move(path[0][0]*path_const, path[0][1]*path_const, 10)
+                            self.gantry.electromagnet(True)
+                            time.sleep(0.3)
+
+                            for point in path:
+                                
+                                self.gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                                
+                            self.gantry.electromagnet(False)
+                            time.sleep(0.3)
+                            self.gantry.electromagnet(True)
+                            time.sleep(0.3)
+                            self.gantry.electromagnet(False)
+                            time.sleep(0.4)
                         
-                        self.gantry.move(17.5, 14, 30)
+                        self.gantry.move(10, 10, 10)
                     
                     self.switch_player()
                 else:

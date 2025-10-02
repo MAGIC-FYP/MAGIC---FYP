@@ -583,7 +583,7 @@ class Board:
     def get_full_path_simpli(self, move: str) -> List[Tuple[float, float]]:
         path = self.get_full_path(move)
         #print(f"original path: {path}")
-        path = self.simplify_path(path)
+        #path = self.simplify_path(path)
         #print(f"path: {path}")
         return path
         

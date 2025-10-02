@@ -10,7 +10,7 @@ import numpy as np
 from models.graveyard import Graveyard
 from gantry_control.tiles import TileSensor
 from gantry_control.gantry import GantryControl
-from algorithms.path_planner import Board as PathPlannerBoard
+import algorithms.algorithms_expanding_aStar as a_star
 import time
 from algorithms.algorithms_expanding_aStar import find_path, screen_to_surface_coord, surface_to_screen_coord
 
@@ -49,6 +49,7 @@ class Display:
         Display the chess board.
         """
         # Clear the screen
+        
         self.screen.fill((220, 220, 220))
 
         self._disp_graveyard(graveyard)
@@ -63,6 +64,7 @@ class Display:
         
         # Update the display
         pygame.display.update()
+        
 
     def _disp_button(self, button: pygame.Rect, button_label: str):
         """
@@ -370,112 +372,158 @@ class Display:
                 
                 self.disp_board(board, graveyard, current_player)
 
-    def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, gantry: GantryControl, path_planner_board: PathPlannerBoard, graveyard: Graveyard ,current_player):
-        path_const = (3.5/5)
-        prev_bitmap = np.zeros((8, 8))
-        for rank_idx in range(8): # Iterate through ranks (rows) from 0 to 7
-            for file_idx in range(8): # Iterate through files (columns) from 0 to 7                
-                square_index = rank_idx * 8 + file_idx
-                if board.piece_at(square_index):
-                    prev_bitmap[rank_idx, file_idx] = 1 # Piece is present
+    def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, gantry: GantryControl, graveyard: Graveyard ,current_player):
+        try:
+            path_const = (3.5/5)
+            prev_bitmap = np.zeros((8, 8))
+            for rank_idx in range(8): # Iterate through ranks (rows) from 0 to 7
+                for file_idx in range(8): # Iterate through files (columns) from 0 to 7                
+                    square_index = rank_idx * 8 + file_idx
+                    if board.piece_at(square_index):
+                        prev_bitmap[rank_idx, file_idx] = 1 # Piece is present
 
 
-        change = 0
-        while change == 0:
-            cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
-            dif_bitmap = np.zeros((8, 8))
-            for i in range(8):
-                for j in range(8):
-                    if cur_bitmap[i][j] != prev_bitmap[i][j]:
-                        dif_bitmap[i, j] = 1
-                        from_square = chess.square(j, i)
-            change = np.sum(dif_bitmap) 
-        piece = board.piece_at(from_square)
-        if piece:       
-            self.selected_square = from_square
-            if piece.color == current_player.colour:
-                self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == from_square]
-                self.disp_board(board, graveyard, current_player)
-        prev_bitmap = cur_bitmap
-
-        timer = 0
-        change = 0
-        prev_to_square = None
-        to_square = None
-        while timer < 4:
-
+            change = 0
+            from_square = None
             while change == 0:
-                cur_bitmap = Surface.get_sensor_bitmap()
+                cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
                 dif_bitmap = np.zeros((8, 8))
                 for i in range(8):
                     for j in range(8):
-                        if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                        if cur_bitmap[i][j] != prev_bitmap[i][j]:
                             dif_bitmap[i, j] = 1
-                            to_square = chess.square(j, i)
-                if to_square in self.legal_moves:
-                    change = int(np.sum(dif_bitmap))
-                else: 
-                    time.sleep(0.5)
-                    gantry.chime()
-                    time.sleep(0.5)
-                    prev_to_square = to_square
-                    while change == 0:
-                        cur_bitmap = Surface.get_sensor_bitmap()
-                        dif_bitmap = np.zeros((8, 8))
-                        for i in range(8):
-                            for j in range(8):
-                                if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
-                                    dif_bitmap[i, j] = 1
-                                    to_square = chess.square(j, i)
+
+                            from_square = chess.square(j, i)
+                change = np.sum(dif_bitmap) 
+                if from_square:
+                    if board.piece_at(from_square):
+                    # i = board.piece_at(from_square)
+                    # j = current_player.colour
+                        if board.piece_at(from_square).color != current_player.colour:
+
+                            change = 0
+                            to_square = from_square
+                            while change == 0:
+                                cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
+                                dif_bitmap = np.zeros((8, 8))
+                                for i in range(8):
+                                    for j in range(8):
+                                        if cur_bitmap[i][j] - prev_bitmap[i][j] == -1:
+                                            dif_bitmap[i, j] = 1
+
+                                            from_square = chess.square(j, i)
+                                change = np.sum(dif_bitmap) 
+                            move = chess.Move(from_square, to_square)
+                            print(f"move human takes: {move}")
+                            return move
+                            
+            piece = board.piece_at(from_square)
+            if piece:       
+                self.selected_square = from_square
+                if piece.color == current_player.colour:
+                    self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == from_square]
+                    self.disp_board(board, graveyard, current_player)
+            prev_bitmap = cur_bitmap
+
+            timer = 0
+            change = 0
+            prev_to_square = None
+            to_square = None
+            while timer < 4:
+
+                while change == 0:
+                    cur_bitmap = Surface.get_sensor_bitmap()
+                    dif_bitmap = np.zeros((8, 8))
+                    for i in range(8):
+                        for j in range(8):
+                            if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                                dif_bitmap[i, j] = 1
+                                to_square = chess.square(j, i)
+                    if to_square in self.legal_moves:
                         change = int(np.sum(dif_bitmap))
-                    if  to_square == prev_to_square:
-                        print("illegal move")
-                        path_planner_board.place_from_fen(board.fen())
-                        path = path_planner_board.get_full_path_simpli(chess.Move.uci(chess.Move(to_square, from_square)))
-                        
-                        if path == False:
-                            break
-                        display.path = path 
-                        logger.log(f"path success")
-                        gantry.move(path[0][0][0]*path_const, path[0][0][1]*path_const, 10)
-                        gantry.electromagnet(True)
-                        time.sleep(0.3)
-                        for point in path[0][1:]:
+                    else: 
+                        time.sleep(0.5)
+                        gantry.chime()
+                        time.sleep(0.5)
+                        prev_to_square = to_square
+                        while change == 0:
+                            cur_bitmap = Surface.get_sensor_bitmap()
+                            dif_bitmap = np.zeros((8, 8))
+                            for i in range(8):
+                                for j in range(8):
+                                    if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                                        dif_bitmap[i, j] = 1
+                                        to_square = chess.square(j, i)
+                            change = int(np.sum(dif_bitmap))
+                        if  to_square == prev_to_square:
+                            print("illegal move")
                             
-                            gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                            # path = a_star.crowd_control(board, chess.Move(to_square, from_square), graveyard, 2)
+                            # if path == False:
+                            #     gantry.chime()
+                            #     return False
                             
-                        gantry.electromagnet(False)
-                        time.sleep(0.3)
-                        gantry.electromagnet(True)
-                        time.sleep(0.3)
-                        gantry.electromagnet(False)
-                        time.sleep(0.4)
+                            # if path["moved_pieces_paths"]:
+                            #     gantry.move(path["moved_pieces_paths"][0][0][0]*path_const, path["moved_pieces_paths"][0][0][1]*path_const, 30)
+                            #     for point in path["moved_pieces_paths"][0][1:]:
+                            #         gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                            #     gantry.electromagnet(False)
+                            #     time.sleep(0.3)
+                            #     gantry.electromagnet(True)
+                            #     time.sleep(0.3)
+                            #     gantry.electromagnet(False)
+                            #     time.sleep(0.4)
+
+                            # if path["path"]:
+                            #     gantry.move(path["path"][0][0][0]*path_const, path["path"][0][0][1]*path_const, 30)
+                            #     for point in path["path"][0][1:]:
+                            #         gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                            #     gantry.electromagnet(False)
+                            #     time.sleep(0.3)
+                            #     gantry.electromagnet(True)
+                            #     time.sleep(0.3)
+                            #     gantry.electromagnet(False)
+                            #     time.sleep(0.4)
+
+                            # if path["undo_moves"]:
+                            #     gantry.move(path["undo_moves"][0][0][0]*path_const, path["undo_moves"][0][0][1]*path_const, 30)
+                            #     for point in path["undo_moves"][0][1:]:
+                            #         gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                            #     gantry.electromagnet(False)
+                            #     time.sleep(0.3)
+                            #     gantry.electromagnet(True)
+                            #     time.sleep(0.3)
+                            #     gantry.electromagnet(False)
+                            #     time.sleep(0.4)
+                            
+                            # gantry.move(17.5, 14, 10)
+
+                            # return False
+
                         
-                        gantry.move(17.5, 14, 10)
-
-                        return False
-
+                if  to_square == prev_to_square:
+                    prev_to_square = to_square
                     
-            if  to_square == prev_to_square:
-                prev_to_square = to_square
+                    timer = timer + 1
+                    change = 0
+                else:
+                    timer = 0
+                    prev_to_square = to_square
+                    print("timer reset")
+                    change = 0
                 
-                timer = timer + 1
-                change = 0
-            else:
-                timer = 0
-                prev_to_square = to_square
-                print("timer reset")
-                change = 0
+
             
-
-          
-            
-
-        move = chess.Move(from_square, to_square)
-        print(f"move: {move}")
-
-        return move    
                 
+
+            move = chess.Move(from_square, to_square)
+            print(f"move: {move}")
+
+            return move  
+        except KeyboardInterrupt:
+            print("Keyboard interrupt")
+            board.cleanup(1)
+                    
     def get_next_move_from_click(self, board: chess.Board, graveyard: Graveyard, current_player):
         """
         This method handles the mouse click events and returns the next move.

@@ -51,14 +51,16 @@ def get_obstacle_list(board: chess.Board, move, graveyard: Graveyard, points_to_
         coords = square_to_surface_coord(square)
         if piece and coords not in [from_square, to_square] and coords not in points_to_exclude:
             obstacle_list.append(coords)
-    for piece in graveyard.get_black_pieces_positions():
-        coords = graveyard.get_surface_from_gy_coord(piece[0])
+    
+    gy_coords_w = graveyard.get_white_pieces_positions()
+    for coords in gy_coords_w:
         if coords not in points_to_exclude:
             obstacle_list.append(coords)
-    for piece in graveyard.get_white_pieces_positions():
-        coords = graveyard.get_surface_from_gy_coord(piece[0])
+    gy_coords_b = graveyard.get_black_pieces_positions()
+    for coords in gy_coords_b:
         if coords not in points_to_exclude:
             obstacle_list.append(coords)
+    
     for point in points_to_include:
         obstacle_list.append(point)
     return obstacle_list
