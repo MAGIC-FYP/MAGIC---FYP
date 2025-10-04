@@ -10,7 +10,9 @@ from gantry_control.tiles import TileSensor
 from gantry_control.gantry import GantryControl
 from algorithms.path_planner import Board as PathPlannerBoard
 import time
+from config import load_config
 from algorithms.algorithms_expanding_aStar import find_path, crowd_control
+config = load_config()
 
 class Board:
     def __init__(self, controller: Controller):
@@ -143,6 +145,8 @@ class Board:
         sys.exit(exit_code)
     
     def play_game_gui(self) -> None:
+        quick_speed = config['gantry']['quick_speed']
+        slow_speed = config['gantry']['slow_speed']
         path_const = (3.5/5)
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
@@ -186,22 +190,23 @@ class Board:
                         self.logger.log(f"path success")
 
                         for path in self.path:
-                            self.gantry.move(path[0][0]*path_const, path[0][1]*path_const, 10)
+                            self.gantry.move(path[0][0]*path_const, path[0][1]*path_const, quick_speed)
                             self.gantry.electromagnet(True)
                             time.sleep(0.3)
 
-                            for point in path:
+                            for point in path[:-1]:
                                 
-                                self.gantry.move(point[0]*path_const, point[1]*path_const, 4)
+                                self.gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
                                 
+                            self.gantry.move(path[len(path)-1][0]*path_const, path[len(path)-1][1]*path_const, slow_speed, drag_compensation=True)
                             self.gantry.electromagnet(False)
-                            time.sleep(0.3)
+                            time.sleep(0.1)
                             self.gantry.electromagnet(True)
                             time.sleep(0.3)
                             self.gantry.electromagnet(False)
-                            time.sleep(0.4)
+                            time.sleep(0.1)
                         
-                        self.gantry.move(10, 10, 10)
+                        #self.gantry.move(10, 10, 10)
                     
                     self.switch_player()
                 else:

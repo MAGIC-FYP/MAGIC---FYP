@@ -26,8 +26,8 @@ class GantryControl:
         self.end_delay = 0.0001    # 1.5ms (gentle max speed)
         self.pulse_width = 0.003 # 30us
         
-        self.x_offest = 2.2
-        self.y_offest = -1.52
+        self.x_offest = 1.8
+        self.y_offest = -2
 
         # Physical parameters
         self.max_x = max_x                  # in cm
@@ -184,25 +184,30 @@ class GantryControl:
 
         return True
 
-    def move(self, x: float, y: float, vel: float):
+    def move(self, x: float, y: float, vel: float, drag_compensation: bool = False):
         """Move to target position with specified velocity"""
         x = -x  # Flip the x-axis
         if not (x < self.max_x or x > self.min_x):
             raise ValueError("Target position out of bounds")
         if not (y < self.max_y or y > self.min_y):
             raise ValueError("Target position out of bounds")
+
+        compensation_dist = 0.3
+        comp_steps = int(compensation_dist / self.cm_per_step)
         
         delta_x = -x - self.x_pos
         delta_y = -y + self.y_pos
-        print(f"Delta x: {delta_x}, Delta y: {delta_y}")
+        #print(f"Delta x: {delta_x}, Delta y: {delta_y}")
+
         distance = np.sqrt((delta_x**2) + (delta_y**2))
+
         #print(f"Distance: {distance}, Delta x: {delta_x}, Delta y: {delta_y}")
         
         if distance < 0.1:  # Already at target
             return
 
-        left_steps = int(abs(delta_x-delta_y) / self.cm_per_step)
-        right_steps = int(abs(-delta_x-delta_y) / self.cm_per_step)
+        left_steps = int(abs(delta_x-delta_y) / self.cm_per_step)+comp_steps*drag_compensation
+        right_steps = int(abs(-delta_x-delta_y) / self.cm_per_step)+comp_steps*drag_compensation
 
         # Determine directions
         left_dir = 1 if  -delta_x+delta_y> 0 else 0
@@ -228,14 +233,14 @@ class GantryControl:
                     time.sleep(0.8)
                     
                     self.move(-x, y, vel)
-                    self.x_pos = -x
-                    self.y_pos = y
+                    # self.x_pos = -x
+                    # self.y_pos = y
                     return True
         
             
         # Update final position
-        self.x_pos = -x
-        self.y_pos = y
+        # self.x_pos = -x
+        # self.y_pos = y
         return True
     
     def move_reletive(self, x: float, y: float, vel: float):
@@ -490,6 +495,10 @@ class GantryControl:
 
 # gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
 # gantry.initialise()
+# gantry.home()
+# gantry.move(3.5,0,10)
+# input("Epress enter")
+# gantry.move(3.5,28,10)
 # gantry.chime()
 # print(gantry.get_status())
 

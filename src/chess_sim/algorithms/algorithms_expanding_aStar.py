@@ -55,11 +55,11 @@ def get_obstacle_list(board: chess.Board, move, graveyard: Graveyard, points_to_
     gy_coords_w = graveyard.get_white_pieces_positions()
     for coords in gy_coords_w:
         if coords not in points_to_exclude:
-            obstacle_list.append(coords)
+            obstacle_list.append(graveyard.pos_to_gy_coord(coords))
     gy_coords_b = graveyard.get_black_pieces_positions()
     for coords in gy_coords_b:
         if coords not in points_to_exclude:
-            obstacle_list.append(coords)
+            obstacle_list.append(graveyard.pos_to_gy_coord(coords))
     
     for point in points_to_include:
         obstacle_list.append(point)

@@ -13,7 +13,8 @@ from gantry_control.gantry import GantryControl
 import algorithms.algorithms_expanding_aStar as a_star
 import time
 from algorithms.algorithms_expanding_aStar import find_path, screen_to_surface_coord, surface_to_screen_coord
-
+from config import load_config
+config = load_config()
 # Initialize Pygame once
 pygame.init()
 
@@ -374,6 +375,8 @@ class Display:
 
     def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, gantry: GantryControl, graveyard: Graveyard ,current_player):
         try:
+            quick_speed = config['gantry']['quick_speed']
+            slow_speed = config['gantry']['slow_speed']
             path_const = (3.5/5)
             prev_bitmap = np.zeros((8, 8))
             for rank_idx in range(8): # Iterate through ranks (rows) from 0 to 7
@@ -390,7 +393,7 @@ class Display:
                 dif_bitmap = np.zeros((8, 8))
                 for i in range(8):
                     for j in range(8):
-                        if cur_bitmap[i][j] != prev_bitmap[i][j]:
+                        if cur_bitmap[i][j] - prev_bitmap[i][j] == -1:
                             dif_bitmap[i, j] = 1
 
                             from_square = chess.square(j, i)
@@ -403,6 +406,7 @@ class Display:
 
                             change = 0
                             to_square = from_square
+                            cur_bitmap = prev_bitmap
                             while change == 0:
                                 cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
                                 dif_bitmap = np.zeros((8, 8))
@@ -436,12 +440,13 @@ class Display:
                     dif_bitmap = np.zeros((8, 8))
                     for i in range(8):
                         for j in range(8):
-                            if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                            if cur_bitmap[i][j+1] - prev_bitmap[i][j] == 1:
                                 dif_bitmap[i, j] = 1
                                 to_square = chess.square(j, i)
-                    if to_square in self.legal_moves:
+                    if to_square and to_square in self.legal_moves:
                         change = int(np.sum(dif_bitmap))
-                    else: 
+                    elif to_square: 
+                        print(f"here {to_square}")
                         time.sleep(0.5)
                         gantry.chime()
                         time.sleep(0.5)
@@ -451,54 +456,64 @@ class Display:
                             dif_bitmap = np.zeros((8, 8))
                             for i in range(8):
                                 for j in range(8):
-                                    if cur_bitmap[i][j+1] != prev_bitmap[i][j]:
+                                    if cur_bitmap[i][j+1] - prev_bitmap[i][j] == 1:
                                         dif_bitmap[i, j] = 1
                                         to_square = chess.square(j, i)
                             change = int(np.sum(dif_bitmap))
                         if  to_square == prev_to_square:
                             print("illegal move")
                             
-                            # path = a_star.crowd_control(board, chess.Move(to_square, from_square), graveyard, 2)
-                            # if path == False:
-                            #     gantry.chime()
-                            #     return False
+                            path = a_star.crowd_control(board, chess.Move(to_square, from_square), graveyard, 4)
+                            print(f"astar path: {path}")
+                            if path == False:
+                                gantry.chime()
+                                return False
                             
-                            # if path["moved_pieces_paths"]:
-                            #     gantry.move(path["moved_pieces_paths"][0][0][0]*path_const, path["moved_pieces_paths"][0][0][1]*path_const, 30)
-                            #     for point in path["moved_pieces_paths"][0][1:]:
-                            #         gantry.move(point[0]*path_const, point[1]*path_const, 4)
-                            #     gantry.electromagnet(False)
-                            #     time.sleep(0.3)
-                            #     gantry.electromagnet(True)
-                            #     time.sleep(0.3)
-                            #     gantry.electromagnet(False)
-                            #     time.sleep(0.4)
+                            if path["moved_pieces_paths"]:
+                                gantry.move(path["moved_pieces_paths"][0][0]*path_const, path["moved_pieces_paths"][0][1]*path_const, quick_speed)
+                                gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                for point in path["moved_pieces_paths"][1:-1]:
+                                    gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
+                                gantry.move(path["moved_pieces_paths"][-1][0]*path_const, path["moved_pieces_paths"][-1][1]*path_const, slow_speed, drag_compensation=True)
+                                gantry.electromagnet(False)
+                                time.sleep(0.1)
+                                gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                gantry.electromagnet(False)
+                                time.sleep(0.1)
 
-                            # if path["path"]:
-                            #     gantry.move(path["path"][0][0][0]*path_const, path["path"][0][0][1]*path_const, 30)
-                            #     for point in path["path"][0][1:]:
-                            #         gantry.move(point[0]*path_const, point[1]*path_const, 4)
-                            #     gantry.electromagnet(False)
-                            #     time.sleep(0.3)
-                            #     gantry.electromagnet(True)
-                            #     time.sleep(0.3)
-                            #     gantry.electromagnet(False)
-                            #     time.sleep(0.4)
+                            if path["path"]:
+                                gantry.move(path["path"][0][0]*path_const, path["path"][0][1]*path_const, quick_speed)
+                                gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                for point in path["path"][1:-1]:
+                                    gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
+                                gantry.move(path["path"][-1][0]*path_const, path["path"][-1][1]*path_const, slow_speed, drag_compensation=True)
+                                gantry.electromagnet(False)
+                                time.sleep(0.1)
+                                gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                gantry.electromagnet(False)
+                                time.sleep(0.1)
 
-                            # if path["undo_moves"]:
-                            #     gantry.move(path["undo_moves"][0][0][0]*path_const, path["undo_moves"][0][0][1]*path_const, 30)
-                            #     for point in path["undo_moves"][0][1:]:
-                            #         gantry.move(point[0]*path_const, point[1]*path_const, 4)
-                            #     gantry.electromagnet(False)
-                            #     time.sleep(0.3)
-                            #     gantry.electromagnet(True)
-                            #     time.sleep(0.3)
-                            #     gantry.electromagnet(False)
-                            #     time.sleep(0.4)
+                            if path["undo_moves"]:
+                                gantry.move(path["undo_moves"][0][0]*path_const, path["undo_moves"][0][1]*path_const, quick_speed)
+                                gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                for point in path["undo_moves"][1:-1]:
+                                    gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
+                                gantry.move(path["undo_moves"][-1][0]*path_const, path["undo_moves"][-1][1]*path_const, slow_speed, drag_compensation=True)
+                                gantry.electromagnet(False)
+                                time.sleep(0.1)
+                                gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                gantry.electromagnet(False)
+                                time.sleep(0.1)
                             
                             # gantry.move(17.5, 14, 10)
 
-                            # return False
+                            return False
 
                         
                 if  to_square == prev_to_square:

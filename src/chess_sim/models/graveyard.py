@@ -141,6 +141,10 @@ class Graveyard():
             #print("BANG")
         #print('Graveyard occupation:', self.occupied_position)
 
+    def pos_to_gy_coord(self, pos):
+        
+        return [(pos[0][0]*5)-2.5, (pos[0][1]*5)-2.5]
+
 
 def generate_graveyard_coordinates():
     graveyard_coords = {}

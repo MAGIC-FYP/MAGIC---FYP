@@ -13,6 +13,10 @@ models:
     size_x: 10
     size_y: 40
 
+gantry:
+  quick_speed: 15
+  slow_speed: 10
+
 game:
   archived_mode: false  # Set to true if play showing old game with API
   archived_moves: []    # List of moves from the old game
