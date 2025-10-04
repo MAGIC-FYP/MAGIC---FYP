@@ -291,7 +291,7 @@ class Board:
         for piece_name, position in self.piece_locations['promotion'].items():
             print(f"{piece_name} at position {position}")
 
-    def create_movement_graph(self, start_x: float, start_y: float) -> Tuple[nx.Graph, Tuple[float, float]]:
+    def create_movement_graph(self, start_x: float, start_y: float, exclude_positions: List[Tuple[float, float]] = None, include_positions: List[Tuple[float, float]] = None) -> Tuple[nx.Graph, Tuple[float, float]]:
         G = nx.Graph()
         G.add_node((start_x, start_y))
         grid_points = []
@@ -307,10 +307,76 @@ class Board:
             grid_points.append((self.half_square + i * self.square_size, self.express_bottom_y))
             grid_points.append((self.half_square + i * self.square_size, self.express_top_y))
         
+        # Add graveyard positions as potential nodes
+        graveyard_positions = []
+        for y in range(self.height):
+            y_pos = self.half_square + y * self.square_size
+            graveyard_positions.extend([
+                (self.graveyard_left_col1, y_pos),
+                (self.graveyard_left_col2, y_pos),
+                (self.graveyard_right_col1, y_pos),
+                (self.graveyard_right_col2, y_pos)
+            ])
+        grid_points.extend(graveyard_positions)
+        
+        # Debug: show graveyard positions if positions are being tracked
+        if len(exclude_positions) > 0 or len(include_positions) > 0:
+            print(f"Graveyard columns: gy1={self.graveyard_left_col1}, gy2={self.graveyard_left_col2}, gy12={self.graveyard_right_col1}, gy11={self.graveyard_right_col2}")
+            print(f"Total graveyard positions added: {len(graveyard_positions)}")
+        
+        # Handle dynamic position tracking
+        if exclude_positions is None:
+            exclude_positions = []
+        if include_positions is None:
+            include_positions = []
+        
+        debug_info = {
+            'total_grid_points': len(grid_points),
+            'nodes_added': 0,
+            'excluded_count': 0,
+            'piece_blocked_count': 0,
+            'included_override_count': 0
+        }
+        
         for point in grid_points:
             point_x, point_y = point
-            if self.get_piece_at_position(point_x, point_y, 0) is None:
+            
+            # Check if position is excluded (newly occupied by previous moves)
+            is_excluded = any(abs(point_x - ex_x) < 1 and abs(point_y - ex_y) < 1 for ex_x, ex_y in exclude_positions)
+            
+            # Check if position is explicitly included (newly freed by previous moves)
+            is_included = any(abs(point_x - inc_x) <= 1.0 and abs(point_y - inc_y) <= 1.0 for inc_x, inc_y in include_positions)
+            
+            # Check for existing pieces at this position
+            has_piece = self.get_piece_at_position(point_x, point_y, 0) is not None
+            
+            # Track debug info
+            if is_excluded:
+                debug_info['excluded_count'] += 1
+            if has_piece and not is_included:
+                debug_info['piece_blocked_count'] += 1
+            if is_included:
+                debug_info['included_override_count'] += 1
+            
+            # Include node if:
+            # 1. Explicitly included (overrides everything else)
+            # 2. OR (not excluded AND no piece there)
+            should_include = is_included or (not is_excluded and not has_piece)
+            
+            # Special case: if included, override piece presence
+            if is_included and has_piece:
+                should_include = True
+                
+            if should_include:
                 G.add_node(point)
+                debug_info['nodes_added'] += 1
+        
+        # Print debug info occasionally
+        if len(exclude_positions) > 5:  # Only show detailed debug for later moves
+            print(f"Graph debug: {debug_info['nodes_added']}/{debug_info['total_grid_points']} nodes added")
+            print(f"  Excluded: {debug_info['excluded_count']}, Piece blocked: {debug_info['piece_blocked_count']}, Include override: {debug_info['included_override_count']}")
+            print(f"  Include positions: {include_positions[:3]}..." if len(include_positions) > 3 else f"  Include positions: {include_positions}")
+            print(f"  Exclude positions: {exclude_positions[:3]}..." if len(exclude_positions) > 3 else f"  Exclude positions: {exclude_positions}")
         
         for point in list(G.nodes()):
             point_x, point_y = point
@@ -364,12 +430,12 @@ class Board:
         
         return G, closest_point
 
-    def path_to_graveyard(self, x: float, y: float, tolerance: float = 1.0):
+    def path_to_graveyard(self, x: float, y: float, tolerance: float = 1.0, exclude_positions: List[Tuple[float, float]] = None, include_positions: List[Tuple[float, float]] = None):
         piece = self.get_piece_at_position(x, y, tolerance)
         if not piece:
             return []
 
-        G, closest_point = self.create_movement_graph(x, y)
+        G, closest_point = self.create_movement_graph(x, y, exclude_positions, include_positions)
         if closest_point is None or closest_point not in G.nodes():
             return []
             
@@ -435,9 +501,9 @@ class Board:
         plt.axis('equal')
         plt.show()
 
-    def path_to_target(self, x: float, y: float, target_x: float, target_y: float) -> List[Tuple[float, float]]:
-        G, closest_point = self.create_movement_graph(x, y)
-        #self.visualize_graph(G, (x,y))
+    def path_to_target(self, x: float, y: float, target_x: float, target_y: float, exclude_positions: List[Tuple[float, float]] = None, include_positions: List[Tuple[float, float]] = None) -> List[Tuple[float, float]]:
+        G, closest_point = self.create_movement_graph(x, y, exclude_positions, include_positions)
+        self.visualize_graph(G, (x,y))  # Comment out for cleaner output
         if closest_point is None or closest_point not in G.nodes():
             return []
         
@@ -622,14 +688,263 @@ class Board:
         path = self.simplify_path(path)
         #print(f"path: {path}")
         return path
+
+    def get_original_positions(self) -> dict:
+        """
+        Get the original starting positions for all pieces in standard chess setup.
+        Returns a dictionary mapping piece types and colors to their original positions.
+        """
+        original_positions = {}
         
+        # Calculate board offsets
+        x_offset = self.chess_start_x
+        y_offset = self.chess_start_y
+        
+        # White pieces (bottom ranks)
+        # White pawns on rank 2
+        for file_idx in range(8):
+            x = x_offset + file_idx * self.square_size + self.half_square
+            y = y_offset + 1 * self.square_size + self.half_square  # Rank 2
+            original_positions[f'w_pawn_{file_idx}'] = (x, y)
+        
+        # White pieces on rank 1
+        piece_order = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+        for file_idx, piece_type in enumerate(piece_order):
+            x = x_offset + file_idx * self.square_size + self.half_square
+            y = y_offset + 0 * self.square_size + self.half_square  # Rank 1
+            
+            # Handle multiple pieces of same type
+            if piece_type in ['R', 'N', 'B']:
+                count = sum(1 for i in range(file_idx) if piece_order[i] == piece_type)
+                original_positions[f'w_{piece_type.lower()}_{count}'] = (x, y)
+            else:
+                original_positions[f'w_{piece_type.lower()}'] = (x, y)
+        
+        # Black pieces (top ranks)
+        # Black pawns on rank 7
+        for file_idx in range(8):
+            x = x_offset + file_idx * self.square_size + self.half_square
+            y = y_offset + 6 * self.square_size + self.half_square  # Rank 7
+            original_positions[f'b_pawn_{file_idx}'] = (x, y)
+        
+        # Black pieces on rank 8
+        for file_idx, piece_type in enumerate(piece_order):
+            x = x_offset + file_idx * self.square_size + self.half_square
+            y = y_offset + 7 * self.square_size + self.half_square  # Rank 8
+            
+            # Handle multiple pieces of same type
+            if piece_type in ['R', 'N', 'B']:
+                count = sum(1 for i in range(file_idx) if piece_order[i] == piece_type)
+                original_positions[f'b_{piece_type.lower()}_{count}'] = (x, y)
+            else:
+                original_positions[f'b_{piece_type.lower()}'] = (x, y)
+        
+        return original_positions
+
+    def reset_to_original_positions(self, fen: str) -> List[List[Tuple[float, float]]]:
+        """
+        Calculate paths to move all pieces from the given FEN position to their original starting positions.
+        
+        Args:
+            fen: The current FEN position to reset from
+            
+        Returns:
+            List of paths for each piece that needs to move to reach original position
+        """
+        # First, set up the board with the given FEN
+        self.place_from_fen(fen)
+        
+        # Get original positions
+        original_positions = self.get_original_positions()
+        
+        # Get all paths needed to reset the board
+        reset_paths = []
+        piece_assignments = {}
+        
+        # Create a mapping of current pieces to their target original positions
+        current_pieces = []
+        for piece_id, piece_info in self.piece_locations['active'].items():
+            current_pieces.append({
+                'id': piece_id,
+                'type': piece_info['type'],
+                'color': piece_info['color'],
+                'current_pos': piece_info['position']
+            })
+        
+        # Also include pieces in graveyard that need to return to the board
+        for color in ['w', 'b']:
+            for piece_key, piece_info in self.piece_locations[f'captured_{color}'].items():
+                current_pieces.append({
+                    'id': piece_key,
+                    'type': piece_info['type'],
+                    'color': piece_info['color'],
+                    'current_pos': piece_info['position'],
+                    'from_graveyard': True
+                })
+        
+        # Sort pieces to prioritize on-board repositioning first, then graveyard clearing
+        def sort_priority(piece):
+            if not piece.get('from_graveyard', False):
+                return 0  # On-board pieces move FIRST to free up space
+            
+            pos = piece['current_pos']
+            # Backup graveyard columns (gy2 and gy11) get second priority
+            if abs(pos[0] - self.graveyard_left_col2) < 1:  # Left backup column (gy2)
+                return 1
+            elif abs(pos[0] - self.graveyard_right_col2) < 1:  # Right backup column (gy11)
+                return 1
+            else:
+                return 2  # Primary graveyard columns (gy1 and gy12) move last
+        
+        current_pieces.sort(key=sort_priority)
+        
+        # Track positions that become occupied as pieces move
+        newly_occupied_positions = []
+        # Track positions that become free as pieces leave graveyard
+        newly_free_positions = []
+        
+        # Assign each piece to its original position
+        used_positions = set()
+        
+        for piece in current_pieces:
+            piece_type = piece['type'].lower()
+            color = piece['color']
+            
+            # Find an appropriate original position for this piece
+            target_key = None
+            
+            if piece_type == 'p':
+                # Find an unused pawn position
+                for i in range(8):
+                    key = f'{color}_pawn_{i}'
+                    if key in original_positions and key not in used_positions:
+                        target_key = key
+                        break
+            elif piece_type in ['r', 'n', 'b']:
+                # Find an unused position for this piece type
+                for i in range(2):
+                    key = f'{color}_{piece_type}_{i}'
+                    if key in original_positions and key not in used_positions:
+                        target_key = key
+                        break
+            else:
+                # Unique pieces (King, Queen)
+                key = f'{color}_{piece_type}'
+                if key in original_positions and key not in used_positions:
+                    target_key = key
+            
+            if target_key:
+                target_pos = original_positions[target_key]
+                current_pos = piece['current_pos']
+                
+                # Calculate path with current state of newly occupied and freed positions
+                path = self.path_to_target(current_pos[0], current_pos[1], target_pos[0], target_pos[1], newly_occupied_positions, newly_free_positions)
+                
+                if path:
+                    reset_paths.append({
+                        'piece_id': piece['id'],
+                        'piece_type': piece['type'],
+                        'piece_color': piece['color'],
+                        'from_pos': current_pos,
+                        'to_pos': target_pos,
+                        'path': path,
+                        'from_graveyard': piece.get('from_graveyard', False)
+                    })
+                    
+                    # Update tracking lists
+                    # The target position becomes occupied
+                    newly_occupied_positions.append(target_pos)
+                    
+                    # The source position becomes free (whether from graveyard or board)
+                    newly_free_positions.append(current_pos)
+                
+                used_positions.add(target_key)
+                piece_assignments[piece['id']] = target_key
+        
+        return reset_paths
+
+    def get_graveyard_column_info(self, x_pos: float) -> str:
+        """Helper method to identify which graveyard column a position belongs to"""
+        if abs(x_pos - self.graveyard_left_col1) < 1:
+            return "gy1 (left primary)"
+        elif abs(x_pos - self.graveyard_left_col2) < 1:
+            return "gy2 (left backup)"
+        elif abs(x_pos - self.graveyard_right_col1) < 1:
+            return "gy12 (right primary)"
+        elif abs(x_pos - self.graveyard_right_col2) < 1:
+            return "gy11 (right backup)"
+        else:
+            return "on board"
 
 
 if __name__ == "__main__":
     board = Board()
-    board.place_from_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
-    print(board.pychess_board.is_castling(chess.Move.from_uci('e1c1')))
-    #path = board.get_full_path('e1c1')
-    #print(path)
+    fen = '6k1/8/8/8/8/6P1/8/5K2 w - - 0 1'
+    
+    print(f"Resetting board from FEN: {fen}")
+    print("Current position has:")
+    print("- Black king on g8")
+    print("- White pawn on g3") 
+    print("- White king on f1")
+    print("- All other pieces in graveyard")
+    print()
+    
+    # Calculate paths to reset to original positions
+    reset_paths = board.reset_to_original_positions(fen)
+    
+    print(f"Found {len(reset_paths)} pieces that need to move to original positions:")
+    print("Movement sequence optimized: on-board repositioning → gy2 & gy11 → board → gy1 & gy12 → board")
+    print()
+    
+    # Group by movement phase
+    phase_1 = []  # on-board pieces
+    phase_2 = []  # gy2 and gy11 pieces
+    phase_3 = []  # gy1 and gy12 pieces
+    
+    for i, move_info in enumerate(reset_paths):
+        from_pos = move_info['from_pos']
+        to_pos = move_info['to_pos']
+        graveyard_info = board.get_graveyard_column_info(from_pos[0])
+        
+        # Add information about graph node changes
+        move_info['move_number'] = i + 1
+        if move_info.get('from_graveyard', False):
+            move_info['graph_change'] = f"Frees {graveyard_info} node ({from_pos[0]:.1f}, {from_pos[1]:.1f}), occupies board position ({to_pos[0]:.1f}, {to_pos[1]:.1f})"
+        else:
+            move_info['graph_change'] = f"Frees board position ({from_pos[0]:.1f}, {from_pos[1]:.1f}), occupies new board position ({to_pos[0]:.1f}, {to_pos[1]:.1f})"
+        
+        if "on board" in graveyard_info:
+            phase_1.append((move_info, graveyard_info))
+        elif "backup" in graveyard_info:
+            phase_2.append((move_info, graveyard_info))
+        else:  # primary graveyard
+            phase_3.append((move_info, graveyard_info))
+    
+    phases = [
+        ("PHASE 1: Reposition pieces already on board", phase_1),
+        ("PHASE 2: Clear backup graveyards (gy2 & gy11)", phase_2), 
+        ("PHASE 3: Clear primary graveyards (gy1 & gy12)", phase_3)
+    ]
+    
+    move_counter = 1
+    for phase_name, phase_moves in phases:
+        if phase_moves:
+            print(f"=== {phase_name} ===")
+            for move_info, graveyard_info in phase_moves:
+                piece_name = f"{move_info['piece_color'].upper()} {move_info['piece_type'].upper()}"
+                from_pos = move_info['from_pos']
+                to_pos = move_info['to_pos']
+                path_length = len(move_info['path'])
+                
+                print(f"{move_counter}. {piece_name} from {graveyard_info}")
+                print(f"   From: ({from_pos[0]:.1f}, {from_pos[1]:.1f}) -> To: ({to_pos[0]:.1f}, {to_pos[1]:.1f})")
+                print(f"   Graph update: {move_info['graph_change']}")
+                print(f"   Path length: {path_length} waypoints")
+                print(f"   Path (cm): {[(round(x, 1), round(y, 1)) for x, y in move_info['path']]}")
+                print()
+                move_counter += 1
+            print()
+    
+    # Render the current board state
     board.render()
 
