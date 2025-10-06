@@ -647,11 +647,11 @@ class Board:
                     "L1D2": [(x1 - self.square_size - x_delta, y1 - self.square_size + y_delta),(x1 + x_delta, y1 - self.square_size - y_delta)]
                 }
 
-                piece1 = pos_dict[l_edge_type][0] 
-                piece2 = pos_dict[l_edge_type][1] 
+                piece1 = (pos_dict[l_edge_type][0][0]/10, pos_dict[l_edge_type][0][1]/10) 
+                piece2 = (pos_dict[l_edge_type][1][0]/10, pos_dict[l_edge_type][1][1]/10)
 
-                piece1_new = delta_dict[l_edge_type][0]
-                piece2_new = delta_dict[l_edge_type][1]
+                piece1_new = (delta_dict[l_edge_type][0][0]/10, delta_dict[l_edge_type][0][1]/10)
+                piece2_new = (delta_dict[l_edge_type][1][0]/10, delta_dict[l_edge_type][1][1]/10)
 
                 if len(current_segment) > 1:
                     result.append(current_segment[:-1])  # Don't include the L-edge starting point
