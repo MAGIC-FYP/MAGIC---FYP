@@ -1,6 +1,7 @@
 import chess
 import requests
 import logging
+import time
 from enum import Enum
 from abc import ABC, abstractmethod
 from typing import List, Optional
@@ -142,3 +143,73 @@ class ArchivedPlayers(BasePlayer):
 
     def __str__(self) -> str:
         return f"Replay Mode: {self.white_name} (White) vs {self.black_name} (Black)"
+
+
+class LichessPlayer(BasePlayer):
+    '''Player that connects to Lichess for online gameplay - represents the remote opponent'''
+    
+    def __init__(self, colour: chess.Color, game_stream, board_client):
+        """
+        Initialize Lichess opponent player.
+        
+        Args:
+            colour: Chess color of this player
+            game_stream: Iterator from client.board.stream_game_state()
+            board_client: Berserk board client for making moves
+        """
+        super().__init__(colour)
+        self.game_stream = game_stream
+        self.board_client = board_client
+        self.opponent_name = "Lichess Opponent"
+        self.last_moves = []
+        
+    def get_move(self, board: chess.Board) -> Optional[chess.Move]:
+        """Wait for opponent's move from Lichess stream."""
+        print(f"Waiting for {self.opponent_name}'s move...")
+        
+        try:
+            # Stream returns events, we need to wait for a gameState with new move
+            for event in self.game_stream:
+                if event['type'] == 'gameFull':
+                    # First event - contains full game state
+                    state = event['state']
+                    moves_str = state.get('moves', '')
+                    if moves_str:
+                        self.last_moves = moves_str.split()
+                    # Continue to wait for actual new moves
+                    continue
+                    
+                elif event['type'] == 'gameState':
+                    # Game state update - check for new moves
+                    moves_str = event.get('moves', '')
+                    current_moves = moves_str.split() if moves_str else []
+                    
+                    # Check if there's a new move
+                    if len(current_moves) > len(self.last_moves):
+                        # New move detected
+                        new_move_uci = current_moves[-1]
+                        self.last_moves = current_moves
+                        
+                        try:
+                            move = chess.Move.from_uci(new_move_uci)
+                            print(f"{self.opponent_name} played: {new_move_uci}")
+                            return move
+                        except ValueError:
+                            print(f"Invalid move from Lichess: {new_move_uci}")
+                            continue
+                    
+                    # Check if game ended
+                    status = event.get('status')
+                    if status in ['mate', 'resign', 'stalemate', 'timeout', 'draw', 'outoftime', 'cheat', 'noStart', 'unknownFinish', 'variantEnd']:
+                        print(f"Game ended on Lichess. Status: {status}")
+                        return None
+                        
+        except Exception as e:
+            print(f"Error streaming opponent move: {e}")
+            return None
+            
+        return None
+    
+    def set_opponent_name(self, name: str):
+        """Set the opponent's name for display purposes."""
+        self.opponent_name = name

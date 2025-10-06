@@ -30,11 +30,14 @@ class ChessMenuBuilder:
     def __init__(self):
         """Initialize the chess menu builder."""
         self.game_config: Dict[str, Any] = {
-            'game_mode': None,  # 'player_vs_robot' or 'robot_vs_robot'
+            'game_mode': None,  # 'player_vs_robot', 'robot_vs_robot', or 'online_quickmatch'
             'player_colour': chess.WHITE,  # WHITE or BLACK
             'robot_level': 1,  # 1-20
             'robot1_level': 1,  # For robot vs robot
             'robot2_level': 1,  # For robot vs robot
+            'lichess_time': 10,  # Time in minutes for online games
+            'lichess_increment': 0,  # Increment in seconds for online games
+            'lichess_rated': False,  # Whether online game is rated
         }
         self.start_game_callback: Optional[Callable] = None
     
@@ -65,6 +68,10 @@ class ChessMenuBuilder:
         # Create Robot vs Robot submenu
         rvr_menu = self._build_robot_vs_robot_menu()
         root_menu.add(rvr_menu)
+        
+        # Create Online Play submenu
+        online_menu = self._build_online_play_menu()
+        root_menu.add(online_menu)
         
         return root_menu
     
@@ -160,6 +167,57 @@ class ChessMenuBuilder:
         print("Starting Robot vs Robot game...")
         print(f"Robot 1 level: {self.game_config['robot1_level']}")
         print(f"Robot 2 level: {self.game_config['robot2_level']}")
+        print("="*50 + "\n")
+        
+        if self.start_game_callback:
+            self.start_game_callback(self.game_config)
+    
+    def _build_online_play_menu(self) -> SubMenu:
+        """Build the Online Play (Lichess) submenu."""
+        online_menu = SubMenu("Play Online")
+        
+        # Time control submenu
+        time_menu = SubMenu("Time Control")
+        time_options = [(1, 0, "Bullet 1+0"), (3, 0, "Blitz 3+0"), (5, 0, "Blitz 5+0"),
+                       (10, 0, "Rapid 10+0"), (15, 10, "Rapid 15+10")]
+        for minutes, increment, label in time_options:
+            time_menu.add(MenuItem(label, lambda m=minutes, i=increment: self._set_time_control(m, i), auto_back=True))
+        time_menu.add(BackMenuItem())
+        online_menu.add(time_menu)
+        
+        # Rated/Unrated toggle
+        rated_menu = SubMenu("Game Type")
+        rated_menu.add(MenuItem("Casual", lambda: self._set_rated(False), auto_back=True))
+        rated_menu.add(MenuItem("Rated", lambda: self._set_rated(True), auto_back=True))
+        rated_menu.add(BackMenuItem())
+        online_menu.add(rated_menu)
+        
+        # Start quickmatch
+        online_menu.add(MenuItem("Start Quickmatch", lambda: self._start_quickmatch()))
+        
+        # Back to main menu
+        online_menu.add(BackMenuItem())
+        
+        return online_menu
+    
+    def _set_time_control(self, minutes: int, increment: int):
+        """Set time control for online games."""
+        self.game_config['lichess_time'] = minutes
+        self.game_config['lichess_increment'] = increment
+        print(f"Time control set to: {minutes}+{increment}")
+    
+    def _set_rated(self, rated: bool):
+        """Set whether online game is rated."""
+        self.game_config['lichess_rated'] = rated
+        print(f"Game type set to: {'Rated' if rated else 'Casual'}")
+    
+    def _start_quickmatch(self):
+        """Start a Lichess quickmatch."""
+        self.game_config['game_mode'] = 'online_quickmatch'
+        print("\n" + "="*50)
+        print("Starting Lichess Quickmatch...")
+        print(f"Time control: {self.game_config['lichess_time']}+{self.game_config['lichess_increment']}")
+        print(f"Game type: {'Rated' if self.game_config['lichess_rated'] else 'Casual'}")
         print("="*50 + "\n")
         
         if self.start_game_callback:
