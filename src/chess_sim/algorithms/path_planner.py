@@ -319,16 +319,16 @@ class Board:
             ])
         grid_points.extend(graveyard_positions)
         
-        # Debug: show graveyard positions if positions are being tracked
-        if len(exclude_positions) > 0 or len(include_positions) > 0:
-            print(f"Graveyard columns: gy1={self.graveyard_left_col1}, gy2={self.graveyard_left_col2}, gy12={self.graveyard_right_col1}, gy11={self.graveyard_right_col2}")
-            print(f"Total graveyard positions added: {len(graveyard_positions)}")
-        
         # Handle dynamic position tracking
         if exclude_positions is None:
             exclude_positions = []
         if include_positions is None:
             include_positions = []
+        
+        # Debug: show graveyard positions if positions are being tracked
+        if len(exclude_positions) > 0 or len(include_positions) > 0:
+            print(f"Graveyard columns: gy1={self.graveyard_left_col1}, gy2={self.graveyard_left_col2}, gy12={self.graveyard_right_col1}, gy11={self.graveyard_right_col2}")
+            print(f"Total graveyard positions added: {len(graveyard_positions)}")
         
         debug_info = {
             'total_grid_points': len(grid_points),
@@ -557,7 +557,128 @@ class Board:
                 num_changes = 0
                 path = simplified_path
                 simplified_path = [path[0]]
+
+    def get_l_edge_type(self, x1: float, y1: float, x2: float, y2: float) -> str:
+        """
+        Identify which of the 8 L-edge types is being used.
+        Args:
+            x1, y1: Starting point (in mm)
+            x2, y2: Ending point (in mm)
+        Returns:
+            String identifier for the L-edge type
+        """
+        dx = x2 - x1  # Signed difference
+        dy = y2 - y1  # Signed difference
         
+        # Map to the 8 L-edge types
+        if abs(dx) == 2 * self.square_size and abs(dy) == self.square_size:
+            if dx > 0 and dy > 0:
+                return "R2U1"  # Right 2, Up 1
+            elif dx > 0 and dy < 0:
+                return "R2D1"  # Right 2, Down 1
+            elif dx < 0 and dy > 0:
+                return "L2U1"  # Left 2, Up 1
+            elif dx < 0 and dy < 0:
+                return "L2D1"  # Left 2, Down 1
+        elif abs(dx) == self.square_size and abs(dy) == 2 * self.square_size:
+            if dx > 0 and dy > 0:
+                return "R1U2"  # Right 1, Up 2
+            elif dx > 0 and dy < 0:
+                return "R1D2"  # Right 1, Down 2
+            elif dx < 0 and dy > 0:
+                return "L1U2"  # Left 1, Up 2
+            elif dx < 0 and dy < 0:
+                return "L1D2"  # Left 1, Down 2
+        
+        return "UNKNOWN"   
+
+    def process_l_edges(self, path: List[Tuple[float, float]]) -> List[List[Tuple[float, float]]]:
+        """
+        Process a path and split it at L-edges, inserting placeholder paths.
+        Args:
+            path: A single path as a list of coordinate tuples
+        Returns:
+            List of path segments with placeholders around L-edges
+        """
+        if not path or len(path) < 2:
+            return [path]
+        
+        result = []
+        current_segment = [path[0]]
+        
+        for i in range(len(path) - 1):
+            # Convert from cm to mm for comparison
+            x1, y1 = path[i][0] * 10, path[i][1] * 10
+            x2, y2 = path[i+1][0] * 10, path[i+1][1] * 10
+            
+            dx = abs(x2 - x1)
+            dy = abs(y2 - y1)
+            
+            # Check if this is an L-shaped edge
+            is_l_edge = (dx == 2 * self.square_size and dy == self.square_size) or \
+                        (dx == self.square_size and dy == 2 * self.square_size)
+            
+            if is_l_edge:
+                # Add the segment before the L-edge (if it has more than just the starting point)
+                l_edge_type = self.get_l_edge_type(x1, y1, x2, y2)
+
+                x_delta = 7.5
+                y_delta = 7.5
+
+                pos_dict = {
+                    "R2U1": [(x1 + self.square_size, y1 + self.square_size),(x1 + self.square_size, y1)],
+                    "R2D1": [(x1 + self.square_size, y1 - self.square_size),(x1 + self.square_size, y1)],
+                    "L2U1": [(x1 - self.square_size, y1 + self.square_size),(x1 - self.square_size, y1)],
+                    "L2D1": [(x1 - self.square_size, y1 - self.square_size),(x1 - self.square_size, y1)],
+                    "R1U2": [(x1 + self.square_size, y1 + self.square_size),(x1, y1 + self.square_size)],
+                    "R1D2": [(x1 + self.square_size, y1 - self.square_size),(x1, y1 - self.square_size)],
+                    "L1U2": [(x1 - self.square_size, y1 + self.square_size),(x1, y1 + self.square_size)],
+                    "L1D2": [(x1 - self.square_size, y1 - self.square_size),(x1, y1 - self.square_size)]
+                }
+
+                delta_dict = {
+                    "R2U1": [(x1 + self.square_size - x_delta , y1 + self.square_size + y_delta),(x1 + self.square_size + x_delta, y1 - y_delta)],
+                    "R2D1": [(x1 + self.square_size + x_delta , y1 - self.square_size + y_delta),(x1 + self.square_size - x_delta, y1 + y_delta)],
+                    "L2U1": [(x1 - self.square_size + x_delta, y1 + self.square_size + y_delta),(x1 - self.square_size - x_delta, y1 - y_delta)],
+                    "L2D1": [(x1 - self.square_size + x_delta, y1 - self.square_size - y_delta),(x1 - self.square_size - x_delta, y1 + y_delta)],
+                    "R1U2": [(x1 + self.square_size + x_delta, y1 + self.square_size - y_delta),(x1 - x_delta, y1 + self.square_size + y_delta)],
+                    "R1D2": [(x1 + self.square_size + x_delta, y1 - self.square_size + y_delta),(x1 - x_delta, y1 - self.square_size - y_delta)],
+                    "L1U2": [(x1 - self.square_size - x_delta, y1 + self.square_size - y_delta),(x1 + x_delta, y1 + self.square_size + y_delta)],
+                    "L1D2": [(x1 - self.square_size - x_delta, y1 - self.square_size + y_delta),(x1 + x_delta, y1 - self.square_size - y_delta)]
+                }
+
+                piece1 = pos_dict[l_edge_type][0] 
+                piece2 = pos_dict[l_edge_type][1] 
+
+                piece1_new = delta_dict[l_edge_type][0]
+                piece2_new = delta_dict[l_edge_type][1]
+
+                if len(current_segment) > 1:
+                    result.append(current_segment[:-1])  # Don't include the L-edge starting point
+                
+                # Insert: [new_path1], [new_path2], [L-edge segment], [new_path3], [new_path4]
+                result.extend([
+                    [piece1, piece1_new],  # Make Space
+                    [piece2, piece2_new],  # Make Space
+                    [path[i], path[i+1]],  # Just the L-edge itself
+                    [piece1_new, piece1],  # Undo 
+                    [piece2_new, piece2]   # Undo
+                ])
+                
+                # Start new segment from the point after the L-edge
+                current_segment = [path[i+1]]
+            else:
+                # Regular edge, continue building current segment
+                current_segment.append(path[i+1])
+        
+        # Add the final segment if it has content beyond just the starting point
+        if len(current_segment) > 1:
+            result.append(current_segment)
+        elif not result:
+            # If no L-edges were found, return the original path
+            result.append(path)
+        
+        return result
 
     def get_full_path(self, move: str) -> List[Tuple[float, float]]:
         """
@@ -680,7 +801,15 @@ class Board:
         
         
         path.append(self.path_to_target(from_x, from_y, to_x, to_y))
-        return path
+        
+        # Process each path for L-edges
+        processed_paths = []
+        for single_path in path:
+            processed_paths.extend(self.process_l_edges(single_path))
+        
+        return processed_paths
+
+        #return path
     
     def get_full_path_simpli(self, move: str) -> List[Tuple[float, float]]:
         path = self.get_full_path(move)
@@ -878,9 +1007,7 @@ class Board:
 
 
 if __name__ == "__main__":
-    board = Board()
-    fen = '6k1/8/8/8/8/6P1/8/5K2 w - - 0 1'
-    
+    board = Board()    
     print(f"Resetting board from FEN: {fen}")
     print("Current position has:")
     print("- Black king on g8")
