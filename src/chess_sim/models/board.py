@@ -90,6 +90,7 @@ class Board:
             # Check for game interrupt
             if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
                 print("\nGame interrupted by user")
+                self.lcd_manager.clear_game_interrupt()
                 return False
             
             print("\n" + "-" * 40)
@@ -197,8 +198,10 @@ class Board:
             if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
                 print("\nGame interrupted by user")
                 self.logger.log("Game interrupted by user")
-                display.close_disp()
+                # display.close_disp()
+                self.lcd_manager.clear_game_interrupt()
                 return False
+
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
             display.disp_board(self.board, self.graveyard, self.current_player)
@@ -336,7 +339,8 @@ class Board:
                 if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
                     print("\nGame interrupted by user")
                     self.logger.log("Online game interrupted by user")
-                    display.close_disp()
+                    # display.close_disp()
+                    self.lcd_manager.clear_game_interrupt()
                     return False
                     
                 print("\n" + "-" * 40)

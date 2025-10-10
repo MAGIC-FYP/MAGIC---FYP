@@ -73,31 +73,35 @@ class MenuNavigator:
         
         # Display initial menu
         self._safe_update_display()
+
+        self.state_lock = threading.Lock()
     
     def _on_rotate(self):
         """Handle rotary encoder rotation with rate limiting."""
         if not self.running:
             return
         
-        current_time = time.time()
-        if current_time - self.last_update < self.update_delay:
-            return  # Rate limit - debounce rapid rotations
+        with self.state_lock:
+            current_time = time.time()
             
-        current_steps = self.encoder.steps
-        
-        if current_steps > self.last_encoder_steps:
-            # Rotated clockwise - next item
-            if isinstance(self.current_menu, SubMenu):
-                self.current_menu.next()
-                self._safe_update_display()
-        elif current_steps < self.last_encoder_steps:
-            # Rotated counter-clockwise - previous item
-            if isinstance(self.current_menu, SubMenu):
-                self.current_menu.previous()
-                self._safe_update_display()
-        
-        self.last_encoder_steps = current_steps
-        self.last_update = current_time
+            if current_time - self.last_update < self.update_delay:
+                return
+         
+            current_steps = self.encoder.steps
+            
+            if current_steps > self.last_encoder_steps:
+                # Rotated clockwise - next item
+                if isinstance(self.current_menu, SubMenu):
+                    self.current_menu.next()
+                    self._safe_update_display()
+            elif current_steps < self.last_encoder_steps:
+                # Rotated counter-clockwise - previous item
+                if isinstance(self.current_menu, SubMenu):
+                    self.current_menu.previous()
+                    self._safe_update_display()
+            
+            self.last_encoder_steps = current_steps
+            self.last_update = current_time
     
     def _on_press(self):
         """Handle rotary encoder switch short press."""
