@@ -65,6 +65,8 @@ class MenuNavigator:
         # Setup callbacks
         self.encoder.when_rotated = self._on_rotate
         self.switch.when_pressed = self._on_press
+        self.switch.when_held = self._on_long_press
+        self.switch.hold_time = 1.0  # 1 second for long press
         
         # Flag to control running state
         self.running = False
@@ -98,26 +100,18 @@ class MenuNavigator:
         self.last_update = current_time
     
     def _on_press(self):
-        """Handle rotary encoder switch press with debouncing."""
+        """Handle rotary encoder switch short press."""
         if not self.running:
             return
         
-        time.sleep(0.05)  # Debounce button press
-        
-        # Check if in game mode - if so, request game interrupt instead
+        # In game mode, only respond to long press (handled by _on_long_press)
         if self.use_threaded_lcd and self.lcd_manager:
             if self.lcd_manager.is_in_game_mode():
-                # Long press (hold for 1 second) to confirm game interrupt
-                start_time = time.time()
-                while self.switch.is_pressed and (time.time() - start_time) < 1.0:
-                    time.sleep(0.1)
-                
-                if time.time() - start_time >= 1.0:
-                    # Long press confirmed - request interrupt
-                    self.lcd_manager.request_game_interrupt()
-                    self.lcd_manager.show_message("Ending game...", "Returning to menu", 2.0)
-                return
-            
+                return  # Ignore short press during game
+        
+        # Short press in menu mode - execute current selection
+        time.sleep(0.05)  # Debounce
+        
         if isinstance(self.current_menu, SubMenu):
             # Execute the current selection
             next_menu = self.current_menu.execute()
@@ -129,6 +123,21 @@ class MenuNavigator:
             elif next_menu is None and self.current_menu.get_parent() is None:
                 # If we're at root and execute returns None, stay at root
                 self._safe_update_display()
+    
+    def _on_long_press(self):
+        """Handle rotary encoder switch long press (1 second hold)."""
+        if not self.running:
+            return
+        
+        print("Long button press recognised")  # Debug message
+        
+        # Check if in game mode - if so, request game interrupt
+        if self.use_threaded_lcd and self.lcd_manager:
+            if self.lcd_manager.is_in_game_mode():
+                # Long press confirmed - request interrupt
+                self.lcd_manager.request_game_interrupt()
+                self.lcd_manager.show_message("Ending game...", "Returning to menu", 2.0)
+                return
     
     def _safe_update_display(self):
         """Thread-safe display update with error handling."""
