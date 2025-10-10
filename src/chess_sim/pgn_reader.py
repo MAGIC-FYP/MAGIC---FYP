@@ -26,8 +26,8 @@ class PGNReader:
             pgn_directory: Directory containing PGN files (defaults to 'PGN Files' in src)
         """
         if pgn_directory is None:
-            # Default to PGN Files directory in src
-            src_dir = Path(__file__).parent
+            # Default to PGN Files directory in src (one level up from chess_sim)
+            src_dir = Path(__file__).parent.parent
             self.pgn_directory = src_dir / "PGN Files"
         else:
             self.pgn_directory = Path(pgn_directory)
