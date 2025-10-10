@@ -81,13 +81,13 @@ class ChessMenuBuilder:
     
     def _build_player_vs_robot_menu(self) -> SubMenu:
         """Build the Player vs Robot submenu."""
-        pvr_menu = SubMenu("Human v Bot")
+        pvr_menu = SubMenu("Plyr v Bot")
 
         # Start Game (no auto_back - stays on current menu or exits)
         pvr_menu.add(MenuItem("Start Game", lambda: self._start_player_vs_robot()))
         
         # Player Colour submenu
-        colour_menu = SubMenu("Human Clr")
+        colour_menu = SubMenu("Plyr Col")
         colour_menu.add(MenuItem("White", lambda: self._set_player_colour(chess.WHITE), auto_back=True))
         colour_menu.add(MenuItem("Black", lambda: self._set_player_colour(chess.BLACK), auto_back=True))
         colour_menu.add(BackMenuItem())
@@ -107,7 +107,7 @@ class ChessMenuBuilder:
     
     def _build_robot_vs_robot_menu(self) -> SubMenu:
         """Build the Robot vs Robot submenu."""
-        rvr_menu = SubMenu("Bot vs Bot")
+        rvr_menu = SubMenu("Bot v Bot")
 
         # Start Game (no auto_back - stays on current menu or exits)
         rvr_menu.add(MenuItem("Start Game", lambda: self._start_robot_vs_robot()))
