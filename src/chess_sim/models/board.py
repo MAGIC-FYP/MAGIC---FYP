@@ -34,10 +34,12 @@ class Board:
         self.is_capture = False
         self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
         try:
-            self.gantry.initialise()
+            self.gantry.cleanup()
         except:
-            print("Gantry already initialised")
+            pass
+        self.gantry.initialise()
         self.gantry.home()
+        
 
 
     def set_fen(self, fen: str) -> None:
@@ -295,12 +297,13 @@ class Board:
             self.logger.log("Game over, result: Draw")
             display.board_message = "Draw!"
             print("It's a draw!")
-        self.gantry.cleanup()
+        
         display.disp_board(self.board, self.graveyard, self.current_player)
         for _ in range(3):
             self.gantry.chime()
             time.sleep(0.1)
         self.logger.end_log()
+        #self.gantry.cleanup()
         time.sleep(360)
         display.close_disp()
         return True
