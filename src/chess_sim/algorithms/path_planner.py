@@ -283,7 +283,7 @@ class Board:
         for point in list(G.nodes()):
             point_x, point_y = point
             diagonal_weight = 4
-            L_shape_weight = 10
+            L_shape_weight = 1
             
             straight_directions = [
                 (point_x + 50, point_y, 1),  # right
@@ -423,8 +423,127 @@ class Board:
         y = 25 + (int(uci[1]) - 1) * 50
         return (x, y)
 
-    def process_path(self, path: List[Tuple[float, float]]):
-        pass
+    def get_l_edge_type(self, x1: float, y1: float, x2: float, y2: float) -> str:
+        """
+        Identify which of the 8 L-edge types is being used.
+        Args:
+            x1, y1: Starting point (in mm)
+            x2, y2: Ending point (in mm)
+        Returns:
+            String identifier for the L-edge type
+        """
+        dx = x2 - x1  # Signed difference
+        dy = y2 - y1  # Signed difference
+        
+        # Map to the 8 L-edge types
+        if abs(dx) == 2 * self.square_size and abs(dy) == self.square_size:
+            if dx > 0 and dy > 0:
+                return "R2U1"  # Right 2, Up 1
+            elif dx > 0 and dy < 0:
+                return "R2D1"  # Right 2, Down 1
+            elif dx < 0 and dy > 0:
+                return "L2U1"  # Left 2, Up 1
+            elif dx < 0 and dy < 0:
+                return "L2D1"  # Left 2, Down 1
+        elif abs(dx) == self.square_size and abs(dy) == 2 * self.square_size:
+            if dx > 0 and dy > 0:
+                return "R1U2"  # Right 1, Up 2
+            elif dx > 0 and dy < 0:
+                return "R1D2"  # Right 1, Down 2
+            elif dx < 0 and dy > 0:
+                return "L1U2"  # Left 1, Up 2
+            elif dx < 0 and dy < 0:
+                return "L1D2"  # Left 1, Down 2
+        
+        return "UNKNOWN"   
+
+    def process_l_edges(self, path: List[Tuple[float, float]]) -> List[List[Tuple[float, float]]]:
+        """
+        Process a path and split it at L-edges, inserting placeholder paths.
+        Args:
+            path: A single path as a list of coordinate tuples
+        Returns:
+            List of path segments with placeholders around L-edges
+        """
+        if not path or len(path) < 2:
+            return [path]
+        
+        result = []
+        current_segment = [path[0]]
+        
+        for i in range(len(path) - 1):
+            # Convert from cm to mm for comparison
+            x1, y1 = path[i][0] * 10, path[i][1] * 10
+            x2, y2 = path[i+1][0] * 10, path[i+1][1] * 10
+            
+            dx = abs(x2 - x1)
+            dy = abs(y2 - y1)
+            
+            # Check if this is an L-shaped edge
+            is_l_edge = (dx == 2 * self.square_size and dy == self.square_size) or \
+                        (dx == self.square_size and dy == 2 * self.square_size)
+            
+            if is_l_edge:
+                # Add the segment before the L-edge (if it has more than just the starting point)
+                l_edge_type = self.get_l_edge_type(x1, y1, x2, y2)
+
+                x_delta = 7.5 * 5/3.5
+                y_delta = 7.5 * 5/3.5
+
+                pos_dict = {
+                    "R2U1": [(x1 + self.square_size, y1 + self.square_size),(x1 + self.square_size, y1)],
+                    "R2D1": [(x1 + self.square_size, y1 - self.square_size),(x1 + self.square_size, y1)],
+                    "L2U1": [(x1 - self.square_size, y1 + self.square_size),(x1 - self.square_size, y1)],
+                    "L2D1": [(x1 - self.square_size, y1 - self.square_size),(x1 - self.square_size, y1)],
+                    "R1U2": [(x1 + self.square_size, y1 + self.square_size),(x1, y1 + self.square_size)],
+                    "R1D2": [(x1 + self.square_size, y1 - self.square_size),(x1, y1 - self.square_size)],
+                    "L1U2": [(x1 - self.square_size, y1 + self.square_size),(x1, y1 + self.square_size)],
+                    "L1D2": [(x1 - self.square_size, y1 - self.square_size),(x1, y1 - self.square_size)]
+                }
+
+                delta_dict = {
+                    "R2U1": [(x1 + self.square_size - x_delta , y1 + self.square_size + y_delta),(x1 + self.square_size + x_delta, y1 - y_delta)],
+                    "R2D1": [(x1 + self.square_size + x_delta , y1 - self.square_size + y_delta),(x1 + self.square_size - x_delta, y1 + y_delta)],
+                    "L2U1": [(x1 - self.square_size + x_delta, y1 + self.square_size + y_delta),(x1 - self.square_size - x_delta, y1 - y_delta)],
+                    "L2D1": [(x1 - self.square_size + x_delta, y1 - self.square_size - y_delta),(x1 - self.square_size - x_delta, y1 + y_delta)],
+                    "R1U2": [(x1 + self.square_size + x_delta, y1 + self.square_size - y_delta),(x1 - x_delta, y1 + self.square_size + y_delta)],
+                    "R1D2": [(x1 + self.square_size + x_delta, y1 - self.square_size + y_delta),(x1 - x_delta, y1 - self.square_size - y_delta)],
+                    "L1U2": [(x1 - self.square_size - x_delta, y1 + self.square_size - y_delta),(x1 + x_delta, y1 + self.square_size + y_delta)],
+                    "L1D2": [(x1 - self.square_size - x_delta, y1 - self.square_size + y_delta),(x1 + x_delta, y1 - self.square_size - y_delta)]
+                }
+
+                piece1 = (pos_dict[l_edge_type][0][0]/10, pos_dict[l_edge_type][0][1]/10) 
+                piece2 = (pos_dict[l_edge_type][1][0]/10, pos_dict[l_edge_type][1][1]/10)
+
+                piece1_new = (delta_dict[l_edge_type][0][0]/10, delta_dict[l_edge_type][0][1]/10)
+                piece2_new = (delta_dict[l_edge_type][1][0]/10, delta_dict[l_edge_type][1][1]/10)
+
+                if len(current_segment) > 1:
+                    result.append(current_segment[:-1])  # Don't include the L-edge starting point
+                
+                # Insert: [new_path1], [new_path2], [L-edge segment], [new_path3], [new_path4]
+                result.extend([
+                    [piece1, piece1_new],  # Make Space
+                    [piece2, piece2_new],  # Make Space
+                    [path[i], path[i+1]],  # Just the L-edge itself
+                    [piece1_new, piece1],  # Undo 
+                    [piece2_new, piece2]   # Undo
+                ])
+                
+                # Start new segment from the point after the L-edge
+                current_segment = [path[i+1]]
+            else:
+                # Regular edge, continue building current segment
+                current_segment.append(path[i+1])
+        
+        # Add the final segment if it has content beyond just the starting point
+        if len(current_segment) > 1:
+            result.append(current_segment)
+        elif not result:
+            # If no L-edges were found, return the original path
+            result.append(path)
+        
+        return result
 
     def simplify_path(self, paths: List[List[Tuple[float, float]]]) -> List[List[Tuple[float, float]]]:
         """
@@ -587,7 +706,12 @@ class Board:
         
         
         path.append(self.path_to_target(from_x, from_y, to_x, to_y))
-        return path
+        
+        processed_paths = []
+        for single_path in path:
+            processed_paths.extend(self.process_l_edges(single_path))
+        
+        return processed_paths
     
     def get_full_path_simpli(self, move: str) -> List[Tuple[float, float]]:
         path = self.get_full_path(move)
