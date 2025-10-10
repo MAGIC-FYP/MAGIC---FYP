@@ -28,87 +28,6 @@ if not API_TOKEN:
     print("Please create a .env file from .env.example and add your token.")
 
 
-def play_online_game(chess_board, lichess_manager, game_id, player_colour):
-    """
-    Special game loop for online Lichess games.
-    Sends human moves to Lichess and receives opponent moves via stream.
-    Returns True if game completed normally, False if interrupted.
-    """
-    print("Starting online game!")
-    print("Type 'resign' to resign the game\n")
-    
-    # Get LCD manager for game status display
-    lcd_manager = get_lcd_manager()
-    
-    # Switch to game status mode
-    lcd_manager.set_game_status_mode({
-        'game_status': 'online_game',
-        'move_count': 0,
-        'opponent_name': 'Online Player'
-    })
-    
-    while not chess_board.is_game_over():
-        # Check for game interrupt
-        if lcd_manager.is_game_interrupt_requested():
-            print("\nGame interrupted by user")
-            return False
-        print("\n" + "-" * 40)
-        current_player = chess_board.current_player
-        print(f"Current player: ({'White' if current_player.colour == chess.WHITE else 'Black'})")
-        print(chess_board.board)
-        
-        # Update LCD with current game state
-        lcd_manager.update_game_state(
-            current_player=current_player,
-            move_count=len(chess_board.board.move_stack),
-            game_status='thinking' if not isinstance(current_player, HumanPlayer) else 'your_turn',
-            board_fen=chess_board.board.fen()
-        )
-        
-        # Get move from current player
-        move = current_player.get_move(chess_board.board)
-        
-        if move:
-            if chess_board.make_move(move):
-                # Update LCD with the move
-                lcd_manager.update_game_state(
-                    last_move=move.uci(),
-                    game_status='move_made'
-                )
-                
-                # If it's the human player's move, send it to Lichess
-                if isinstance(current_player, HumanPlayer):
-                    success = lichess_manager.make_move(game_id, move)
-                    if not success:
-                        print("Failed to send move to Lichess. Game may desync.")
-                        lcd_manager.show_message("Move failed!", "Check connection", 2.0)
-                
-                chess_board.switch_player()
-            else:
-                print("Invalid move.")
-                lcd_manager.show_message("Invalid move!", "Try again", 1.0)
-        else:
-            # Move is None - either game ended or error occurred
-            print("No move available or game ended.")
-            break
-    
-    print("\n" + "=" * 40)
-    print("Game over!")
-    print(chess_board.board)
-    
-    # Show result on LCD
-    result = chess_board.board.result()
-    if result == "1-0":
-        print("White wins!")
-        lcd_manager.show_message("White wins!", "Game over", 5.0)
-    elif result == "0-1":
-        print("Black wins!")
-        lcd_manager.show_message("Black wins!", "Game over", 5.0)
-    elif result == "1/2-1/2":
-        print("It's a draw!")
-        lcd_manager.show_message("It's a draw!", "Game over", 5.0)
-    
-    return True
 
 
 def start_game(game_config):
@@ -236,6 +155,13 @@ def start_game(game_config):
             
             chess_board.setup_players(white_player, black_player)
             
+            # Update LCD with game setup
+            lcd_manager.set_game_status_mode({
+                'game_status': 'online_game',
+                'move_count': 0,
+                'opponent_name': opponent_name
+            })
+            
             # If game already has moves (unlikely for quickmatch), apply them
             if game_info['moves']:
                 temp_board = chess.Board()
@@ -246,8 +172,8 @@ def start_game(game_config):
                 lichess_player = white_player if isinstance(white_player, LichessPlayer) else black_player
                 lichess_player.last_moves = game_info['moves']
             
-            # Play the game with custom online loop
-            game_completed = play_online_game(chess_board, lichess_manager, game_id, player_colour)
+            # Play the game with Board's online method
+            game_completed = chess_board.play_game_online(lichess_manager, game_id, player_colour)
             
             # Disable game mode
             lcd_manager.set_game_mode(False)
