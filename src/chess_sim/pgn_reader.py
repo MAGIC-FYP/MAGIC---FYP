@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from config import load_config
-import time
+import time as time_sleep
 import re
 
 config = load_config()
@@ -260,17 +260,18 @@ class PGNExecutor:
                     break
                 
                 print(f"\nMove {move_data['uci']}: {move_data['san']}")
-                
+                self.path_planner_board.place_from_fen(self.board.board.fen())
+                self.path = self.path_planner_board.get_full_path_simpli(move_data['uci'])
                 # Make the move on the board
                 if self.board.make_move(move_data['move']):
+                    print(self.board.board)
                     move = move_data['uci']
-                    self.path_planner_board.place_from_fen(self.board.board.fen())
-                    self.path = self.path_planner_board.get_full_path_simpli(move_data['uci'])
+                    
                     print(f"Path: {self.path}")
                     for path in self.path:
                         self.gantry.move(path[0][0]*self.path_const, path[0][1]*self.path_const, quick_speed)
                         self.gantry.electromagnet(True)
-                        time.sleep(0.3)
+                        time_sleep.sleep(0.3)
 
                         for point in path[:-1]:
                             
@@ -278,11 +279,11 @@ class PGNExecutor:
                             
                         self.gantry.move(path[len(path)-1][0]*self.path_const, path[len(path)-1][1]*self.path_const, slow_speed, drag_compensation=True)
                         self.gantry.electromagnet(False)
-                        time.sleep(0.1)
+                        time_sleep.sleep(0.1)
                         self.gantry.electromagnet(True)
-                        time.sleep(0.3)
+                        time_sleep.sleep(0.3)
                         self.gantry.electromagnet(False)
-                        time.sleep(0.1)
+                        time_sleep.sleep(0.1)
                     
                     print(f"Executed: {move_data['uci']}")
                     
