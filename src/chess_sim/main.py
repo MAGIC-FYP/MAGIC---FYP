@@ -214,6 +214,9 @@ def start_game(game_config):
             increment = game_config.get('lichess_increment', 0)
             rated = game_config.get('lichess_rated', False)
             
+            # Center pieces before starting
+            chess_board.gantry.center_pieces()
+            
             # Show LCD message
             lcd_manager.show_message(f"Challenging", friend_username[:14], 2.0)
             
