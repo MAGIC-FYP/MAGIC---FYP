@@ -353,7 +353,7 @@ class Board:
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
             return False
-        self.gantry.center_pieces()
+        
         print("Starting online chess game!")
         self.logger.log("Starting online chess game")
         

@@ -108,7 +108,9 @@ def start_game(game_config):
             rated = game_config.get('lichess_rated', False)
             
             # Create quickmatch and wait for opponent
+            chess_board.gantry.center_pieces()
             print("Connecting to Lichess...")
+
             game_id = lichess_manager.create_quickmatch(
                 time_minutes=time_minutes,
                 increment_seconds=increment,
