@@ -199,7 +199,7 @@ def start_game(game_config):
             
             # Determine which color we are playing
             # Note: You'll need to get the actual username - for now we'll ask
-            our_username = input("Enter your Lichess username: ").strip()
+            our_username = "MAGIC_FYP"
             
             if game_info['white'].lower() == our_username.lower():
                 player_colour = chess.WHITE
@@ -258,7 +258,7 @@ def start_game(game_config):
             
             # Initialize PGN reader and executor
             pgn_reader = PGNReader()
-            pgn_executor = PGNExecutor(chess_board, controller)
+            pgn_executor = PGNExecutor(chess_board, controller, chess_board.gantry, chess_board.path_planner_board)
             
             # Load the game
             print(f"Loading archived game: {filename}")

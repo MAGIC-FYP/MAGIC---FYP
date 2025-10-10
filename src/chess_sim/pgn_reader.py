@@ -10,9 +10,11 @@ import chess.pgn
 import os
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
-from algorithms.path_planner import Board as PathPlannerBoard
+from config import load_config
+import time
 import re
 
+config = load_config()
 
 class PGNReader:
     """
@@ -26,7 +28,6 @@ class PGNReader:
         Args:
             pgn_directory: Directory containing PGN files (defaults to 'PGN Files' in src)
         """
-        self.path_planner_board = PathPlannerBoard()
         if pgn_directory is None:
             # Default to PGN Files directory in src (one level up from chess_sim)
             src_dir = Path(__file__).parent.parent
@@ -188,7 +189,7 @@ class PGNExecutor:
     Executes PGN games on the chess board.
     """
     
-    def __init__(self, board, controller):
+    def __init__(self, board, controller, gantry, path_planner_board):
         """
         Initialize the PGN executor.
         
@@ -201,6 +202,10 @@ class PGNExecutor:
         self.current_game = None
         self.current_move_index = 0
         self.is_executing = False
+        self.gantry = gantry
+        self.path_planner_board = path_planner_board
+        self.path_const = (3.5/5)
+        
     
     def load_game(self, game_data: Dict) -> bool:
         """
@@ -229,6 +234,9 @@ class PGNExecutor:
         Returns:
             True if execution completed successfully, False otherwise
         """
+        quick_speed = config['gantry']['quick_speed']
+        slow_speed = config['gantry']['slow_speed']
+
         if not self.current_game:
             print("No game loaded for execution")
             return False
@@ -239,7 +247,7 @@ class PGNExecutor:
         
         # Center all pieces first
         print("Centering pieces...")
-        self.board.gantry.center_pieces()
+        #self.board.gantry.center_pieces()
         
         # Reset board to starting position
         #self.board.board.reset()
@@ -251,24 +259,24 @@ class PGNExecutor:
                 if not self.is_executing:
                     break
                 
-                print(f"\nMove {move_data['move_number']}: {move_data['san']}")
+                print(f"\nMove {move_data['uci']}: {move_data['san']}")
                 
                 # Make the move on the board
                 if self.board.make_move(move_data['move']):
                     move = move_data['uci']
-                    self.path_planner_board.place_from_fen(self.board.fen())
-                    self.path = self.path_planner_board.get_full_path_simpli(chess.Move.uci(move))
+                    self.path_planner_board.place_from_fen(self.board.board.fen())
+                    self.path = self.path_planner_board.get_full_path_simpli(move_data['uci'])
                     print(f"Path: {self.path}")
                     for path in self.path:
-                        self.gantry.move(path[0][0]*path_const, path[0][1]*path_const, quick_speed)
+                        self.gantry.move(path[0][0]*self.path_const, path[0][1]*self.path_const, quick_speed)
                         self.gantry.electromagnet(True)
                         time.sleep(0.3)
 
                         for point in path[:-1]:
                             
-                            self.gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
+                            self.gantry.move(point[0]*self.path_const, point[1]*self.path_const, slow_speed)
                             
-                        self.gantry.move(path[len(path)-1][0]*path_const, path[len(path)-1][1]*path_const, slow_speed, drag_compensation=True)
+                        self.gantry.move(path[len(path)-1][0]*self.path_const, path[len(path)-1][1]*self.path_const, slow_speed, drag_compensation=True)
                         self.gantry.electromagnet(False)
                         time.sleep(0.1)
                         self.gantry.electromagnet(True)
