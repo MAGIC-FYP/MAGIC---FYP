@@ -15,7 +15,7 @@ from algorithms.algorithms_expanding_aStar import find_path, crowd_control
 config = load_config()
 
 class Board:
-    def __init__(self, controller: Controller):
+    def __init__(self, controller: Controller, lcd_manager=None):
         self.board = chess.Board()
         self.controller = controller
         self.graveyard = Graveyard()
@@ -32,6 +32,7 @@ class Board:
         self.path_planner_board = PathPlannerBoard()
         self.next_graveyard = None
         self.is_capture = False
+        self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
         try:
             self.gantry.initialise()
         except:
@@ -75,14 +76,20 @@ class Board:
     def is_game_over(self) -> bool:
         return self.board.is_game_over()
     
-    def play_game(self) -> None:
+    def play_game(self) -> bool:
+        """Play a chess game. Returns True if game completed normally, False if interrupted."""
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
-            return
+            return False
               
         print("Starting new chess game!")
         
         while not self.is_game_over():
+            # Check for game interrupt
+            if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                print("\nGame interrupted by user")
+                return False
+            
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
             print(self.board)  # Display the board
@@ -101,6 +108,7 @@ class Board:
         print("\n" + "=" * 40)
         print("Game over!")
         print(self.board)
+        return True
     
     def reset(self):
         self.board.reset()
@@ -167,13 +175,14 @@ class Board:
         pygame.quit()
         sys.exit(exit_code)
     
-    def play_game_gui(self) -> None:
+    def play_game_gui(self) -> bool:
+        """Play a chess game with GUI. Returns True if game completed normally, False if interrupted."""
         quick_speed = config['gantry']['quick_speed']
         slow_speed = config['gantry']['slow_speed']
         path_const = (3.5/5)
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
-            return
+            return False
             
         print("Starting new chess game!")
         self.logger.log("Starting new chess game")
@@ -182,6 +191,12 @@ class Board:
         #self.gantry.center_pieces()
         #while not self.is_game_over():
         while self.is_game_over() == False:
+            # Check for game interrupt
+            if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                print("\nGame interrupted by user")
+                self.logger.log("Game interrupted by user")
+                display.close_disp()
+                return False
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
             display.disp_board(self.board, self.graveyard, self.current_player)
@@ -287,7 +302,6 @@ class Board:
         self.logger.end_log()
         time.sleep(360)
         display.close_disp()
-        pygame.quit()
-        sys.exit(0)
+        return True
 
             

@@ -103,6 +103,20 @@ class MenuNavigator:
             return
         
         time.sleep(0.05)  # Debounce button press
+        
+        # Check if in game mode - if so, request game interrupt instead
+        if self.use_threaded_lcd and self.lcd_manager:
+            if self.lcd_manager.is_in_game_mode():
+                # Long press (hold for 1 second) to confirm game interrupt
+                start_time = time.time()
+                while self.switch.is_pressed and (time.time() - start_time) < 1.0:
+                    time.sleep(0.1)
+                
+                if time.time() - start_time >= 1.0:
+                    # Long press confirmed - request interrupt
+                    self.lcd_manager.request_game_interrupt()
+                    self.lcd_manager.show_message("Ending game...", "Returning to menu", 2.0)
+                return
             
         if isinstance(self.current_menu, SubMenu):
             # Execute the current selection

@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import chess
 from models.player import HumanPlayer, ComputerBasic, Stockfish, LichessPlayer
 from models.controller import Controller
@@ -31,6 +32,7 @@ def play_online_game(chess_board, lichess_manager, game_id, player_colour):
     """
     Special game loop for online Lichess games.
     Sends human moves to Lichess and receives opponent moves via stream.
+    Returns True if game completed normally, False if interrupted.
     """
     print("Starting online game!")
     print("Type 'resign' to resign the game\n")
@@ -46,6 +48,10 @@ def play_online_game(chess_board, lichess_manager, game_id, player_colour):
     })
     
     while not chess_board.is_game_over():
+        # Check for game interrupt
+        if lcd_manager.is_game_interrupt_requested():
+            print("\nGame interrupted by user")
+            return False
         print("\n" + "-" * 40)
         current_player = chess_board.current_player
         print(f"Current player: ({'White' if current_player.colour == chess.WHITE else 'Black'})")
@@ -101,6 +107,8 @@ def play_online_game(chess_board, lichess_manager, game_id, player_colour):
     elif result == "1/2-1/2":
         print("It's a draw!")
         lcd_manager.show_message("It's a draw!", "Game over", 5.0)
+    
+    return True
 
 
 def start_game(game_config):
@@ -120,7 +128,11 @@ def start_game(game_config):
     square_size = CONFIG.get('models', {}).get('chess_board', {}).get('square_size')
     controller = Controller(board_size_cm=board_size, square_size_cm=square_size)
     
-    chess_board = Board(controller)
+    # Pass LCD manager to board for interrupt checking
+    chess_board = Board(controller, lcd_manager=lcd_manager)
+    
+    # Enable game mode for interrupt handling
+    lcd_manager.set_game_mode(True)
     
     
     game_mode = game_config['game_mode']
@@ -197,9 +209,8 @@ def start_game(game_config):
             print(f"\n{game_info['white']} ({game_info['white_rating']}) vs {game_info['black']} ({game_info['black_rating']})")
             print(f"Speed: {game_info['speed']} | {'Rated' if game_info['rated'] else 'Casual'}\n")
             
-            # Determine which color we are playing
-            # Note: You'll need to get the actual username - for now we'll ask
-            our_username = input("Enter your Lichess username: ").strip()
+
+            our_username = "MAGIC_FYP"
             
             if game_info['white'].lower() == our_username.lower():
                 player_colour = chess.WHITE
@@ -236,7 +247,17 @@ def start_game(game_config):
                 lichess_player.last_moves = game_info['moves']
             
             # Play the game with custom online loop
-            play_online_game(chess_board, lichess_manager, game_id, player_colour)
+            game_completed = play_online_game(chess_board, lichess_manager, game_id, player_colour)
+            
+            # Disable game mode
+            lcd_manager.set_game_mode(False)
+            
+            if game_completed:
+                print("Online game completed!")
+            else:
+                print("Online game interrupted")
+                lcd_manager.show_message("Game ended", "Returning to menu", 2.0)
+                time.sleep(2)
             return
             
         except Exception as e:
@@ -293,6 +314,9 @@ def start_game(game_config):
             print("Starting game execution...")
             success = pgn_executor.execute_game(delay_between_moves=2.0)
             
+            # Disable game mode
+            lcd_manager.set_game_mode(False)
+            
             if success:
                 print("Archived game execution completed successfully!")
                 lcd_manager.show_message("Game completed!", "Archive replay done", 3.0)
@@ -300,6 +324,7 @@ def start_game(game_config):
                 print("Archived game execution failed or was interrupted")
                 lcd_manager.show_message("Game failed!", "Archive replay error", 3.0)
             
+            time.sleep(3)
             return
             
         except Exception as e:
@@ -310,21 +335,38 @@ def start_game(game_config):
     
     # Start the game (for offline modes)
     try:
-        chess_board.play_game_gui()
+        game_completed = chess_board.play_game_gui()
+        
+        # Disable game mode
+        lcd_manager.set_game_mode(False)
+        
+        if game_completed:
+            print("Game completed successfully!")
+        else:
+            print("Game was interrupted")
+            lcd_manager.show_message("Game ended", "Returning to menu", 2.0)
+            time.sleep(2)
+            
     except KeyboardInterrupt:
         print("\nGame interrupted by user. Exiting...")
+        lcd_manager.set_game_mode(False)
     except Exception as e:
         print(f"\nAn error occurred: {e}")
+        lcd_manager.set_game_mode(False)
     finally:
         print("Game session ended.")
+        # Return to menu display
+        lcd_manager.show_idle()
 
 
 def main():
     """Main entry point with menu system."""
     print("Initializing Chess Game Menu System...")
+    print("Press and hold encoder button for 1 second during game to exit to menu")
     
     # Start the threaded LCD manager
     start_lcd_manager()
+    lcd_manager = get_lcd_manager()
     
     # Build the menu structure
     menu_builder = ChessMenuBuilder()
@@ -349,6 +391,7 @@ def main():
             navigator.stop()
     finally:
         # Stop the LCD manager
+        lcd_manager.set_game_mode(False)
         stop_lcd_manager()
 
 
