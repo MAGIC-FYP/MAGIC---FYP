@@ -184,13 +184,16 @@ def start_game(game_config):
                 print("Online game interrupted")
                 lcd_manager.show_message("Game ended", "Returning to menu", 2.0)
                 time.sleep(2)
-            return
             
         except Exception as e:
             print(f"Error in online game: {e}")
             import traceback
             traceback.print_exc()
-            return
+        finally:
+            # Always cleanup GPIO resources
+            chess_board.gantry.cleanup()
+            lcd_manager.show_idle()
+        return
     
     elif game_mode == 'archived_game':
         # Archived game replay mode
@@ -201,6 +204,7 @@ def start_game(game_config):
             filename = game_config.get('archived_filename')
             if not filename:
                 print("No archived filename provided")
+                chess_board.gantry.cleanup()
                 return
             
             # Initialize PGN reader and executor
@@ -213,6 +217,7 @@ def start_game(game_config):
             
             if not game_data:
                 print(f"Failed to load game from {filename}")
+                chess_board.gantry.cleanup()
                 return
             
             # Display game information
@@ -234,6 +239,7 @@ def start_game(game_config):
             # Load game into executor
             if not pgn_executor.load_game(game_data):
                 print("Failed to load game into executor")
+                chess_board.gantry.cleanup()
                 return
             
             # Execute the game
@@ -251,13 +257,16 @@ def start_game(game_config):
                 lcd_manager.show_message("Game failed!", "Archive replay error", 3.0)
             
             time.sleep(3)
-            return
             
         except Exception as e:
             print(f"Error in archived game: {e}")
             import traceback
             traceback.print_exc()
-            return
+        finally:
+            # Always cleanup GPIO resources
+            chess_board.gantry.cleanup()
+            lcd_manager.show_idle()
+        return
     
     # Start the game (for offline modes)
     try:

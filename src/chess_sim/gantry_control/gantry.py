@@ -295,14 +295,14 @@ class GantryControl:
         """Clean up GPIO pins"""
         print("Cleaning up GPIO...")
         
-        lgpio.free_gpio(self.lg, self.L_DIR)
-        lgpio.free_gpio(self.lg, self.L_STEP)
-        lgpio.free_gpio(self.lg, self.R_DIR)
-        lgpio.free_gpio(self.lg, self.R_STEP)
-        lgpio.free_gpio(self.lg, self.E_MAG)
-        lgpio.free_gpio(self.lg, self.LED)
-        lgpio.free_gpio(self.lg, self.x_sw)
-        lgpio.free_gpio(self.lg, self.y_sw)
+        lgpio.gpio_free(self.lg, self.L_DIR)
+        lgpio.gpio_free(self.lg, self.L_STEP)
+        lgpio.gpio_free(self.lg, self.R_DIR)
+        lgpio.gpio_free(self.lg, self.R_STEP)
+        lgpio.gpio_free(self.lg, self.E_MAG)
+        lgpio.gpio_free(self.lg, self.LED)
+        lgpio.gpio_free(self.lg, self.x_sw)
+        lgpio.gpio_free(self.lg, self.y_sw)
         lgpio.gpiochip_close(self.lg)
         print("GPIO cleanup complete.")
 

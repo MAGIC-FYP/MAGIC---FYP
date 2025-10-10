@@ -33,10 +33,10 @@ class Board:
         self.next_graveyard = None
         self.is_capture = False
         self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
-        try:
-            self.gantry.cleanup()
-        except:
-            pass
+        # try:
+        #     self.gantry.cleanup()
+        # except:
+        #     pass
         self.gantry.initialise()
         self.gantry.home()
         
