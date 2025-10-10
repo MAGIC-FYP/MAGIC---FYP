@@ -32,7 +32,10 @@ class Board:
         self.path_planner_board = PathPlannerBoard()
         self.next_graveyard = None
         self.is_capture = False
-        self.gantry.initialise()
+        try:
+            self.gantry.initialise()
+        except:
+            print("Gantry already initialised")
         self.gantry.home()
 
 
@@ -98,6 +101,18 @@ class Board:
         print("\n" + "=" * 40)
         print("Game over!")
         print(self.board)
+    
+    def reset(self):
+        self.board.reset()
+        self.current_player = self.white_player if self.board.turn == chess.WHITE else self.black_player
+        self.graveyard.reset()
+        self.move_history = []
+        self.dead_pieces = []
+        self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
+        self.path_extra = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
+        self.next_graveyard = None
+        self.is_capture = False
+        self.gantry.home()
 
     def get_move_from_surface(self, board: chess.Board):
 

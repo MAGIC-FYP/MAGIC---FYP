@@ -2,10 +2,10 @@ from gpiozero import Button, RotaryEncoder
 from signal import pause
 
 # Switch on GPIO17 (active low, since tied to GND)
-switch = Button(17, pull_up=True)
+switch = Button(26, pull_up=True)
 
 # Rotary encoder on GPIO27 (A) and GPIO22 (B)
-encoder = RotaryEncoder(a=27, b=22, max_steps=0)
+encoder = RotaryEncoder(a=6, b=27, max_steps=0)
 
 def pressed():
     print("Switch pressed!")

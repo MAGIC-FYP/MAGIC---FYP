@@ -283,7 +283,7 @@ class Board:
         for point in list(G.nodes()):
             point_x, point_y = point
             diagonal_weight = 4
-            L_shape_weight = 1
+            L_shape_weight = 10
             
             straight_directions = [
                 (point_x + 50, point_y, 1),  # right
@@ -707,11 +707,12 @@ class Board:
         
         path.append(self.path_to_target(from_x, from_y, to_x, to_y))
         
-        processed_paths = []
-        for single_path in path:
-            processed_paths.extend(self.process_l_edges(single_path))
+        # processed_paths = []
+        # for single_path in path:
+        #     processed_paths.extend(self.process_l_edges(single_path))
         
-        return processed_paths
+        # return processed_paths
+        return path
     
     def get_full_path_simpli(self, move: str) -> List[Tuple[float, float]]:
         path = self.get_full_path(move)

@@ -20,6 +20,7 @@ from src.backend.lichess_manager import LichessGameManager
 # Load environment variables from .env file
 load_dotenv(project_root / '.env')
 API_TOKEN = os.getenv('LICHESS_API_TOKEN')
+chess_board = None
 
 if not API_TOKEN:
     print("WARNING: LICHESS_API_TOKEN not found in .env file!")
@@ -118,7 +119,9 @@ def start_game(game_config):
     board_size = CONFIG.get('models', {}).get('chess_board', {}).get('size_x')
     square_size = CONFIG.get('models', {}).get('chess_board', {}).get('square_size')
     controller = Controller(board_size_cm=board_size, square_size_cm=square_size)
+    
     chess_board = Board(controller)
+    
     
     game_mode = game_config['game_mode']
     

@@ -207,7 +207,7 @@ class GantryControl:
 
         #print(f"Distance: {distance}, Delta x: {delta_x}, Delta y: {delta_y}")
         
-        if distance < 0.1:  # Already at target
+        if distance < 0.2:  # Already at target
             return
 
         left_steps = int(abs(delta_x-delta_y) / self.cm_per_step)+comp_steps*drag_compensation

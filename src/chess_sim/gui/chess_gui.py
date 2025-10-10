@@ -18,7 +18,7 @@ config = load_config()
 # Initialize Pygame once
 pygame.init()
 
-colours = [(0, 0, 200), (0, 200, 0), (0, 200, 0)]
+colours = [(0, 0, 200), (0, 200, 0), (200, 0, 0), (200, 200, 0), (200, 0, 200), (0, 200, 200)]
 
 class Display:
     def __init__(self, board_size=600, log=False):
