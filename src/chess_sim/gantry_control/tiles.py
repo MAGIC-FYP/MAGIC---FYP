@@ -23,7 +23,7 @@ class TileSensor:
 
     # ========= Thresholds (Class-level defaults) =========
     BASE_V     = 2.5        # Mid-level voltage for magnet detection
-    THRESH     = 0.20       # Threshold deviation from BASE_V to detect magnet
+    THRESH     = 0.15       # Threshold deviation from BASE_V to detect magnet
     READ_TRIES = 3          # Number of attempts to read ADC data
 
     # ADC Register definitions (internal to ADC operations)

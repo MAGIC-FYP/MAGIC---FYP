@@ -30,9 +30,11 @@ class Board:
         self.move_history: List[chess.Move] = []
         self.dead_pieces: List[chess.Piece] = []
         self.path_planner_board = PathPlannerBoard()
-
+        self.next_graveyard = None
+        self.is_capture = False
         self.gantry.initialise()
         self.gantry.home()
+
 
     def set_fen(self, fen: str) -> None:
         self.board.set_fen(fen)
@@ -54,10 +56,16 @@ class Board:
             if self.board.piece_at(move.to_square): #piece has been captured
                 self.dead_pieces.append(self.board.piece_at(move.to_square))
                 piece = self.board.piece_at(move.to_square)
+                self.next_graveyard = self.graveyard.get_lowest_available(piece)
                 self.graveyard.place_piece(piece)
-
+                self.is_capture = True
+                
+            else:
+                self.next_graveyard = None
+                self.is_capture = False
             self.board.push(move)
             self.move_history.append(move)
+            
             return True
         return False
     
@@ -156,20 +164,23 @@ class Board:
         self.logger.log("Starting new chess game")
 
         display = Display(log= self.logger)
-        
+        self.gantry.center_pieces()
         #while not self.is_game_over():
-        while True:
+        while self.is_game_over() == False:
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
             display.disp_board(self.board, self.graveyard, self.current_player)
+
             self.logger.log(f"board fen:\t{self.board.fen()}")
             if type(self.current_player) == HumanPlayer:
                 #move = display.get_next_move_from_click(self.board, self.graveyard, self.current_player)
                 #move = self.get_move_from_surface(self.board)
                 move = False
                 while move == False:
+                    display.legal_moves = []
+                    display.selected_square = False
+                    display.path = []
                     move = display.get_move_from_surface_gui(self.board, self.Surface, self.gantry, self.graveyard, self.current_player)
-                    
                     
                 
             else:
@@ -179,6 +190,8 @@ class Board:
                 self.logger.log(f"attempted move:\t{move}")
                 self.path_planner_board.place_from_fen(self.board.fen())
                 if self.make_move(move):
+                    display.legal_moves = []
+                    display.selected_square = False
                     if type(self.current_player) != HumanPlayer:
                         self.path = self.path_planner_board.get_full_path_simpli(chess.Move.uci(move))
                         self.logger.log(f"Path:\t{self.path}")
@@ -207,7 +220,30 @@ class Board:
                             time.sleep(0.1)
                         
                         #self.gantry.move(10, 10, 10)
-                    
+                    else:
+                        if self.is_capture:
+                            if self.current_player == self.white_player:
+                                self.gantry.move(36.75, 1.75, quick_speed)
+                                while self.Surface.get_sensor_bitmap()[0][9] == 0:
+                                    time.sleep(0.1)
+                                print("Placing piece in graveyard")
+                                self.gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                self.gantry.move(36.75, self.graveyard.sq_to_gy_coord(self.next_graveyard)[1]*path_const, slow_speed)
+                                self.gantry.move(self.graveyard.sq_to_gy_coord(self.next_graveyard)[0]*path_const, self.graveyard.sq_to_gy_coord(self.next_graveyard)[1]*path_const, slow_speed)
+                                self.gantry.electromagnet(False)
+                                time.sleep(0.1)
+                            else:
+                                self.gantry.move(5.25, 26.25, quick_speed)
+                                while self.Surface.get_sensor_bitmap()[7][0] == 0:
+                                    time.sleep(0.1)
+                                print("Placing piece in graveyard")
+                                self.gantry.electromagnet(True)
+                                time.sleep(0.3)
+                                self.gantry.move(5.25, self.graveyard.sq_to_gy_coord(self.next_graveyard)[1]*path_const, slow_speed)
+                                self.gantry.move(self.graveyard.sq_to_gy_coord(self.next_graveyard)[0]*path_const, self.graveyard.sq_to_gy_coord(self.next_graveyard)[1]*path_const, slow_speed)
+                                self.gantry.electromagnet(False)
+                                time.sleep(0.1)
                     self.switch_player()
                 else:
                     print("Invalid move.")
@@ -219,14 +255,24 @@ class Board:
 
         if result == "1-0":
             self.logger.log("Game over, result: White wins")
+            display.board_message = "White wins!"
             print("White wins!")
         elif result == "0-1":
             self.logger.log("Game over, result: Black wins")
+            display.board_message = "Black wins!"
             print("Black wins!")
         elif result == "1/2-1/2":
             self.logger.log("Game over, result: Draw")
+            display.board_message = "Draw!"
             print("It's a draw!")
+        display.disp_board(self.board, self.graveyard, self.current_player)
+        for _ in range(3):
+            self.gantry.chime()
+            time.sleep(0.1)
         self.logger.end_log()
+        time.sleep(360)
         display.close_disp()
+        pygame.quit()
+        sys.exit(0)
 
             

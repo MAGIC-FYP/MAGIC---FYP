@@ -140,6 +140,9 @@ class Graveyard():
             self.place_piece(piece_obj)
             #print("BANG")
         #print('Graveyard occupation:', self.occupied_position)
+    
+    def sq_to_gy_coord(self, sq):
+        return graveyard_coordinates[sq]
 
     def pos_to_gy_coord(self, pos):
         

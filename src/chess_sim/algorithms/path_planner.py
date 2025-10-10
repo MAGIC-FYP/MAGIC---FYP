@@ -426,39 +426,48 @@ class Board:
     def process_path(self, path: List[Tuple[float, float]]):
         pass
 
-    def simplify_path(self, path: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    def simplify_path(self, paths: List[List[Tuple[float, float]]]) -> List[List[Tuple[float, float]]]:
         """
-        Simplify a path by merging parallel segments that are one after the other into a single long span.
+        Simplify a list of paths by merging collinear segments into a single long span.
         Args:
-            path: List of path segments.
+            paths: List of paths, where each path is a list of (x, y) coordinates.
         Returns:
-            Simplified path with merged parallel segments.
+            List of simplified paths, where each inner list has collinear intermediate points removed.
         """
+        all_simplified_paths = []
 
-        num_changes = 0
-        path = path[0]
-        simplified_path = [path[0]]
-        while True:
-            for i in range(1, len(path)-1):
-                # Check if the current segment is parallel to the next one
-                if (path[i][0] - path[i-1][0]) * (path[i+1][1] - path[i][1]) == (path[i][1] - path[i-1][1]) * (path[i+1][0] - path[i][0]):
-                    # If parallel, merge the segments by removing the current point
-                    simplified_path.append(path[i+1])
-                    #print(f"merged {path[i-1]}, {path[i]} and {path[i+1]}")
-                    num_changes += 1
-                else:
-                    # If not parallel, add the current point to the simplified path
-                    simplified_path.append(path[i])
-            # Add the last point of the original path to the simplified path
-            if path[-1] != simplified_path[-1]:
-                simplified_path.append(path[-1])
-    
-            if num_changes == 0:
-                return [simplified_path]
-            else:
-                num_changes = 0
-                path = simplified_path
-                simplified_path = [path[0]]
+        for single_path in paths:
+            if len(single_path) < 3:
+                all_simplified_paths.append(single_path)
+                continue
+
+            simplified_single_path = [single_path[0]]
+            
+            # Iterate from the second point up to the second-to-last point of the original path
+            for i in range(1, len(single_path) - 1):
+                p_prev = simplified_single_path[-1] # The last point added to the simplified path
+                p_curr = single_path[i]             # The current point from the original path
+                p_next = single_path[i+1]           # The next point from the original path
+
+                # Check collinearity of p_prev, p_curr, p_next using the cross product.
+                # If the cross product of vectors (p_curr - p_prev) and (p_next - p_curr) is 0,
+                # the three points are collinear.
+                # Formula: (x2 - x1) * (y3 - y2) - (y2 - y1) * (x3 - x2)
+                cross_product = (p_curr[0] - p_prev[0]) * (p_next[1] - p_curr[1]) - \
+                                (p_curr[1] - p_prev[1]) * (p_next[0] - p_curr[0])
+
+                # If the points are not collinear, p_curr is a turning point and should be kept.
+                if cross_product != 0:
+                    simplified_single_path.append(p_curr)
+            
+            # Always add the very last point of the original path,
+            # unless it's already the last point in the simplified path (e.g., for a path of 2 points).
+            if single_path[-1] != simplified_single_path[-1]:
+                simplified_single_path.append(single_path[-1])
+            
+            all_simplified_paths.append(simplified_single_path)
+            
+        return all_simplified_paths
         
 
     def get_full_path(self, move: str) -> List[Tuple[float, float]]:
@@ -583,7 +592,7 @@ class Board:
     def get_full_path_simpli(self, move: str) -> List[Tuple[float, float]]:
         path = self.get_full_path(move)
         #print(f"original path: {path}")
-        #path = self.simplify_path(path)
+        path = self.simplify_path(path)
         #print(f"path: {path}")
         return path
         

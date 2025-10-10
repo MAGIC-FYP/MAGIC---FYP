@@ -187,12 +187,16 @@ class GantryControl:
     def move(self, x: float, y: float, vel: float, drag_compensation: bool = False):
         """Move to target position with specified velocity"""
         x = -x  # Flip the x-axis
+        compensation_dist = 0.5
         if not (x < self.max_x or x > self.min_x):
             raise ValueError("Target position out of bounds")
         if not (y < self.max_y or y > self.min_y):
             raise ValueError("Target position out of bounds")
 
-        compensation_dist = 0.3
+        if abs(x) < self.x_offest+compensation_dist:
+            drag_compensation = False
+        
+        
         comp_steps = int(compensation_dist / self.cm_per_step)
         
         delta_x = -x - self.x_pos
@@ -445,6 +449,53 @@ class GantryControl:
         self.move(0, 0, speed)  # Close the shape
         return True
     
+    def center_pieces(self):
+        sleep_on = 0.1
+        sleep_off = 0.05
+        speed = 20
+        self.move(8.75, 1.75, speed)
+        for i in range(7):
+            self.electromagnet(True)
+            time.sleep(sleep_on)
+            self.electromagnet(False)
+            time.sleep(sleep_off)
+            self.move_reletive(3.5, 0, speed)
+        self.electromagnet(True)
+        time.sleep(sleep_on)
+        self.electromagnet(False)
+        time.sleep(sleep_off)
+        self.move_reletive(0, 3.5, speed)
+        for i in range(7):
+            self.electromagnet(True)
+            time.sleep(sleep_on)
+            self.electromagnet(False)
+            time.sleep(sleep_off)
+            self.move_reletive(-3.5, 0, speed)
+        self.electromagnet(True)
+        time.sleep(sleep_on)
+        self.electromagnet(False)
+        time.sleep(sleep_off)
+        self.move(8.75, 22.75, speed)
+        for i in range(7):
+            self.electromagnet(True)
+            time.sleep(sleep_on)
+            self.electromagnet(False)
+            time.sleep(sleep_off)
+            self.move_reletive(3.5, 0, speed)
+        self.electromagnet(True)
+        time.sleep(sleep_on)
+        self.electromagnet(False)
+        time.sleep(sleep_off)
+        self.move_reletive(0, 3.5, speed)
+        for i in range(7):
+            self.electromagnet(True)
+            time.sleep(sleep_on)
+            self.electromagnet(False)
+            time.sleep(sleep_off)
+            self.move_reletive(-3.5, 0, speed)
+        return True
+
+    
     def chime(self):
         dist = 0.5
         speed = 50
@@ -496,6 +547,7 @@ class GantryControl:
 # gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
 # gantry.initialise()
 # gantry.home()
+# gantry.center_pieces()
 # gantry.move(3.5,0,10)
 # input("Epress enter")
 # gantry.move(3.5,28,10)

@@ -33,6 +33,7 @@ class Display:
         self.message = ""
         self.path = []
         self.path_extra = []
+        self.board_message = ""
         self.show_path = True
         self.legal_moves=[]
         self.show_mouse_coords = False
@@ -60,6 +61,7 @@ class Display:
         self._disp_button(self.reset_button, "Reset")
         self._disp_button(self.mouse_loc_button, "Show Coords" if not self.show_mouse_coords else "Hide Coords")
         self._disp_button(self.show_path_button, "Show Path" if not self.show_path else "Hide Path")
+        self.display_board_message()
         if self.show_path:
             self.display_path()
         
@@ -133,6 +135,16 @@ class Display:
                 
         
         pygame.display.update()
+    
+    def display_board_message(self):
+        """
+        Displays a message on the board.
+        """
+        message = self.board_message
+        font = pygame.font.Font(None, 60)
+        text = font.render(message, True, (0, 0, 220))
+        text_rect = text.get_rect(center=(self.screen_size[0] // 2, self.screen_size[1] // 2))
+        self.screen.blit(text, text_rect)
         
     def draw_arrow(self, screen, color, start, end, width=3, arrow_size=10):
         """Draws a line with an arrowhead."""
@@ -288,7 +300,7 @@ class Display:
         - board: chess.Board - The current state of the chess board.
         """
         piece = board.piece_at(chess.square(col, row))
-        if piece and piece.color == board.turn:
+        if piece:
             if self.selected_square != False and self.selected_square == chess.square(col, row):
                 pygame.draw.rect(self.screen, (195, 195, 0), ((col + 2) * (self.board_size // 8), row * (self.board_size // 8) + (self.board_size // 8), self.board_size // 8, self.board_size // 8))
 
@@ -402,11 +414,15 @@ class Display:
                     if board.piece_at(from_square):
                     # i = board.piece_at(from_square)
                     # j = current_player.colour
+                        print(f"picked up {'White' if board.piece_at(from_square).color else 'Black'} {board.piece_at(from_square).symbol()} from: {chess.square_name(from_square)}")
+                        
                         if board.piece_at(from_square).color != current_player.colour:
-
+                            self.selected_square = from_square
+                            self.legal_moves = []
+                            self.disp_board(board, graveyard, current_player)
                             change = 0
                             to_square = from_square
-                            cur_bitmap = prev_bitmap
+                            prev_bitmap = cur_bitmap
                             while change == 0:
                                 cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
                                 dif_bitmap = np.zeros((8, 8))
@@ -443,10 +459,11 @@ class Display:
                             if cur_bitmap[i][j+1] - prev_bitmap[i][j] == 1:
                                 dif_bitmap[i, j] = 1
                                 to_square = chess.square(j, i)
-                    if to_square and to_square in self.legal_moves:
+                    if to_square == from_square:
+                        return False
+                    elif to_square and to_square in self.legal_moves:
                         change = int(np.sum(dif_bitmap))
                     elif to_square: 
-                        print(f"here {to_square}")
                         time.sleep(0.5)
                         gantry.chime()
                         time.sleep(0.5)
@@ -462,8 +479,14 @@ class Display:
                             change = int(np.sum(dif_bitmap))
                         if  to_square == prev_to_square:
                             print("illegal move")
-                            
-                            path = a_star.crowd_control(board, chess.Move(to_square, from_square), graveyard, 4)
+                            try:
+                                path = a_star.crowd_control(board, chess.Move(to_square, from_square), graveyard, 4)
+                            except Exception as e:
+                                print(f"Error in astar path: {e}")
+                                for _ in range(3):
+                                    gantry.chime()
+                                    time.sleep(0.1)
+                                return False
                             print(f"astar path: {path}")
                             if path == False:
                                 gantry.chime()
