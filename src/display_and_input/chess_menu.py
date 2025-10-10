@@ -73,6 +73,10 @@ class ChessMenuBuilder:
         online_menu = self._build_online_play_menu()
         root_menu.add(online_menu)
         
+        # Create Archived Games submenu
+        archived_menu = self._build_archived_games_menu()
+        root_menu.add(archived_menu)
+        
         return root_menu
     
     def _build_player_vs_robot_menu(self) -> SubMenu:
@@ -218,6 +222,51 @@ class ChessMenuBuilder:
         print("Starting Lichess Quickmatch...")
         print(f"Time control: {self.game_config['lichess_time']}+{self.game_config['lichess_increment']}")
         print(f"Game type: {'Rated' if self.game_config['lichess_rated'] else 'Casual'}")
+        print("="*50 + "\n")
+        
+        if self.start_game_callback:
+            self.start_game_callback(self.game_config)
+    
+    def _build_archived_games_menu(self) -> SubMenu:
+        """Build the Archived Games submenu."""
+        archived_menu = SubMenu("Archived Games")
+        
+        # Import PGN reader to get available games
+        try:
+            from chess_sim.pgn_reader import PGNReader
+            pgn_reader = PGNReader()
+            pgn_files = pgn_reader.get_pgn_files()
+            
+            if pgn_files:
+                # Create menu items for each PGN file
+                for filename in pgn_files:
+                    summary = pgn_reader.get_game_summary(filename)
+                    if summary:
+                        # Truncate summary if too long for LCD display
+                        display_name = summary[:16] if len(summary) > 16 else summary
+                        archived_menu.add(MenuItem(display_name, lambda f=filename: self._start_archived_game(f)))
+                
+                # Add back option
+                archived_menu.add(BackMenuItem())
+            else:
+                # No PGN files found
+                archived_menu.add(MenuItem("No games found", lambda: None, auto_back=True))
+                archived_menu.add(BackMenuItem())
+                
+        except ImportError as e:
+            print(f"Error importing PGN reader: {e}")
+            archived_menu.add(MenuItem("Error loading games", lambda: None, auto_back=True))
+            archived_menu.add(BackMenuItem())
+        
+        return archived_menu
+    
+    def _start_archived_game(self, filename: str):
+        """Start an archived game replay."""
+        self.game_config['game_mode'] = 'archived_game'
+        self.game_config['archived_filename'] = filename
+        
+        print("\n" + "="*50)
+        print(f"Starting archived game: {filename}")
         print("="*50 + "\n")
         
         if self.start_game_callback:

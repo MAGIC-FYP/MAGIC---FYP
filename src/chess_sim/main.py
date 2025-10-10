@@ -15,6 +15,7 @@ from config import CONFIG
 from src.display_and_input.chess_menu import ChessMenuBuilder
 from src.display_and_input.menu_navigator import MenuNavigator
 from src.backend.lichess_manager import LichessGameManager
+from pgn_reader import PGNReader, PGNExecutor
 
 # Load environment variables from .env file
 load_dotenv(project_root / '.env')
@@ -190,15 +191,61 @@ def start_game(game_config):
             traceback.print_exc()
             return
     
-    # Start the game (for offline modes)
-    try:
-        chess_board.play_game()
-    except KeyboardInterrupt:
-        print("\nGame interrupted by user. Exiting...")
-    except Exception as e:
-        print(f"\nAn error occurred: {e}")
-    finally:
-        print("Game session ended.")
+    elif game_mode == 'archived_game':
+        # Archived game replay mode
+        try:
+            filename = game_config.get('archived_filename')
+            if not filename:
+                print("No archived game filename specified")
+                return
+            
+            # Initialize PGN reader and executor
+            pgn_reader = PGNReader()
+            pgn_executor = PGNExecutor(chess_board, controller)
+            
+            # Load the game
+            game_data = pgn_reader.read_pgn_file(filename)
+            if not game_data:
+                print(f"Failed to load archived game: {filename}")
+                return
+            
+            # Load game into executor
+            if not pgn_executor.load_game(game_data):
+                print("Failed to load game into executor")
+                return
+            
+            # Execute the game
+            print("Starting archived game execution...")
+            print("Press Ctrl+C to stop execution")
+            
+            success = pgn_executor.execute_game(delay_between_moves=2.0)
+            
+            if success:
+                print("Archived game execution completed successfully!")
+            else:
+                print("Archived game execution was interrupted or failed")
+            
+            return
+            
+        except KeyboardInterrupt:
+            print("\nArchived game execution interrupted by user")
+            return
+        except Exception as e:
+            print(f"Error in archived game: {e}")
+            import traceback
+            traceback.print_exc()
+            return
+    
+    # Start the game (for offline modes that require players)
+    if game_mode in ['player_vs_robot', 'robot_vs_robot']:
+        try:
+            chess_board.play_game()
+        except KeyboardInterrupt:
+            print("\nGame interrupted by user. Exiting...")
+        except Exception as e:
+            print(f"\nAn error occurred: {e}")
+        finally:
+            print("Game session ended.")
 
 
 def main():
