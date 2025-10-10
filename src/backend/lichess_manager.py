@@ -165,3 +165,102 @@ class LichessGameManager:
             print("Game aborted")
         except Exception as e:
             print(f"Error aborting: {e}")
+    
+    def get_following_list(self) -> list:
+        """
+        Get list of users followed by the logged-in user (friends).
+        
+        Returns:
+            List of dictionaries with user info (id, username, online status)
+        """
+        try:
+            print("Fetching friends list from Lichess...")
+            # Use the relations endpoint to get followed users
+            following = self.client.relations.get_following()
+            
+            friends_list = []
+            for user in following:
+                friends_list.append({
+                    'id': user.get('id', ''),
+                    'username': user.get('username', user.get('id', '')),
+                    'online': user.get('online', False),
+                    'rating': user.get('perfs', {}).get('blitz', {}).get('rating', '?')
+                })
+            
+            print(f"Found {len(friends_list)} friends")
+            return friends_list
+        except Exception as e:
+            print(f"Error getting friends list: {e}")
+            return []
+    
+    def challenge_user(self, username: str, time_minutes: int = 10, 
+                      increment_seconds: int = 0, rated: bool = False) -> Optional[str]:
+        """
+        Challenge a specific user to a game.
+        
+        Args:
+            username: Lichess username to challenge
+            time_minutes: Game time in minutes
+            increment_seconds: Time increment per move in seconds
+            rated: Whether the game is rated
+            
+        Returns:
+            game_id when challenge is accepted, None on error or decline
+        """
+        try:
+            print(f"Challenging {username} to a game: {time_minutes}+{increment_seconds}")
+            
+            # Start event stream to listen for game start
+            event_stream = self.client.board.stream_incoming_events()
+            
+            # Create challenge in separate thread
+            challenge_thread = threading.Thread(
+                target=self._create_challenge_blocking,
+                args=(username, time_minutes, increment_seconds, rated)
+            )
+            challenge_thread.daemon = True
+            challenge_thread.start()
+            
+            # Wait for challenge acceptance or timeout
+            timeout = 60  # 60 seconds timeout
+            start_time = time.time()
+            
+            for event in event_stream:
+                if time.time() - start_time > timeout:
+                    print("Challenge timed out (no response)")
+                    return None
+                
+                if event['type'] == 'gameStart':
+                    game_id = event['game']['id']
+                    self.game_id = game_id
+                    print(f"Challenge accepted! Game ID: {game_id}")
+                    return game_id
+                elif event['type'] == 'challengeDeclined':
+                    print(f"Challenge declined by {username}")
+                    return None
+                elif event['type'] == 'challengeCanceled':
+                    print("Challenge was canceled")
+                    return None
+                    
+        except Exception as e:
+            print(f"Error challenging user: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _create_challenge_blocking(self, username: str, time_minutes: int, 
+                                   increment_seconds: int, rated: bool):
+        """
+        Create a challenge - runs in separate thread.
+        """
+        try:
+            # Create the challenge
+            self.client.challenges.create(
+                username=username,
+                rated=rated,
+                clock_limit=time_minutes * 60,  # Convert to seconds
+                clock_increment=increment_seconds,
+                color='random'  # Let Lichess decide colors
+            )
+        except Exception as e:
+            print(f"Challenge creation error: {e}")

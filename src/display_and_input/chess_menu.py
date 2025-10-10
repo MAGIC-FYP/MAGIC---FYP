@@ -30,7 +30,7 @@ class ChessMenuBuilder:
     def __init__(self):
         """Initialize the chess menu builder."""
         self.game_config: Dict[str, Any] = {
-            'game_mode': None,  # 'player_vs_robot', 'robot_vs_robot', or 'online_quickmatch'
+            'game_mode': None,  # 'player_vs_robot', 'robot_vs_robot', 'online_quickmatch', or 'online_friend_challenge'
             'player_colour': chess.WHITE,  # WHITE or BLACK
             'robot_level': 1,  # 1-20
             'robot1_level': 1,  # For robot vs robot
@@ -38,6 +38,7 @@ class ChessMenuBuilder:
             'lichess_time': 10,  # Time in minutes for online games
             'lichess_increment': 0,  # Increment in seconds for online games
             'lichess_rated': False,  # Whether online game is rated
+            'friend_username': None,  # Username to challenge
         }
         self.start_game_callback: Optional[Callable] = None
     
@@ -199,6 +200,9 @@ class ChessMenuBuilder:
         # Start quickmatch
         online_menu.add(MenuItem("Start Quickmatch", lambda: self._start_quickmatch()))
         
+        # Challenge friend option
+        online_menu.add(MenuItem("Challenge Friend", lambda: self._challenge_friend()))
+        
         # Back to main menu
         online_menu.add(BackMenuItem())
         
@@ -226,6 +230,80 @@ class ChessMenuBuilder:
         
         if self.start_game_callback:
             self.start_game_callback(self.game_config)
+    
+    def _challenge_friend(self):
+        """Challenge a friend to a game - prompts for friend selection via terminal."""
+        import os
+        
+        # Load API token
+        from pathlib import Path
+        from dotenv import load_dotenv
+        project_root = Path(__file__).parent.parent.parent
+        load_dotenv(project_root / '.env')
+        API_TOKEN = os.getenv('LICHESS_API_TOKEN')
+        
+        if not API_TOKEN:
+            print("\nERROR: LICHESS_API_TOKEN not found in .env file!")
+            print("Please configure your API token to challenge friends.")
+            return
+        
+        # Import Lichess manager to get friends list
+        try:
+            import sys
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from backend.lichess_manager import LichessGameManager
+            
+            lichess = LichessGameManager(API_TOKEN)
+            friends = lichess.get_following_list()
+            
+            if not friends:
+                print("\nNo friends found on your Lichess account.")
+                print("Please follow some users on Lichess first.")
+                return
+            
+            # Display friends list in terminal for selection
+            print("\n" + "="*60)
+            print("YOUR LICHESS FRIENDS")
+            print("="*60)
+            for i, friend in enumerate(friends, 1):
+                online_status = "🟢 Online" if friend['online'] else "⚪ Offline"
+                print(f"{i}. {friend['username']} ({online_status}) - Rating: {friend['rating']}")
+            print("="*60)
+            
+            # Get user input
+            try:
+                selection = input("\nEnter friend number to challenge (or 0 to cancel): ").strip()
+                selection_num = int(selection)
+                
+                if selection_num == 0:
+                    print("Canceled.")
+                    return
+                
+                if 1 <= selection_num <= len(friends):
+                    selected_friend = friends[selection_num - 1]
+                    self.game_config['friend_username'] = selected_friend['username']
+                    self.game_config['game_mode'] = 'online_friend_challenge'
+                    
+                    print("\n" + "="*50)
+                    print(f"Challenging {selected_friend['username']}...")
+                    print(f"Time control: {self.game_config['lichess_time']}+{self.game_config['lichess_increment']}")
+                    print(f"Game type: {'Rated' if self.game_config['lichess_rated'] else 'Casual'}")
+                    print("="*50 + "\n")
+                    
+                    if self.start_game_callback:
+                        self.start_game_callback(self.game_config)
+                else:
+                    print("Invalid selection.")
+                    
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+            except EOFError:
+                print("\nInput canceled.")
+                
+        except Exception as e:
+            print(f"\nError fetching friends list: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _build_archived_games_menu(self) -> SubMenu:
         """Build the Archived Games submenu."""
