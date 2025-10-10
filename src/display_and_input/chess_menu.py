@@ -233,7 +233,14 @@ class ChessMenuBuilder:
         
         # Import PGN reader to get available games
         try:
-            from chess_sim.pgn_reader import PGNReader
+            import sys
+            from pathlib import Path
+            # Add chess_sim to path
+            chess_sim_path = Path(__file__).parent.parent / "chess_sim"
+            if str(chess_sim_path) not in sys.path:
+                sys.path.insert(0, str(chess_sim_path))
+            
+            from pgn_reader import PGNReader
             pgn_reader = PGNReader()
             pgn_files = pgn_reader.get_pgn_files()
             
@@ -244,6 +251,10 @@ class ChessMenuBuilder:
                     if summary:
                         # Truncate summary if too long for LCD display
                         display_name = summary[:16] if len(summary) > 16 else summary
+                        archived_menu.add(MenuItem(display_name, lambda f=filename: self._start_archived_game(f)))
+                    else:
+                        # Fallback to filename if summary fails
+                        display_name = filename.replace('.pgn', '')[:16]
                         archived_menu.add(MenuItem(display_name, lambda f=filename: self._start_archived_game(f)))
                 
                 # Add back option
