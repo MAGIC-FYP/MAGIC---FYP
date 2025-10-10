@@ -56,7 +56,7 @@ class ThreadedLCDManager:
     the main game loop to continue running without blocking on LCD operations.
     """
     
-    def __init__(self, lcd: Optional[LCD] = None, update_interval: float = 0.1):
+    def __init__(self, lcd: Optional[LCD] = None, update_interval: float = 0.3):
         """
         Initialize the threaded LCD manager.
         
@@ -79,6 +79,7 @@ class ThreadedLCDManager:
         self._current_mode = DisplayMode.IDLE
         self._current_data: Dict[str, Any] = {}
         self._last_update = 0
+        self._last_actual_update = 0  # Track when display was actually updated
         
         # Thread safety
         self._lock = threading.Lock()
@@ -96,6 +97,10 @@ class ThreadedLCDManager:
             'thinking_time': 0,
             'opponent_name': None
         }
+        
+        # Cache for display content to prevent unnecessary updates
+        self._display_cache = {'line1': '', 'line2': ''}
+        self._previous_mode = None
     
     def start(self):
         """Start the LCD display thread."""
@@ -218,8 +223,8 @@ class ThreadedLCDManager:
         """Update the LCD display based on current mode."""
         current_time = time.time()
         
-        # Rate limiting
-        if current_time - self._last_update < self.update_interval:
+        # Rate limiting - use actual update time, not message receipt time
+        if current_time - self._last_actual_update < self.update_interval:
             return
         
         try:
@@ -235,6 +240,9 @@ class ThreadedLCDManager:
                 self._display_message(data)
             elif mode == DisplayMode.IDLE:
                 self._display_idle()
+            
+            # Update the actual update timestamp
+            self._last_actual_update = current_time
                 
         except Exception as e:
             print(f"Error updating LCD display: {e}")
@@ -266,9 +274,8 @@ class ThreadedLCDManager:
             else:
                 line2 = "Navigate with encoder"
             
-            self.lcd.clear()
-            self.lcd.message(line1, line=1)
-            self.lcd.message(line2, line=2)
+            # Only update if content has changed or mode switched
+            self._smart_display_update(line1, line2)
             
         except Exception as e:
             print(f"Error displaying menu: {e}")
@@ -304,9 +311,8 @@ class ThreadedLCDManager:
             else:
                 line2 = game_status.title()
             
-            self.lcd.clear()
-            self.lcd.message(line1, line=1)
-            self.lcd.message(line2, line=2)
+            # Only update if content has changed or mode switched
+            self._smart_display_update(line1, line2)
             
         except Exception as e:
             print(f"Error displaying game status: {e}")
@@ -317,22 +323,52 @@ class ThreadedLCDManager:
         line2 = data.get('line2', '')
         
         try:
-            self.lcd.clear()
-            if line1:
-                self.lcd.message(line1, line=1)
-            if line2:
-                self.lcd.message(line2, line=2)
+            # Messages always update (they're typically one-off notifications)
+            self._smart_display_update(line1, line2, force=True)
         except Exception as e:
             print(f"Error displaying message: {e}")
     
     def _display_idle(self):
         """Display idle screen."""
         try:
-            self.lcd.clear()
-            self.lcd.message("Chess Robot", line=1)
-            self.lcd.message("Ready to play", line=2)
+            self._smart_display_update("Chess Robot", "Ready to play")
         except Exception as e:
             print(f"Error displaying idle: {e}")
+    
+    def _smart_display_update(self, line1: str, line2: str, force: bool = False):
+        """
+        Smart display update that only clears and writes when content actually changes.
+        
+        Args:
+            line1: First line content
+            line2: Second line content  
+            force: Force update even if content hasn't changed
+        """
+        # Pad lines to LCD width for accurate comparison
+        line1_padded = line1[:16].ljust(16)
+        line2_padded = line2[:16].ljust(16)
+        
+        # Check if content has changed or mode switched
+        mode_changed = self._previous_mode != self._current_mode
+        content_changed = (self._display_cache['line1'] != line1_padded or 
+                          self._display_cache['line2'] != line2_padded)
+        
+        if force or mode_changed or content_changed:
+            # Only clear if mode changed (prevents flicker on content updates)
+            if mode_changed:
+                self.lcd.clear()
+            
+            # Update only changed lines
+            if force or mode_changed or self._display_cache['line1'] != line1_padded:
+                self.lcd.message(line1_padded, line=1)
+                self._display_cache['line1'] = line1_padded
+            
+            if force or mode_changed or self._display_cache['line2'] != line2_padded:
+                self.lcd.message(line2_padded, line=2)
+                self._display_cache['line2'] = line2_padded
+            
+            # Update mode tracking
+            self._previous_mode = self._current_mode
     
     def update_game_state(self, **kwargs):
         """

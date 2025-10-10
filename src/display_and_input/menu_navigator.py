@@ -25,7 +25,7 @@ class MenuNavigator:
     
     def __init__(self, root_menu: SubMenu, lcd: Optional[LCD] = None, 
                  encoder_a: int = 6, encoder_b: int = 27, switch_pin: int = 26,
-                 update_delay: float = 0.1, use_threaded_lcd: bool = True):
+                 update_delay: float = 0.2, use_threaded_lcd: bool = True):
         """
         Initialize the menu navigator.
         
