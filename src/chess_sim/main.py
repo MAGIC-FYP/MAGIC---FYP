@@ -245,6 +245,69 @@ def start_game(game_config):
             traceback.print_exc()
             return
     
+    elif game_mode == 'archived_game':
+        # Archived game replay mode
+        try:
+            from pgn_reader import PGNReader, PGNExecutor
+            
+            # Get the filename from game config
+            filename = game_config.get('archived_filename')
+            if not filename:
+                print("No archived filename provided")
+                return
+            
+            # Initialize PGN reader and executor
+            pgn_reader = PGNReader()
+            pgn_executor = PGNExecutor(chess_board, controller)
+            
+            # Load the game
+            print(f"Loading archived game: {filename}")
+            game_data = pgn_reader.read_pgn_file(filename)
+            
+            if not game_data:
+                print(f"Failed to load game from {filename}")
+                return
+            
+            # Display game information
+            print(f"\nGame: {game_data['white']} vs {game_data['black']}")
+            print(f"Event: {game_data['event']}")
+            print(f"Date: {game_data['date']}")
+            print(f"Result: {game_data['result']}")
+            print(f"Total moves: {game_data['move_count']}")
+            print("=" * 50)
+            
+            # Update LCD with game info
+            lcd_manager.set_game_status_mode({
+                'game_status': 'archived_game',
+                'current_player': None,
+                'move_count': 0,
+                'opponent_name': f"{game_data['white'][:8]} vs {game_data['black'][:8]}"
+            })
+            
+            # Load game into executor
+            if not pgn_executor.load_game(game_data):
+                print("Failed to load game into executor")
+                return
+            
+            # Execute the game
+            print("Starting game execution...")
+            success = pgn_executor.execute_game(delay_between_moves=2.0)
+            
+            if success:
+                print("Archived game execution completed successfully!")
+                lcd_manager.show_message("Game completed!", "Archive replay done", 3.0)
+            else:
+                print("Archived game execution failed or was interrupted")
+                lcd_manager.show_message("Game failed!", "Archive replay error", 3.0)
+            
+            return
+            
+        except Exception as e:
+            print(f"Error in archived game: {e}")
+            import traceback
+            traceback.print_exc()
+            return
+    
     # Start the game (for offline modes)
     try:
         chess_board.play_game_gui()
