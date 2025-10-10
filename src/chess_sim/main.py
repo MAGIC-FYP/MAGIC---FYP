@@ -197,6 +197,117 @@ def start_game(game_config):
             lcd_manager.show_idle()
         return
     
+    elif game_mode == 'online_friend_challenge':
+        # Online Lichess Friend Challenge mode
+        try:
+            # Initialize Lichess manager
+            lichess_manager = LichessGameManager(API_TOKEN)
+            
+            # Get friend username from config
+            friend_username = game_config.get('friend_username')
+            if not friend_username:
+                print("No friend username provided")
+                return
+            
+            # Get time control settings
+            time_minutes = game_config.get('lichess_time', 10)
+            increment = game_config.get('lichess_increment', 0)
+            rated = game_config.get('lichess_rated', False)
+            
+            # Show LCD message
+            lcd_manager.show_message(f"Challenging", friend_username[:14], 2.0)
+            
+            # Challenge the friend and wait for acceptance
+            print(f"Sending challenge to {friend_username}...")
+            game_id = lichess_manager.challenge_user(
+                username=friend_username,
+                time_minutes=time_minutes,
+                increment_seconds=increment,
+                rated=rated
+            )
+            
+            if not game_id:
+                print("Challenge was declined or timed out")
+                lcd_manager.show_message("Challenge failed", "Not accepted", 3.0)
+                time.sleep(3)
+                return
+            
+            # Get game information to determine our color
+            game_info = lichess_manager.get_game_info(game_id)
+            if not game_info:
+                print("Failed to get game information")
+                return
+            
+            print(f"\n{game_info['white']} ({game_info['white_rating']}) vs {game_info['black']} ({game_info['black_rating']})")
+            print(f"Speed: {game_info['speed']} | {'Rated' if game_info['rated'] else 'Casual'}\n")
+            
+            # Determine our color
+            our_username = "MAGIC_FYP"
+            
+            if game_info['white'].lower() == our_username.lower():
+                player_colour = chess.WHITE
+                opponent_name = game_info['black']
+            else:
+                player_colour = chess.BLACK
+                opponent_name = game_info['white']
+            
+            print(f"You are playing as {'White' if player_colour == chess.WHITE else 'Black'}")
+            
+            # Create game stream for the opponent
+            game_stream = lichess_manager.stream_game_state(game_id)
+            
+            # Setup players
+            if player_colour == chess.WHITE:
+                white_player = HumanPlayer(chess.WHITE)
+                black_player = LichessPlayer(chess.BLACK, game_stream, lichess_manager.client.board)
+                black_player.set_opponent_name(opponent_name)
+            else:
+                white_player = LichessPlayer(chess.WHITE, game_stream, lichess_manager.client.board)
+                white_player.set_opponent_name(opponent_name)
+                black_player = HumanPlayer(chess.BLACK)
+            
+            chess_board.setup_players(white_player, black_player)
+            
+            # Update LCD with game setup
+            lcd_manager.set_game_status_mode({
+                'game_status': 'online_game',
+                'move_count': 0,
+                'opponent_name': opponent_name
+            })
+            
+            # If game already has moves, apply them
+            if game_info['moves']:
+                temp_board = chess.Board()
+                for move_uci in game_info['moves']:
+                    temp_board.push_uci(move_uci)
+                chess_board.set_fen(temp_board.fen())
+                # Update last_moves for LichessPlayer
+                lichess_player = white_player if isinstance(white_player, LichessPlayer) else black_player
+                lichess_player.last_moves = game_info['moves']
+            
+            # Play the game with Board's online method
+            game_completed = chess_board.play_game_online(lichess_manager, game_id, player_colour)
+            
+            # Disable game mode
+            lcd_manager.set_game_mode(False)
+            
+            if game_completed:
+                print("Online game completed!")
+            else:
+                print("Online game interrupted")
+                lcd_manager.show_message("Game ended", "Returning to menu", 2.0)
+                time.sleep(2)
+            
+        except Exception as e:
+            print(f"Error in friend challenge: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # Always cleanup GPIO resources
+            chess_board.gantry.cleanup()
+            lcd_manager.show_idle()
+        return
+    
     elif game_mode == 'archived_game':
         # Archived game replay mode
         try:
