@@ -27,6 +27,16 @@ class ChessMenuBuilder:
     Builder class for creating chess game configuration menus.
     """
     
+    # Configure your Lichess friends list here
+    LICHESS_FRIENDS = [
+        'tawildoer',
+        'sploging',
+        'v0za',
+        'D_U_C_K_O',
+        # Add more friends here as needed
+        # Example: 'username1', 'username2', etc.
+    ]
+    
     def __init__(self):
         """Initialize the chess menu builder."""
         self.game_config: Dict[str, Any] = {
@@ -200,8 +210,9 @@ class ChessMenuBuilder:
         # Start quickmatch
         online_menu.add(MenuItem("Start Quickmatch", lambda: self._start_quickmatch()))
         
-        # Challenge friend option
-        online_menu.add(MenuItem("Challenge Friend", lambda: self._challenge_friend()))
+        # Challenge friend submenu
+        friends_menu = self._build_challenge_friend_menu()
+        online_menu.add(friends_menu)
         
         # Back to main menu
         online_menu.add(BackMenuItem())
@@ -231,11 +242,30 @@ class ChessMenuBuilder:
         if self.start_game_callback:
             self.start_game_callback(self.game_config)
     
-    def _challenge_friend(self):
-        """Challenge a friend to a game - hardcoded to 'tawildoer'."""
-        # Hardcoded friend username
-        friend_username = 'tawildoer'
+    def _build_challenge_friend_menu(self) -> SubMenu:
+        """Build the Challenge Friend submenu with list of friends."""
+        friends_menu = SubMenu("Challenge Friend")
         
+        # Add menu item for each configured friend
+        if self.LICHESS_FRIENDS:
+            for friend_username in self.LICHESS_FRIENDS:
+                # Truncate username if too long for LCD (16 char display)
+                display_name = friend_username[:14] if len(friend_username) > 14 else friend_username
+                friends_menu.add(MenuItem(
+                    display_name, 
+                    lambda username=friend_username: self._challenge_friend(username)
+                ))
+        else:
+            # No friends configured
+            friends_menu.add(MenuItem("No friends set", lambda: None, auto_back=True))
+        
+        # Back option
+        friends_menu.add(BackMenuItem())
+        
+        return friends_menu
+    
+    def _challenge_friend(self, friend_username: str):
+        """Challenge a specific friend to a game."""
         self.game_config['friend_username'] = friend_username
         self.game_config['game_mode'] = 'online_friend_challenge'
         

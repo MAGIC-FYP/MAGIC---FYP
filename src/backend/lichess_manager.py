@@ -166,33 +166,6 @@ class LichessGameManager:
         except Exception as e:
             print(f"Error aborting: {e}")
     
-    def get_following_list(self) -> list:
-        """
-        Get list of users followed by the logged-in user (friends).
-        
-        Returns:
-            List of dictionaries with user info (id, username, online status)
-        """
-        try:
-            print("Fetching friends list from Lichess...")
-            # Use the relations endpoint to get followed users
-            following = self.client.relations.get_following()
-            
-            friends_list = []
-            for user in following:
-                friends_list.append({
-                    'id': user.get('id', ''),
-                    'username': user.get('username', user.get('id', '')),
-                    'online': user.get('online', False),
-                    'rating': user.get('perfs', {}).get('blitz', {}).get('rating', '?')
-                })
-            
-            print(f"Found {len(friends_list)} friends")
-            return friends_list
-        except Exception as e:
-            print(f"Error getting friends list: {e}")
-            return []
-    
     def challenge_user(self, username: str, time_minutes: int = 10, 
                       increment_seconds: int = 0, rated: bool = False) -> Optional[str]:
         """
