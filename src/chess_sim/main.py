@@ -279,10 +279,12 @@ def start_game(game_config):
     except Exception as e:
         print(f"\nAn error occurred: {e}")
         lcd_manager.set_game_mode(False)
+        chess_board.gantry.cleanup()
     finally:
         print("Game session ended.")
         # Return to menu display
         lcd_manager.show_idle()
+        chess_board.gantry.cleanup()
 
 
 def main():

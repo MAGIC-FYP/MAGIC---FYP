@@ -295,6 +295,7 @@ class Board:
             self.logger.log("Game over, result: Draw")
             display.board_message = "Draw!"
             print("It's a draw!")
+        self.gantry.cleanup()
         display.disp_board(self.board, self.graveyard, self.current_player)
         for _ in range(3):
             self.gantry.chime()
