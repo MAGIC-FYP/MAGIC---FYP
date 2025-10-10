@@ -11,9 +11,11 @@ import threading
 try:
     from .LCD import LCD
     from .menu import Menu, SubMenu, MenuItem
+    from .threaded_lcd_manager import ThreadedLCDManager, get_lcd_manager
 except ImportError:
     from LCD import LCD
     from menu import Menu, SubMenu, MenuItem
+    from threaded_lcd_manager import ThreadedLCDManager, get_lcd_manager
 
 
 class MenuNavigator:
@@ -23,7 +25,7 @@ class MenuNavigator:
     
     def __init__(self, root_menu: SubMenu, lcd: Optional[LCD] = None, 
                  encoder_a: int = 27, encoder_b: int = 22, switch_pin: int = 17,
-                 update_delay: float = 0.1):
+                 update_delay: float = 0.1, use_threaded_lcd: bool = True):
         """
         Initialize the menu navigator.
         
@@ -34,12 +36,19 @@ class MenuNavigator:
             encoder_b: GPIO pin for rotary encoder B
             switch_pin: GPIO pin for rotary encoder switch
             update_delay: Minimum delay between display updates (seconds)
+            use_threaded_lcd: Whether to use the threaded LCD manager
         """
         self.root_menu = root_menu
         self.current_menu = root_menu
         
-        # Initialize LCD
-        self.lcd = lcd if lcd else LCD()
+        # Initialize LCD - use threaded manager if requested
+        self.use_threaded_lcd = use_threaded_lcd
+        if use_threaded_lcd:
+            self.lcd_manager = get_lcd_manager()
+            self.lcd = None  # We'll use the threaded manager
+        else:
+            self.lcd = lcd if lcd else LCD()
+            self.lcd_manager = None
         
         # Initialize rotary encoder and switch
         self.encoder = RotaryEncoder(a=encoder_a, b=encoder_b, max_steps=0)
@@ -118,29 +127,34 @@ class MenuNavigator:
     
     def update_display(self):
         """Update the LCD display with current menu state."""
-        if isinstance(self.current_menu, SubMenu):
-            # Line 1: Current menu title
-            line1 = self.current_menu.get_display_text()
-            
-            # Line 2: Current selection with navigation info
-            current_child_text = self.current_menu.get_current_display_text()
-            nav_info = self.current_menu.get_navigation_info()
-            
-            # Format: "> Item Name 1/5"
-            # Calculate available space: 16 chars - "> " - " X/Y"
-            nav_info_len = len(nav_info) + 1  # +1 for space before nav_info
-            available_space = 16 - 2 - nav_info_len
-            
-            if len(current_child_text) > available_space:
-                current_child_text = current_child_text[:available_space]
-            
-            line2 = f"> {current_child_text}"
-            # Pad to push nav_info to the right
-            line2 = line2.ljust(16 - len(nav_info)) + nav_info
-            
-            self.lcd.clear()
-            self.lcd.message(line1, line=1)
-            self.lcd.message(line2, line=2)
+        if self.use_threaded_lcd and self.lcd_manager:
+            # Use threaded LCD manager
+            self.lcd_manager.set_menu_mode(self.current_menu)
+        else:
+            # Use direct LCD access
+            if isinstance(self.current_menu, SubMenu):
+                # Line 1: Current menu title
+                line1 = self.current_menu.get_display_text()
+                
+                # Line 2: Current selection with navigation info
+                current_child_text = self.current_menu.get_current_display_text()
+                nav_info = self.current_menu.get_navigation_info()
+                
+                # Format: "> Item Name 1/5"
+                # Calculate available space: 16 chars - "> " - " X/Y"
+                nav_info_len = len(nav_info) + 1  # +1 for space before nav_info
+                available_space = 16 - 2 - nav_info_len
+                
+                if len(current_child_text) > available_space:
+                    current_child_text = current_child_text[:available_space]
+                
+                line2 = f"> {current_child_text}"
+                # Pad to push nav_info to the right
+                line2 = line2.ljust(16 - len(nav_info)) + nav_info
+                
+                self.lcd.clear()
+                self.lcd.message(line1, line=1)
+                self.lcd.message(line2, line=2)
     
     def start(self):
         """Start the menu navigator (enables input handling)."""
@@ -151,7 +165,11 @@ class MenuNavigator:
     def stop(self):
         """Stop the menu navigator (disables input handling)."""
         self.running = False
-        self.lcd.clear()
+        if self.use_threaded_lcd and self.lcd_manager:
+            # Don't clear LCD here - let the threaded manager handle it
+            pass
+        else:
+            self.lcd.clear()
         print("Menu navigator stopped.")
     
     def navigate_to_root(self):
@@ -163,3 +181,7 @@ class MenuNavigator:
     def get_current_menu(self) -> Menu:
         """Get the current menu being displayed."""
         return self.current_menu
+    
+    def get_lcd_manager(self) -> Optional[ThreadedLCDManager]:
+        """Get the LCD manager instance (if using threaded LCD)."""
+        return self.lcd_manager if self.use_threaded_lcd else None
