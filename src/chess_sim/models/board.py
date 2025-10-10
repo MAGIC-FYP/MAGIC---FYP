@@ -39,10 +39,11 @@ class Board:
         self.path_planner_board = PathPlannerBoard()
         self.next_graveyard = None
         self.is_capture = False
-        # try:
-        #     self.gantry.cleanup()
-        # except:
-        #     pass
+        self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
+        try:
+            self.gantry.cleanup()
+        except:
+            pass
         self.gantry.initialise()
         self.gantry.home()
         
@@ -197,7 +198,7 @@ class Board:
         self.logger.log("Starting new chess game")
 
         display = Display(log= self.logger)
-        #self.gantry.center_pieces()
+        self.gantry.center_pieces()
         #while not self.is_game_over():
         while self.is_game_over() == False:
             # Check for game interrupt
@@ -331,7 +332,7 @@ class Board:
             self.gantry.chime()
             time.sleep(0.1)
         self.logger.end_log()
-        #self.gantry.cleanup()
+        self.gantry.cleanup()
         time.sleep(360)
         display.close_disp()
         return True
@@ -352,7 +353,7 @@ class Board:
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
             return False
-        
+        self.gantry.center_pieces()
         print("Starting online chess game!")
         self.logger.log("Starting online chess game")
         
