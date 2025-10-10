@@ -430,18 +430,15 @@ class ThreadedLCDManager:
 
 # Global instance for easy access
 _lcd_manager: Optional[ThreadedLCDManager] = None
-
+_lcd_manager_lock = threading.Lock()
 
 def get_lcd_manager() -> ThreadedLCDManager:
-    """
-    Get the global LCD manager instance.
-    
-    Returns:
-        ThreadedLCDManager instance
-    """
     global _lcd_manager
     if _lcd_manager is None:
-        _lcd_manager = ThreadedLCDManager()
+        with _lcd_manager_lock:
+            # Double-checked locking pattern
+            if _lcd_manager is None:
+                _lcd_manager = ThreadedLCDManager()
     return _lcd_manager
 
 
