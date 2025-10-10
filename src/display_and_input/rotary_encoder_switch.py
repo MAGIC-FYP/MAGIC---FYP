@@ -10,10 +10,15 @@ encoder = RotaryEncoder(a=6, b=27, max_steps=0)
 def pressed():
     print("Switch pressed!")
 
+def long_press():
+    print("Long button press recognised")
+
 def rotated():
     print(f"Encoder steps: {encoder.steps}")
 
 switch.when_pressed = pressed
+switch.when_held = long_press
+switch.hold_time = 1  # Hold time in seconds
 encoder.when_rotated = rotated
 
 print("Listening... press Ctrl+C to exit")
