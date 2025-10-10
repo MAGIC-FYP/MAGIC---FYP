@@ -191,7 +191,7 @@ class Board:
         self.logger.log("Starting new chess game")
 
         display = Display(log= self.logger)
-        #self.gantry.center_pieces()
+        self.gantry.center_pieces()
         #while not self.is_game_over():
         while self.is_game_over() == False:
             # Check for game interrupt
@@ -327,7 +327,7 @@ class Board:
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
             return False
-        
+        self.gantry.center_pieces()
         print("Starting online chess game!")
         self.logger.log("Starting online chess game")
         
