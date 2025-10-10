@@ -5,7 +5,7 @@ import time
 
 
 class GantryControl:
-    def __init__(self, max_x: float, min_x: float, max_y: float, min_y: float, motor_radius: float = 0.95):
+    def __init__(self, max_x: float, min_x: float, max_y: float, min_y: float, motor_radius: float = 0.95, interrupt_callback=None):
         # Pin definitions (using BCM numbering)
         self.L_DIR = 9   # Direction
         self.L_STEP = 8  # Step pulse
@@ -46,8 +46,30 @@ class GantryControl:
         
         # Steps per revolution (typical for stepper motors)
         self.cm_per_step = 0.008
+        
+        # Interrupt callback for stopping operations
+        self.interrupt_callback = interrupt_callback
+        self._should_stop = False
 
 
+    def set_interrupt_callback(self, callback):
+        """Set callback function to check for interrupts during movements."""
+        self.interrupt_callback = callback
+    
+    def check_interrupt(self) -> bool:
+        """Check if an interrupt has been requested."""
+        if self.interrupt_callback and callable(self.interrupt_callback):
+            return self.interrupt_callback()
+        return False
+    
+    def request_stop(self):
+        """Request the gantry to stop current operations."""
+        self._should_stop = True
+    
+    def clear_stop(self):
+        """Clear the stop flag."""
+        self._should_stop = False
+    
     def initialise(self):
         # Setup
         self.lg = lgpio.gpiochip_open(0)
@@ -121,6 +143,10 @@ class GantryControl:
         left_counter = 0
         right_counter = 0
         for i in range(max_steps):
+            # Check for interrupt request every 10 steps
+            if i % 10 == 0 and (self._should_stop or self.check_interrupt()):
+                print("Gantry movement interrupted")
+                return False
             step_left = False
             step_right = False
             if steps_left >= steps_right:
@@ -180,12 +206,20 @@ class GantryControl:
             # self.x_pos += step_distance_left * 0.5  # Assuming equal contribution from both motors
             # self.y_pos += step_distance_right * 0.5
 
-    
+        # Check one more time at end
+        if self._should_stop or self.check_interrupt():
+            print("Gantry movement interrupted at end")
+            return False
 
         return True
 
     def move(self, x: float, y: float, vel: float, drag_compensation: bool = False):
         """Move to target position with specified velocity"""
+        # Check for interrupt before starting
+        if self._should_stop or self.check_interrupt():
+            print("Gantry move aborted due to interrupt")
+            return False
+        
         x = -x  # Flip the x-axis
         compensation_dist = 0.5
         if not (x < self.max_x or x > self.min_x):
@@ -208,7 +242,7 @@ class GantryControl:
         #print(f"Distance: {distance}, Delta x: {delta_x}, Delta y: {delta_y}")
         
         if distance < 0.2:  # Already at target
-            return
+            return True
 
         left_steps = int(abs(delta_x-delta_y) / self.cm_per_step)+comp_steps*drag_compensation
         right_steps = int(abs(-delta_x-delta_y) / self.cm_per_step)+comp_steps*drag_compensation

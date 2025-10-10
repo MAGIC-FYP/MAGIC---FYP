@@ -6,6 +6,7 @@ from gpiozero import Button, RotaryEncoder
 from typing import Optional
 import time
 import threading
+import lgpio
 
 # Use try/except to support both relative and absolute imports
 try:
@@ -53,6 +54,7 @@ class MenuNavigator:
         # Initialize rotary encoder and switch
         self.encoder = RotaryEncoder(a=encoder_a, b=encoder_b, max_steps=0)
         self.switch = Button(switch_pin, pull_up=True)
+        self.switch_pin = switch_pin
         
         # Track encoder position
         self.last_encoder_steps = 0
@@ -62,11 +64,14 @@ class MenuNavigator:
         self.last_update = 0
         self.update_delay = update_delay  # Minimum time between updates
         
+        # Button press detection thread
+        self._button_thread = None
+        self._button_stop_event = threading.Event()
+        self.long_press_time = 1.0  # 1 second for long press
+        
         # Setup callbacks
         self.encoder.when_rotated = self._on_rotate
-        self.switch.when_pressed = self._on_press
-        self.switch.when_held = self._on_long_press
-        self.switch.hold_time = 1.0  # 1 second for long press
+        # Note: We'll handle button presses in a dedicated thread instead of callbacks
         
         # Flag to control running state
         self.running = False
@@ -103,42 +108,110 @@ class MenuNavigator:
             self.last_encoder_steps = current_steps
             self.last_update = current_time
     
-    def _on_press(self):
-        """Handle rotary encoder switch short press."""
+    def _button_monitor_loop(self):
+        """Monitor button state in dedicated thread for reliable press detection."""
+        try:
+            # Open GPIO chip for direct access to button
+            lg = lgpio.gpiochip_open(0)
+            lgpio.gpio_claim_input(lg, self.switch_pin)
+            lgpio.gpio_claim_alert(lg, self.switch_pin, lgpio.BOTH_EDGES)
+            
+            print(f"Button monitor thread started on GPIO {self.switch_pin}")
+            
+            while not self._button_stop_event.is_set():
+                try:
+                    # Wait for button press (goes LOW when pressed with pull-up)
+                    while not self._button_stop_event.is_set():
+                        button_state = lgpio.gpio_read(lg, self.switch_pin)
+                        if button_state == 0:  # Button pressed (LOW)
+                            break
+                        time.sleep(0.01)  # 10ms polling
+                    
+                    if self._button_stop_event.is_set():
+                        break
+                    
+                    # Button was pressed - measure hold duration
+                    press_start = time.time()
+                    time.sleep(0.05)  # Debounce delay
+                    
+                    # Wait for release or long press timeout
+                    is_long_press = False
+                    while not self._button_stop_event.is_set():
+                        button_state = lgpio.gpio_read(lg, self.switch_pin)
+                        hold_duration = time.time() - press_start
+                        
+                        if button_state == 1:  # Button released (HIGH)
+                            break
+                        
+                        if hold_duration >= self.long_press_time:
+                            is_long_press = True
+                            break
+                        
+                        time.sleep(0.05)  # Check every 50ms
+                    
+                    if self._button_stop_event.is_set():
+                        break
+                    
+                    # Handle press based on duration and game mode
+                    if is_long_press:
+                        self._handle_long_press()
+                        # Wait for button release
+                        while lgpio.gpio_read(lg, self.switch_pin) == 0 and not self._button_stop_event.is_set():
+                            time.sleep(0.05)
+                    else:
+                        self._handle_short_press()
+                    
+                    # Additional debounce after release
+                    time.sleep(0.1)
+                    
+                except Exception as e:
+                    print(f"Error in button monitor: {e}")
+                    time.sleep(0.1)
+            
+            # Cleanup GPIO
+            lgpio.gpio_free(lg, self.switch_pin)
+            lgpio.gpiochip_close(lg)
+            print("Button monitor thread stopped")
+            
+        except Exception as e:
+            print(f"Failed to initialize button monitor: {e}")
+    
+    def _handle_short_press(self):
+        """Handle short button press."""
         if not self.running:
             return
         
-        # In game mode, only respond to long press (handled by _on_long_press)
+        # In game mode, ignore short presses
         if self.use_threaded_lcd and self.lcd_manager:
             if self.lcd_manager.is_in_game_mode():
-                return  # Ignore short press during game
+                return
         
         # Short press in menu mode - execute current selection
-        time.sleep(0.05)  # Debounce
-        
-        if isinstance(self.current_menu, SubMenu):
-            # Execute the current selection
-            next_menu = self.current_menu.execute()
-            
-            if next_menu is not None:
-                # Navigate to the returned menu
-                self.current_menu = next_menu
-                self._safe_update_display()
-            elif next_menu is None and self.current_menu.get_parent() is None:
-                # If we're at root and execute returns None, stay at root
-                self._safe_update_display()
+        with self.state_lock:
+            if isinstance(self.current_menu, SubMenu):
+                # Execute the current selection
+                next_menu = self.current_menu.execute()
+                
+                if next_menu is not None:
+                    # Navigate to the returned menu
+                    self.current_menu = next_menu
+                    self._safe_update_display()
+                elif next_menu is None and self.current_menu.get_parent() is None:
+                    # If we're at root and execute returns None, stay at root
+                    self._safe_update_display()
     
-    def _on_long_press(self):
-        """Handle rotary encoder switch long press (1 second hold)."""
+    def _handle_long_press(self):
+        """Handle long button press (1 second hold)."""
         if not self.running:
             return
         
-        print("Long button press recognised")  # Debug message
+        print("Long button press detected!")  # Debug message
         
         # Check if in game mode - if so, request game interrupt
         if self.use_threaded_lcd and self.lcd_manager:
             if self.lcd_manager.is_in_game_mode():
                 # Long press confirmed - request interrupt
+                print("Requesting game interrupt...")
                 self.lcd_manager.request_game_interrupt()
                 self.lcd_manager.show_message("Ending game...", "Returning to menu", 2.0)
                 return
@@ -186,12 +259,25 @@ class MenuNavigator:
     def start(self):
         """Start the menu navigator (enables input handling)."""
         self.running = True
+        
+        # Start button monitor thread
+        self._button_stop_event.clear()
+        self._button_thread = threading.Thread(target=self._button_monitor_loop, daemon=True)
+        self._button_thread.start()
+        
         self._safe_update_display()
         print("Menu navigator started. Press Ctrl+C to exit.")
+        print("Hold button for 1 second during game to interrupt and return to menu.")
     
     def stop(self):
         """Stop the menu navigator (disables input handling)."""
         self.running = False
+        
+        # Stop button monitor thread
+        self._button_stop_event.set()
+        if self._button_thread and self._button_thread.is_alive():
+            self._button_thread.join(timeout=2.0)
+        
         if self.use_threaded_lcd and self.lcd_manager:
             # Don't clear LCD here - let the threaded manager handle it
             pass

@@ -21,7 +21,14 @@ class Board:
         self.graveyard = Graveyard()
         self.logger = logger()
         self.Surface = TileSensor()
+        self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
+        
+        # Initialize gantry with interrupt callback
         self.gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
+        if self.lcd_manager:
+            # Set interrupt callback so gantry can check for interrupts during movements
+            self.gantry.set_interrupt_callback(lambda: self.lcd_manager.is_game_interrupt_requested())
+        
         self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.path_extra = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
         self.white_player: Optional[BasePlayer] = None
@@ -32,7 +39,6 @@ class Board:
         self.path_planner_board = PathPlannerBoard()
         self.next_graveyard = None
         self.is_capture = False
-        self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
         # try:
         #     self.gantry.cleanup()
         # except:
@@ -238,15 +244,34 @@ class Board:
                         self.logger.log(f"path success")
 
                         for path in self.path:
-                            self.gantry.move(path[0][0]*path_const, path[0][1]*path_const, quick_speed)
+                            # Check for interrupt before each path segment
+                            if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                                print("\nGame interrupted during gantry movement")
+                                self.logger.log("Game interrupted during gantry movement")
+                                self.lcd_manager.clear_game_interrupt()
+                                self.gantry.electromagnet(False)  # Release piece
+                                return False
+                            
+                            move_result = self.gantry.move(path[0][0]*path_const, path[0][1]*path_const, quick_speed)
+                            if move_result == False:
+                                # Movement was interrupted
+                                self.gantry.electromagnet(False)
+                                return False
+                            
                             self.gantry.electromagnet(True)
                             time.sleep(0.3)
 
                             for point in path[:-1]:
+                                move_result = self.gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
+                                if move_result == False:
+                                    self.gantry.electromagnet(False)
+                                    return False
                                 
-                                self.gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
-                                
-                            self.gantry.move(path[len(path)-1][0]*path_const, path[len(path)-1][1]*path_const, slow_speed, drag_compensation=True)
+                            move_result = self.gantry.move(path[len(path)-1][0]*path_const, path[len(path)-1][1]*path_const, slow_speed, drag_compensation=True)
+                            if move_result == False:
+                                self.gantry.electromagnet(False)
+                                return False
+                            
                             self.gantry.electromagnet(False)
                             time.sleep(0.1)
                             self.gantry.electromagnet(True)
@@ -394,14 +419,33 @@ class Board:
                             
                             # Execute gantry movements
                             for path_segment in path:
-                                self.gantry.move(path_segment[0][0]*path_const, path_segment[0][1]*path_const, quick_speed)
+                                # Check for interrupt before each path segment
+                                if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                                    print("\nOnline game interrupted during gantry movement")
+                                    self.logger.log("Online game interrupted during gantry movement")
+                                    self.lcd_manager.clear_game_interrupt()
+                                    self.gantry.electromagnet(False)  # Release piece
+                                    return False
+                                
+                                move_result = self.gantry.move(path_segment[0][0]*path_const, path_segment[0][1]*path_const, quick_speed)
+                                if move_result == False:
+                                    self.gantry.electromagnet(False)
+                                    return False
+                                
                                 self.gantry.electromagnet(True)
                                 time.sleep(0.3)
                                 
                                 for point in path_segment[:-1]:
-                                    self.gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
+                                    move_result = self.gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
+                                    if move_result == False:
+                                        self.gantry.electromagnet(False)
+                                        return False
                                 
-                                self.gantry.move(path_segment[len(path_segment)-1][0]*path_const, path_segment[len(path_segment)-1][1]*path_const, slow_speed, drag_compensation=True)
+                                move_result = self.gantry.move(path_segment[len(path_segment)-1][0]*path_const, path_segment[len(path_segment)-1][1]*path_const, slow_speed, drag_compensation=True)
+                                if move_result == False:
+                                    self.gantry.electromagnet(False)
+                                    return False
+                                
                                 self.gantry.electromagnet(False)
                                 time.sleep(0.1)
                                 self.gantry.electromagnet(True)
