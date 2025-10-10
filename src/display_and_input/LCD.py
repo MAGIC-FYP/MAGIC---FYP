@@ -45,10 +45,10 @@ class LCD:
         # Open I2C interface
         if pi_rev == 2:
             # Rev 2 Pi uses 1
-            self.bus = smbus.SMBus(1)
+            self.bus = smbus.SMBus(2)
         elif pi_rev == 1:
             # Rev 1 Pi uses 0
-            self.bus = smbus.SMBus(0)
+            self.bus = smbus.SMBus(1)
         else:
             raise ValueError('pi_rev param must be 1 or 2')
 

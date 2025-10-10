@@ -164,7 +164,7 @@ class Board:
         self.logger.log("Starting new chess game")
 
         display = Display(log= self.logger)
-        self.gantry.center_pieces()
+        #self.gantry.center_pieces()
         #while not self.is_game_over():
         while self.is_game_over() == False:
             print("\n" + "-" * 40)

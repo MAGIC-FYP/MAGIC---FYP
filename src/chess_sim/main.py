@@ -244,7 +244,7 @@ def start_game(game_config):
     
     # Start the game (for offline modes)
     try:
-        chess_board.play_game()
+        chess_board.play_game_gui()
     except KeyboardInterrupt:
         print("\nGame interrupted by user. Exiting...")
     except Exception as e:

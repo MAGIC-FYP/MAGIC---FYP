@@ -35,7 +35,7 @@ here is how to run this on th epi and see pygame
     export DISPLAY=:1
 
     # Run your pygame app
-    /usr/bin/python /home/magicpi/MAGIC---FYP/src/chess_sim/main.py &
+    /usr/bin/python /home/magicpi/Desktop/MAGIC---FYP/src/chess_sim/main.py &
 
     # Start VNC server
     x11vnc -display :1 -nopw -listen localhost -xkb
