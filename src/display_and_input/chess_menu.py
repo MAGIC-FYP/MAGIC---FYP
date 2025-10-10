@@ -81,24 +81,24 @@ class ChessMenuBuilder:
     
     def _build_player_vs_robot_menu(self) -> SubMenu:
         """Build the Player vs Robot submenu."""
-        pvr_menu = SubMenu("Player vs Robot")
+        pvr_menu = SubMenu("Human v Bot")
+
+        # Start Game (no auto_back - stays on current menu or exits)
+        pvr_menu.add(MenuItem("Start Game", lambda: self._start_player_vs_robot()))
         
         # Player Colour submenu
-        colour_menu = SubMenu("Player Colour")
+        colour_menu = SubMenu("Human Clr")
         colour_menu.add(MenuItem("White", lambda: self._set_player_colour(chess.WHITE), auto_back=True))
         colour_menu.add(MenuItem("Black", lambda: self._set_player_colour(chess.BLACK), auto_back=True))
         colour_menu.add(BackMenuItem())
         pvr_menu.add(colour_menu)
         
         # Robot Level submenu
-        level_menu = SubMenu("Robot Level")
+        level_menu = SubMenu("Bot Lvl")
         for level in range(1, 21):  # Levels 1-20
             level_menu.add(MenuItem(f"Level {level}", lambda l=level: self._set_robot_level(l), auto_back=True))
         level_menu.add(BackMenuItem())
         pvr_menu.add(level_menu)
-        
-        # Start Game (no auto_back - stays on current menu or exits)
-        pvr_menu.add(MenuItem("Start Game", lambda: self._start_player_vs_robot()))
         
         # Back to main menu
         pvr_menu.add(BackMenuItem())
@@ -107,25 +107,25 @@ class ChessMenuBuilder:
     
     def _build_robot_vs_robot_menu(self) -> SubMenu:
         """Build the Robot vs Robot submenu."""
-        rvr_menu = SubMenu("Robot vs Robot")
+        rvr_menu = SubMenu("Bot vs Bot")
+
+        # Start Game (no auto_back - stays on current menu or exits)
+        rvr_menu.add(MenuItem("Start Game", lambda: self._start_robot_vs_robot()))
         
         # Robot 1 Difficulty submenu
-        robot1_menu = SubMenu("Robot 1 Level")
+        robot1_menu = SubMenu("Bot 1 Level")
         for level in range(1, 21):  # Levels 1-20
             robot1_menu.add(MenuItem(f"Level {level}", lambda l=level: self._set_robot1_level(l), auto_back=True))
         robot1_menu.add(BackMenuItem())
         rvr_menu.add(robot1_menu)
         
         # Robot 2 Difficulty submenu
-        robot2_menu = SubMenu("Robot 2 Level")
+        robot2_menu = SubMenu("Bot 2 Level")
         for level in range(1, 21):  # Levels 1-20
             robot2_menu.add(MenuItem(f"Level {level}", lambda l=level: self._set_robot2_level(l), auto_back=True))
         robot2_menu.add(BackMenuItem())
         rvr_menu.add(robot2_menu)
-        
-        # Start Game (no auto_back - stays on current menu or exits)
-        rvr_menu.add(MenuItem("Start Game", lambda: self._start_robot_vs_robot()))
-        
+    
         # Back to main menu
         rvr_menu.add(BackMenuItem())
         
