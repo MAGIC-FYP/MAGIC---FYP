@@ -101,6 +101,10 @@ class ThreadedLCDManager:
         # Cache for display content to prevent unnecessary updates
         self._display_cache = {'line1': '', 'line2': ''}
         self._previous_mode = None
+        
+        # Game interrupt control
+        self._game_interrupt_requested = False
+        self._in_game_mode = False
     
     def start(self):
         """Start the LCD display thread."""
@@ -393,6 +397,35 @@ class ThreadedLCDManager:
         """Get the current display mode."""
         with self._lock:
             return self._current_mode
+    
+    def request_game_interrupt(self):
+        """Request interruption of current game."""
+        with self._lock:
+            if self._in_game_mode:
+                self._game_interrupt_requested = True
+                print("Game interrupt requested by user")
+    
+    def is_game_interrupt_requested(self) -> bool:
+        """Check if game interruption has been requested."""
+        with self._lock:
+            return self._game_interrupt_requested
+    
+    def set_game_mode(self, active: bool):
+        """Set whether currently in game mode."""
+        with self._lock:
+            self._in_game_mode = active
+            if active:
+                self._game_interrupt_requested = False
+    
+    def is_in_game_mode(self) -> bool:
+        """Check if currently in game mode."""
+        with self._lock:
+            return self._in_game_mode
+    
+    def clear_game_interrupt(self):
+        """Clear the game interrupt flag."""
+        with self._lock:
+            self._game_interrupt_requested = False
 
 
 # Global instance for easy access
