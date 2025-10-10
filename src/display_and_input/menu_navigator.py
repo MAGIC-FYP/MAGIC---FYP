@@ -6,7 +6,6 @@ from gpiozero import Button, RotaryEncoder
 from typing import Optional
 import time
 import threading
-import lgpio
 
 # Use try/except to support both relative and absolute imports
 try:
@@ -110,71 +109,57 @@ class MenuNavigator:
     
     def _button_monitor_loop(self):
         """Monitor button state in dedicated thread for reliable press detection."""
-        try:
-            # Open GPIO chip for direct access to button
-            lg = lgpio.gpiochip_open(0)
-            lgpio.gpio_claim_input(lg, self.switch_pin)
-            lgpio.gpio_claim_alert(lg, self.switch_pin, lgpio.BOTH_EDGES)
-            
-            print(f"Button monitor thread started on GPIO {self.switch_pin}")
-            
-            while not self._button_stop_event.is_set():
-                try:
-                    # Wait for button press (goes LOW when pressed with pull-up)
-                    while not self._button_stop_event.is_set():
-                        button_state = lgpio.gpio_read(lg, self.switch_pin)
-                        if button_state == 0:  # Button pressed (LOW)
-                            break
-                        time.sleep(0.01)  # 10ms polling
+        print(f"Button monitor thread started on GPIO {self.switch_pin}")
+        
+        while not self._button_stop_event.is_set():
+            try:
+                # Wait for button press using gpiozero's Button.is_pressed
+                while not self._button_stop_event.is_set():
+                    if self.switch.is_pressed:  # Button pressed
+                        break
+                    time.sleep(0.01)  # 10ms polling
+                
+                if self._button_stop_event.is_set():
+                    break
+                
+                # Button was pressed - measure hold duration
+                press_start = time.time()
+                time.sleep(0.05)  # Debounce delay
+                
+                # Wait for release or long press timeout
+                is_long_press = False
+                while not self._button_stop_event.is_set():
+                    hold_duration = time.time() - press_start
                     
-                    if self._button_stop_event.is_set():
+                    if not self.switch.is_pressed:  # Button released
                         break
                     
-                    # Button was pressed - measure hold duration
-                    press_start = time.time()
-                    time.sleep(0.05)  # Debounce delay
-                    
-                    # Wait for release or long press timeout
-                    is_long_press = False
-                    while not self._button_stop_event.is_set():
-                        button_state = lgpio.gpio_read(lg, self.switch_pin)
-                        hold_duration = time.time() - press_start
-                        
-                        if button_state == 1:  # Button released (HIGH)
-                            break
-                        
-                        if hold_duration >= self.long_press_time:
-                            is_long_press = True
-                            break
-                        
-                        time.sleep(0.05)  # Check every 50ms
-                    
-                    if self._button_stop_event.is_set():
+                    if hold_duration >= self.long_press_time:
+                        is_long_press = True
                         break
                     
-                    # Handle press based on duration and game mode
-                    if is_long_press:
-                        self._handle_long_press()
-                        # Wait for button release
-                        while lgpio.gpio_read(lg, self.switch_pin) == 0 and not self._button_stop_event.is_set():
-                            time.sleep(0.05)
-                    else:
-                        self._handle_short_press()
-                    
-                    # Additional debounce after release
-                    time.sleep(0.1)
-                    
-                except Exception as e:
-                    print(f"Error in button monitor: {e}")
-                    time.sleep(0.1)
-            
-            # Cleanup GPIO
-            lgpio.gpio_free(lg, self.switch_pin)
-            lgpio.gpiochip_close(lg)
-            print("Button monitor thread stopped")
-            
-        except Exception as e:
-            print(f"Failed to initialize button monitor: {e}")
+                    time.sleep(0.05)  # Check every 50ms
+                
+                if self._button_stop_event.is_set():
+                    break
+                
+                # Handle press based on duration and game mode
+                if is_long_press:
+                    self._handle_long_press()
+                    # Wait for button release
+                    while self.switch.is_pressed and not self._button_stop_event.is_set():
+                        time.sleep(0.05)
+                else:
+                    self._handle_short_press()
+                
+                # Additional debounce after release
+                time.sleep(0.1)
+                
+            except Exception as e:
+                print(f"Error in button monitor: {e}")
+                time.sleep(0.1)
+        
+        print("Button monitor thread stopped")
     
     def _handle_short_press(self):
         """Handle short button press."""
