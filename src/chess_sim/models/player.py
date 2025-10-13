@@ -39,14 +39,38 @@ class HumanPlayer(BasePlayer):
     def get_move(self, board: chess.Board) -> Optional[chess.Move]:
         ''' Get move input from human player '''
         while True:
-            move_str = input("Enter your move (e.g. e2e4): ")
+            move_str = input("Enter your move (e.g. e2e4 or e7e8q for promotion): ")
             try:
                 move = chess.Move.from_uci(move_str)
                 if move in board.legal_moves:
                     return move
+                
+                # Check if this is a pawn promotion without promotion piece specified
+                if len(move_str) == 4:  # e.g., "e7e8" without promotion piece
+                    from_square = chess.parse_square(move_str[:2])
+                    to_square = chess.parse_square(move_str[2:4])
+                    piece = board.piece_at(from_square)
+                    
+                    if piece and piece.piece_type == chess.PAWN and (
+                        (piece.color == chess.WHITE and to_square > 55) or 
+                        (piece.color == chess.BLACK and to_square < 8)
+                    ):
+                        # Pawn promotion detected - prompt for piece
+                        print("Pawn promotion! Choose piece (q/r/b/n):")
+                        promotion_piece = input().lower().strip()
+                        promotion_map = {'q': chess.QUEEN, 'r': chess.ROOK, 'b': chess.BISHOP, 'n': chess.KNIGHT}
+                        
+                        if promotion_piece in promotion_map:
+                            move = chess.Move(from_square, to_square, promotion=promotion_map[promotion_piece])
+                            if move in board.legal_moves:
+                                return move
+                        else:
+                            print("Invalid promotion piece. Please use q, r, b, or n.")
+                            continue
+                
                 print("Invalid move. Please try again.")
             except ValueError:
-                print("Invalid format. Please use UCI notation (e.g. 'e2e4').")
+                print("Invalid format. Please use UCI notation (e.g. 'e2e4' or 'e7e8q').")
 
 
 class ComputerBasic(BasePlayer):
