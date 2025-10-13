@@ -164,10 +164,10 @@ def start_game(game_config):
             # Setup players
             if player_colour == chess.WHITE:
                 white_player = HumanPlayer(chess.WHITE)
-                black_player = LichessPlayer(chess.BLACK, game_stream, lichess_manager.client.board)
+                black_player = LichessPlayer(chess.BLACK, game_stream, lichess_manager.client.board, lcd_manager)
                 black_player.set_opponent_name(opponent_name)
             else:
-                white_player = LichessPlayer(chess.WHITE, game_stream, lichess_manager.client.board)
+                white_player = LichessPlayer(chess.WHITE, game_stream, lichess_manager.client.board, lcd_manager)
                 white_player.set_opponent_name(opponent_name)
                 black_player = HumanPlayer(chess.BLACK)
             
@@ -285,10 +285,10 @@ def start_game(game_config):
             # Setup players
             if player_colour == chess.WHITE:
                 white_player = HumanPlayer(chess.WHITE)
-                black_player = LichessPlayer(chess.BLACK, game_stream, lichess_manager.client.board)
+                black_player = LichessPlayer(chess.BLACK, game_stream, lichess_manager.client.board, lcd_manager)
                 black_player.set_opponent_name(opponent_name)
             else:
-                white_player = LichessPlayer(chess.WHITE, game_stream, lichess_manager.client.board)
+                white_player = LichessPlayer(chess.WHITE, game_stream, lichess_manager.client.board, lcd_manager)
                 white_player.set_opponent_name(opponent_name)
                 black_player = HumanPlayer(chess.BLACK)
             

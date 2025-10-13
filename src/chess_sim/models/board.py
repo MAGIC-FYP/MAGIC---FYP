@@ -398,6 +398,16 @@ class Board:
                     # Human player - get move from physical board
                     move = False
                     while move == False:
+                        # Check for interrupt while waiting for human player's move
+                        if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                            print("\nGame interrupted by user during move selection - resigning on Lichess")
+                            self.logger.log("Online game interrupted during move selection")
+                            lichess_manager.resign_game(game_id)  # Resign on Lichess
+                            display.quit_pygame()
+                            self.lcd_manager.acknowledge_interrupt()
+                            self.lcd_manager.clear_game_interrupt()
+                            return False
+                        
                         display.legal_moves = []
                         display.selected_square = False
                         display.path = []
@@ -439,10 +449,13 @@ class Board:
                             for path_segment in path:
                                 # Check for interrupt before each path segment
                                 if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
-                                    print("\nOnline game interrupted during gantry movement")
+                                    print("\nOnline game interrupted during gantry movement - resigning on Lichess")
                                     self.logger.log("Online game interrupted during gantry movement")
+                                    lichess_manager.resign_game(game_id)  # Resign on Lichess
+                                    self.lcd_manager.acknowledge_interrupt()
                                     self.lcd_manager.clear_game_interrupt()
                                     self.gantry.electromagnet(False)  # Release piece
+                                    display.quit_pygame()
                                     return False
                                 
                                 move_result = self.gantry.move(path_segment[0][0]*path_const, path_segment[0][1]*path_const, quick_speed)
@@ -505,9 +518,19 @@ class Board:
                     else:
                         print("Invalid move.")
                 else:
-                    # Move is None - either game ended or error occurred
-                    print("No move available or game ended.")
-                    break
+                    # Move is None - check if it's due to interrupt or game ended
+                    if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                        print("\nGame interrupted by user - resigning on Lichess")
+                        self.logger.log("Online game interrupted by user")
+                        lichess_manager.resign_game(game_id)  # Resign on Lichess
+                        display.quit_pygame()
+                        self.lcd_manager.acknowledge_interrupt()
+                        self.lcd_manager.clear_game_interrupt()
+                        return False
+                    else:
+                        # Game ended normally or error occurred
+                        print("No move available or game ended.")
+                        break
             
             # Game over
             print("\n" + "=" * 40)

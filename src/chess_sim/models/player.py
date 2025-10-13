@@ -148,7 +148,7 @@ class ArchivedPlayers(BasePlayer):
 class LichessPlayer(BasePlayer):
     '''Player that connects to Lichess for online gameplay - represents the remote opponent'''
     
-    def __init__(self, colour: chess.Color, game_stream, board_client):
+    def __init__(self, colour: chess.Color, game_stream, board_client, lcd_manager=None):
         """
         Initialize Lichess opponent player.
         
@@ -156,12 +156,14 @@ class LichessPlayer(BasePlayer):
             colour: Chess color of this player
             game_stream: Iterator from client.board.stream_game_state()
             board_client: Berserk board client for making moves
+            lcd_manager: Optional LCD manager for interrupt checking
         """
         super().__init__(colour)
         self.game_stream = game_stream
         self.board_client = board_client
         self.opponent_name = "Lichess Opponent"
         self.last_moves = []
+        self.lcd_manager = lcd_manager
         
     def get_move(self, board: chess.Board) -> Optional[chess.Move]:
         """Wait for opponent's move from Lichess stream."""
@@ -172,6 +174,11 @@ class LichessPlayer(BasePlayer):
         try:
             # Stream returns events, we need to wait for a gameState with new move
             for event in self.game_stream:
+                # Check for game interrupt while waiting for opponent
+                if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                    print("\nGame interrupted while waiting for opponent's move")
+                    return None  # Signal to main loop to resign
+                
                 print(f"DEBUG: Received event type: {event['type']}")
                 
                 if event['type'] == 'gameFull':
