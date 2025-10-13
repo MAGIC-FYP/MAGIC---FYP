@@ -145,8 +145,9 @@ def start_game(game_config):
             print(f"\n{game_info['white']} ({game_info['white_rating']}) vs {game_info['black']} ({game_info['black_rating']})")
             print(f"Speed: {game_info['speed']} | {'Rated' if game_info['rated'] else 'Casual'}\n")
             
-
-            our_username = "MAGIC_FYP"
+            # Determine our color using authenticated account
+            our_username = lichess_manager.get_authenticated_username() or ""
+            print(f"Authenticated as: {our_username}")
             
             if game_info['white'].lower() == our_username.lower():
                 player_colour = chess.WHITE
@@ -265,12 +266,11 @@ def start_game(game_config):
             print(f"\n{game_info['white']} ({game_info['white_rating']}) vs {game_info['black']} ({game_info['black_rating']})")
             print(f"Speed: {game_info['speed']} | {'Rated' if game_info['rated'] else 'Casual'}\n")
             
-            # Determine our color
-            our_username = "MAGIC_FYP"
-
+            # Determine our color using authenticated account
+            our_username = lichess_manager.get_authenticated_username() or ""
+            print(f"Authenticated as: {our_username}")
             print(f"game_info['white']: {game_info['white']}")
-            print(f"our_username: {our_username}")
-            if game_info['white'] == our_username:
+            if game_info['white'].lower() == our_username.lower():
                 player_colour = chess.WHITE
                 opponent_name = game_info['black']
             else:

@@ -166,16 +166,22 @@ class LichessPlayer(BasePlayer):
     def get_move(self, board: chess.Board) -> Optional[chess.Move]:
         """Wait for opponent's move from Lichess stream."""
         print(f"Waiting for {self.opponent_name}'s move...")
+        print(f"DEBUG: Current board state: {board.fen()}")
+        print(f"DEBUG: Last known moves: {self.last_moves}")
         
         try:
             # Stream returns events, we need to wait for a gameState with new move
             for event in self.game_stream:
+                print(f"DEBUG: Received event type: {event['type']}")
+                
                 if event['type'] == 'gameFull':
                     # First event - contains full game state
                     state = event['state']
                     moves_str = state.get('moves', '')
+                    print(f"DEBUG: gameFull event - moves: {moves_str}")
                     if moves_str:
                         self.last_moves = moves_str.split()
+                    print(f"DEBUG: Updated last_moves to: {self.last_moves}")
                     # Continue to wait for actual new moves
                     continue
                     
@@ -183,6 +189,8 @@ class LichessPlayer(BasePlayer):
                     # Game state update - check for new moves
                     moves_str = event.get('moves', '')
                     current_moves = moves_str.split() if moves_str else []
+                    print(f"DEBUG: gameState event - current moves: {current_moves}")
+                    print(f"DEBUG: Comparing lengths: current={len(current_moves)}, last={len(self.last_moves)}")
                     
                     # Check if there's a new move
                     if len(current_moves) > len(self.last_moves):
@@ -197,6 +205,8 @@ class LichessPlayer(BasePlayer):
                         except ValueError:
                             print(f"Invalid move from Lichess: {new_move_uci}")
                             continue
+                    else:
+                        print(f"DEBUG: No new move detected (same length or shorter)")
                     
                     # Check if game ended
                     status = event.get('status')
@@ -206,6 +216,8 @@ class LichessPlayer(BasePlayer):
                         
         except Exception as e:
             print(f"Error streaming opponent move: {e}")
+            import traceback
+            traceback.print_exc()
             return None
             
         return None
