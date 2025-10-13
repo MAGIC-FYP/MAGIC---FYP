@@ -15,18 +15,17 @@ from algorithms.algorithms_expanding_aStar import find_path, crowd_control
 config = load_config()
 
 class Board:
-    def __init__(self, controller: Controller, lcd_manager=None):
+    def __init__(self, controller: Controller, lcd_manager=None, lgpio_handle=None):
         self.board = chess.Board()
         self.controller = controller
         self.graveyard = Graveyard()
         self.logger = logger()
         self.Surface = TileSensor()
-        self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
+        self.lcd_manager = lcd_manager
         
-        # Initialize gantry with interrupt callback
-        self.gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
+        # Initialize gantry with shared lgpio handle and interrupt callback
+        self.gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6, lgpio_handle=lgpio_handle)
         if self.lcd_manager:
-            # Set interrupt callback so gantry can check for interrupts during movements
             self.gantry.set_interrupt_callback(lambda: self.lcd_manager.is_game_interrupt_requested())
         
         self.path = {"moved_pieces_paths": [], "path": [], "undo_moves": []}
@@ -40,10 +39,8 @@ class Board:
         self.next_graveyard = None
         self.is_capture = False
         self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
-        try:
-            self.gantry.cleanup()
-        except:
-            pass
+        
+        # Initialize gantry (skip cleanup to preserve shared GPIO)
         self.gantry.initialise()
         self.gantry.home()
         
@@ -97,6 +94,7 @@ class Board:
             # Check for game interrupt
             if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
                 print("\nGame interrupted by user")
+                self.lcd_manager.acknowledge_interrupt()
                 self.lcd_manager.clear_game_interrupt()
                 return False
             
@@ -197,15 +195,16 @@ class Board:
         print("Starting new chess game!")
         self.logger.log("Starting new chess game")
 
-        display = Display(log= self.logger)
-        self.gantry.center_pieces()
+        display = Display(log=self.logger, lcd_manager=self.lcd_manager)
+        #self.gantry.center_pieces()
         #while not self.is_game_over():
         while self.is_game_over() == False:
             # Check for game interrupt
             if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
                 print("\nGame interrupted by user")
                 self.logger.log("Game interrupted by user")
-                # display.close_disp()
+                display.quit_pygame()
+                self.lcd_manager.acknowledge_interrupt()
                 self.lcd_manager.clear_game_interrupt()
                 return False
 
@@ -223,7 +222,12 @@ class Board:
                     display.selected_square = False
                     display.path = []
                     move = display.get_move_from_surface_gui(self.board, self.Surface, self.gantry, self.graveyard, self.current_player)
-                    
+                    if move == False:
+                        # Interrupt detected in get_move_from_surface_gui
+                        display.quit_pygame()
+                        self.lcd_manager.acknowledge_interrupt()
+                        self.lcd_manager.clear_game_interrupt()
+                        return False
                 
             else:
                 move = self.current_player.get_move(self.board)
@@ -249,6 +253,8 @@ class Board:
                             if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
                                 print("\nGame interrupted during gantry movement")
                                 self.logger.log("Game interrupted during gantry movement")
+                                display.quit_pygame()
+                                self.lcd_manager.acknowledge_interrupt()
                                 self.lcd_manager.clear_game_interrupt()
                                 self.gantry.electromagnet(False)  # Release piece
                                 return False
@@ -256,6 +262,9 @@ class Board:
                             move_result = self.gantry.move(path[0][0]*path_const, path[0][1]*path_const, quick_speed)
                             if move_result == False:
                                 # Movement was interrupted
+                                display.quit_pygame()
+                                self.lcd_manager.acknowledge_interrupt()
+                                self.lcd_manager.clear_game_interrupt()
                                 self.gantry.electromagnet(False)
                                 return False
                             
@@ -265,11 +274,17 @@ class Board:
                             for point in path[:-1]:
                                 move_result = self.gantry.move(point[0]*path_const, point[1]*path_const, slow_speed)
                                 if move_result == False:
+                                    display.quit_pygame()
+                                    self.lcd_manager.acknowledge_interrupt()
+                                    self.lcd_manager.clear_game_interrupt()
                                     self.gantry.electromagnet(False)
                                     return False
                                 
                             move_result = self.gantry.move(path[len(path)-1][0]*path_const, path[len(path)-1][1]*path_const, slow_speed, drag_compensation=True)
                             if move_result == False:
+                                display.quit_pygame()
+                                self.lcd_manager.acknowledge_interrupt()
+                                self.lcd_manager.clear_game_interrupt()
                                 self.gantry.electromagnet(False)
                                 return False
                             
@@ -357,15 +372,17 @@ class Board:
         print("Starting online chess game!")
         self.logger.log("Starting online chess game")
         
-        display = Display(log=self.logger)
+        display = Display(log=self.logger, lcd_manager=self.lcd_manager)
         
         try:
             while not self.is_game_over():
                 # Check for game interrupt
                 if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
-                    print("\nGame interrupted by user")
+                    print("\nGame interrupted by user - resigning on Lichess")
                     self.logger.log("Online game interrupted by user")
-                    # display.close_disp()
+                    lichess_manager.resign_game(game_id)  # Resign on Lichess
+                    display.quit_pygame()
+                    self.lcd_manager.acknowledge_interrupt()
                     self.lcd_manager.clear_game_interrupt()
                     return False
                     
@@ -526,5 +543,3 @@ class Board:
             self.logger.log(f"Error in online game: {e}")
             display.close_disp()
             raise
-
-            

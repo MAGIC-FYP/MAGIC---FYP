@@ -2,10 +2,16 @@
 MenuNavigator integrates the menu system with LCD display and rotary encoder input.
 """
 
-from gpiozero import Button, RotaryEncoder
+# Force gpiozero to use RPi.GPIO backend to avoid conflicts with TileSensor
+from gpiozero.pins.rpigpio import RPiGPIOFactory
+from gpiozero import Device, Button, RotaryEncoder
+Device.pin_factory = RPiGPIOFactory()
+
 from typing import Optional
 import time
 import threading
+import RPi.GPIO as GPIO
+import lgpio
 
 # Use try/except to support both relative and absolute imports
 try:
@@ -23,9 +29,12 @@ class MenuNavigator:
     Handles navigation through menu system using rotary encoder and displays on LCD.
     """
     
+    _instance = None  # Singleton instance for access from main.py
+    
     def __init__(self, root_menu: SubMenu, lcd: Optional[LCD] = None, 
                  encoder_a: int = 6, encoder_b: int = 27, switch_pin: int = 26,
-                 update_delay: float = 0.2, use_threaded_lcd: bool = True):
+                 update_delay: float = 0.2, use_threaded_lcd: bool = True, enable_button: bool = True,
+                 lgpio_handle=None):
         """
         Initialize the menu navigator.
         
@@ -37,9 +46,20 @@ class MenuNavigator:
             switch_pin: GPIO pin for rotary encoder switch
             update_delay: Minimum delay between display updates (seconds)
             use_threaded_lcd: Whether to use the threaded LCD manager
+            enable_button: Whether to enable button monitoring
+            lgpio_handle: lgpio handle to use for button (if provided, uses lgpio from start)
         """
+        MenuNavigator._instance = self  # Store singleton reference
+        
         self.root_menu = root_menu
         self.current_menu = root_menu
+        
+        # lgpio handle and GPIO library selection
+        self.lgpio_handle = lgpio_handle
+        self.use_lgpio = (lgpio_handle is not None)
+        self.switching_gpio = False  # Flag to pause thread during GPIO library switch
+        self.enable_button = enable_button  # Whether button monitoring is enabled
+        self.restart_with_lgpio = False  # Signal to restart thread with lgpio
         
         # Initialize LCD - use threaded manager if requested
         self.use_threaded_lcd = use_threaded_lcd
@@ -52,8 +72,24 @@ class MenuNavigator:
         
         # Initialize rotary encoder and switch
         self.encoder = RotaryEncoder(a=encoder_a, b=encoder_b, max_steps=0)
-        self.switch = Button(switch_pin, pull_up=True)
         self.switch_pin = switch_pin
+        
+        # Initialize button
+        if self.enable_button:
+            if self.use_lgpio:
+                # Use lgpio from the start
+                try:
+                    lgpio.gpio_claim_input(lgpio_handle, switch_pin, lgpio.SET_PULL_UP)
+                    self.switch = None  # No gpiozero Button
+                except Exception as e:
+                    print(f"Failed to initialize button with lgpio: {e}")
+                    self.enable_button = False
+                    self.switch = None
+            else:
+                # Use gpiozero
+                self.switch = Button(switch_pin, pull_up=True)
+        else:
+            self.switch = None
         
         # Track encoder position
         self.last_encoder_steps = 0
@@ -79,6 +115,23 @@ class MenuNavigator:
         self._safe_update_display()
 
         self.state_lock = threading.Lock()
+    
+    @classmethod
+    def get_instance(cls):
+        """Get the singleton instance of MenuNavigator."""
+        return cls._instance
+    
+    def set_lgpio_handle(self, lg_handle):
+        """
+        Signal button monitor thread to restart with lgpio.
+        (Not needed when lgpio is initialized at startup)
+        
+        Args:
+            lg_handle: lgpio handle from gantry
+        """
+        # This function is now a no-op since we use lgpio from startup
+        # Kept for backwards compatibility
+        pass
     
     def _on_rotate(self):
         """Handle rotary encoder rotation with rate limiting."""
@@ -109,14 +162,51 @@ class MenuNavigator:
     
     def _button_monitor_loop(self):
         """Monitor button state in dedicated thread for reliable press detection."""
-        print(f"Button monitor thread started on GPIO {self.switch_pin}")
         
         while not self._button_stop_event.is_set():
+            # Check if we need to restart with lgpio
+            if self.restart_with_lgpio:
+                # Close gpiozero Button if present
+                if self.switch:
+                    try:
+                        self.switch.close()
+                        self.switch = None
+                    except:
+                        pass
+                
+                # Switch to lgpio
+                self.use_lgpio = True
+                self.restart_with_lgpio = False
+                continue
+            
+            # Check if we're switching GPIO libraries - if so, pause
+            if self.switching_gpio:
+                while self.switching_gpio and not self._button_stop_event.is_set():
+                    time.sleep(0.05)
+                continue
+            
             try:
-                # Wait for button press using gpiozero's Button.is_pressed
+                # Wait for button press
                 while not self._button_stop_event.is_set():
-                    if self.switch.is_pressed:  # Button pressed
+                    # Check button state
+                    try:
+                        # Use lgpio if available, otherwise use gpiozero
+                        if self.use_lgpio and self.lgpio_handle is not None:
+                            button_state = lgpio.gpio_read(self.lgpio_handle, self.switch_pin)
+                            is_pressed = (button_state == 0)  # Active low
+                            
+                            if is_pressed:
+                                break
+                        elif self.switch is not None:
+                            is_pressed = self.switch.is_pressed
+                            
+                            if is_pressed:
+                                break
+                    except Exception as e:
+                        print(f"Error checking button: {e}")
+                        time.sleep(0.1)
                         break
+                    
                     time.sleep(0.01)  # 10ms polling
                 
                 if self._button_stop_event.is_set():
@@ -131,7 +221,20 @@ class MenuNavigator:
                 while not self._button_stop_event.is_set():
                     hold_duration = time.time() - press_start
                     
-                    if not self.switch.is_pressed:  # Button released
+                    # Check if button is still pressed (use lgpio or gpiozero)
+                    try:
+                        if self.use_lgpio and self.lgpio_handle is not None:
+                            button_state = lgpio.gpio_read(self.lgpio_handle, self.switch_pin)
+                            is_still_pressed = (button_state == 0)  # Active low
+                        elif self.switch is not None:
+                            is_still_pressed = self.switch.is_pressed
+                        else:
+                            break
+                        
+                        if not is_still_pressed:  # Button released
+                            break
+                    except Exception as e:
+                        print(f"Error checking button release: {e}")
                         break
                     
                     if hold_duration >= self.long_press_time:
@@ -146,9 +249,27 @@ class MenuNavigator:
                 # Handle press based on duration and game mode
                 if is_long_press:
                     self._handle_long_press()
-                    # Wait for button release
-                    while self.switch.is_pressed and not self._button_stop_event.is_set():
-                        time.sleep(0.05)
+                    # Keep requesting interrupt while button is held
+                    while not self._button_stop_event.is_set():
+                        try:
+                            if self.use_lgpio and self.lgpio_handle is not None:
+                                button_state = lgpio.gpio_read(self.lgpio_handle, self.switch_pin)
+                                is_still_pressed = (button_state == 0)
+                            elif self.switch is not None:
+                                is_still_pressed = self.switch.is_pressed
+                            else:
+                                break
+                            
+                            if not is_still_pressed:
+                                break
+                            
+                            # Keep re-requesting interrupt
+                            if self.use_threaded_lcd and self.lcd_manager:
+                                self.lcd_manager.request_game_interrupt()
+                        except:
+                            break
+                        
+                        time.sleep(0.1)
                 else:
                     self._handle_short_press()
                 
@@ -158,8 +279,6 @@ class MenuNavigator:
             except Exception as e:
                 print(f"Error in button monitor: {e}")
                 time.sleep(0.1)
-        
-        print("Button monitor thread stopped")
     
     def _handle_short_press(self):
         """Handle short button press."""
@@ -190,16 +309,10 @@ class MenuNavigator:
         if not self.running:
             return
         
-        print("Long button press detected!")  # Debug message
-        
-        # Check if in game mode - if so, request game interrupt
+        # Request game interrupt (lcd_manager checks if in game mode)
         if self.use_threaded_lcd and self.lcd_manager:
-            if self.lcd_manager.is_in_game_mode():
-                # Long press confirmed - request interrupt
-                print("Requesting game interrupt...")
-                self.lcd_manager.request_game_interrupt()
-                self.lcd_manager.show_message("Ending game...", "Returning to menu", 2.0)
-                return
+            self.lcd_manager.request_game_interrupt()
+            self.lcd_manager.show_message("Ending game...", "Returning to menu", 2.0)
     
     def _safe_update_display(self):
         """Thread-safe display update with error handling."""
@@ -246,13 +359,15 @@ class MenuNavigator:
         self.running = True
         
         # Start button monitor thread
-        self._button_stop_event.clear()
-        self._button_thread = threading.Thread(target=self._button_monitor_loop, daemon=True)
-        self._button_thread.start()
+        if self.enable_button:
+            self._button_stop_event.clear()
+            self._button_thread = threading.Thread(target=self._button_monitor_loop, daemon=True)
+            self._button_thread.start()
         
         self._safe_update_display()
-        print("Menu navigator started. Press Ctrl+C to exit.")
-        print("Hold button for 1 second during game to interrupt and return to menu.")
+        print("Menu navigator started")
+        if self.enable_button:
+            print("Hold button for 1 second during game to interrupt")
     
     def stop(self):
         """Stop the menu navigator (disables input handling)."""
@@ -263,12 +378,8 @@ class MenuNavigator:
         if self._button_thread and self._button_thread.is_alive():
             self._button_thread.join(timeout=2.0)
         
-        if self.use_threaded_lcd and self.lcd_manager:
-            # Don't clear LCD here - let the threaded manager handle it
-            pass
-        else:
+        if not self.use_threaded_lcd and self.lcd:
             self.lcd.clear()
-        print("Menu navigator stopped.")
     
     def navigate_to_root(self):
         """Navigate back to the root menu."""

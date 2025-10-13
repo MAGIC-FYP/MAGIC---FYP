@@ -21,12 +21,17 @@ pygame.init()
 colours = [(0, 0, 200), (0, 200, 0), (200, 0, 0), (200, 200, 0), (200, 0, 200), (0, 200, 200)]
 
 class Display:
-    def __init__(self, board_size=600, log=False):
+    def __init__(self, board_size=600, log=False, lcd_manager=None):
         """
         Initialize the display with a default screen size of 600.
         """
+        # Reinitialize pygame if it was quit
+        if not pygame.get_init():
+            pygame.init()
+        
         self.board_size = board_size
         self.logger = log
+        self.lcd_manager = lcd_manager  # Reference to LCD manager for interrupt checking
         self.screen_size = (self.board_size+(self.board_size/2), self.board_size+(2*self.board_size/8))
         self.screen = pygame.display.set_mode(self.screen_size)
         self.selected_square = False
@@ -386,6 +391,9 @@ class Display:
                 self.disp_board(board, graveyard, current_player)
 
     def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, gantry: GantryControl, graveyard: Graveyard ,current_player):
+        self.selected_square = False
+        self.legal_moves = []
+        self.disp_board(board, graveyard, current_player)
         try:
             quick_speed = config['gantry']['quick_speed']
             slow_speed = config['gantry']['slow_speed']
@@ -401,6 +409,11 @@ class Display:
             change = 0
             from_square = None
             while change == 0:
+                # Check for game interrupt
+                if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                    print("Game interrupted by user")
+                    return False
+                
                 cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
                 dif_bitmap = np.zeros((8, 8))
                 for i in range(8):
@@ -424,6 +437,11 @@ class Display:
                             to_square = from_square
                             prev_bitmap = cur_bitmap
                             while change == 0:
+                                # Check for game interrupt
+                                if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                                    print("Game interrupted by user")
+                                    return False
+                                
                                 cur_bitmap = np.array(Surface.get_sensor_bitmap())[:, 1:9]
                                 dif_bitmap = np.zeros((8, 8))
                                 for i in range(8):
@@ -452,6 +470,11 @@ class Display:
             while timer < 4:
 
                 while change == 0:
+                    # Check for game interrupt
+                    if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                        print("Game interrupted by user")
+                        return False
+                    
                     cur_bitmap = Surface.get_sensor_bitmap()
                     dif_bitmap = np.zeros((8, 8))
                     for i in range(8):
@@ -469,6 +492,11 @@ class Display:
                         time.sleep(0.5)
                         prev_to_square = to_square
                         while change == 0:
+                            # Check for game interrupt
+                            if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                                print("Game interrupted by user")
+                                return False
+                            
                             cur_bitmap = Surface.get_sensor_bitmap()
                             dif_bitmap = np.zeros((8, 8))
                             for i in range(8):
@@ -668,6 +696,14 @@ class Display:
             
             time.sleep(0.01)  # Prevent high CPU usage
         
+    def quit_pygame(self):
+        """Quit pygame without exiting the program."""
+        try:
+            pygame.quit()
+        except:
+            pass
+    
     def close_disp(self):
+        """Close display and exit program."""
         pygame.quit()
         sys.exit()

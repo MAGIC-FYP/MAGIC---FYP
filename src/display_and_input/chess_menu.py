@@ -33,6 +33,7 @@ class ChessMenuBuilder:
         'sploging',
         'v0za',
         'D_U_C_K_O',
+        'tdnathan'
         # Add more friends here as needed
         # Example: 'username1', 'username2', etc.
     ]
@@ -173,7 +174,14 @@ class ChessMenuBuilder:
         print("="*50 + "\n")
         
         if self.start_game_callback:
-            self.start_game_callback(self.game_config)
+            # Execute game in separate thread so button monitor stays responsive
+            import threading
+            game_thread = threading.Thread(
+                target=self.start_game_callback, 
+                args=(self.game_config,),
+                daemon=False
+            )
+            game_thread.start()
     
     def _start_robot_vs_robot(self):
         """Start a Robot vs Robot game."""
@@ -185,11 +193,21 @@ class ChessMenuBuilder:
         print("="*50 + "\n")
         
         if self.start_game_callback:
-            self.start_game_callback(self.game_config)
+            import threading
+            game_thread = threading.Thread(
+                target=self.start_game_callback, 
+                args=(self.game_config,),
+                daemon=False
+            )
+            game_thread.start()
     
     def _build_online_play_menu(self) -> SubMenu:
         """Build the Online Play (Lichess) submenu."""
         online_menu = SubMenu("Play Online")
+
+        # Challenge friend submenu
+        friends_menu = self._build_challenge_friend_menu()
+        online_menu.add(friends_menu)
         
         # Time control submenu
         time_menu = SubMenu("Time Control")
@@ -209,10 +227,6 @@ class ChessMenuBuilder:
         
         # Start quickmatch
         online_menu.add(MenuItem("Start Quickmatch", lambda: self._start_quickmatch()))
-        
-        # Challenge friend submenu
-        friends_menu = self._build_challenge_friend_menu()
-        online_menu.add(friends_menu)
         
         # Back to main menu
         online_menu.add(BackMenuItem())
@@ -240,11 +254,17 @@ class ChessMenuBuilder:
         print("="*50 + "\n")
         
         if self.start_game_callback:
-            self.start_game_callback(self.game_config)
+            import threading
+            game_thread = threading.Thread(
+                target=self.start_game_callback, 
+                args=(self.game_config,),
+                daemon=False
+            )
+            game_thread.start()
     
     def _build_challenge_friend_menu(self) -> SubMenu:
         """Build the Challenge Friend submenu with list of friends."""
-        friends_menu = SubMenu("Challenge Friend")
+        friends_menu = SubMenu("vs Friend")
         
         # Add menu item for each configured friend
         if self.LICHESS_FRIENDS:
@@ -276,7 +296,13 @@ class ChessMenuBuilder:
         print("="*50 + "\n")
         
         if self.start_game_callback:
-            self.start_game_callback(self.game_config)
+            import threading
+            game_thread = threading.Thread(
+                target=self.start_game_callback, 
+                args=(self.game_config,),
+                daemon=False
+            )
+            game_thread.start()
     
     def _build_archived_games_menu(self) -> SubMenu:
         """Build the Archived Games submenu."""
@@ -332,7 +358,13 @@ class ChessMenuBuilder:
         print("="*50 + "\n")
         
         if self.start_game_callback:
-            self.start_game_callback(self.game_config)
+            import threading
+            game_thread = threading.Thread(
+                target=self.start_game_callback, 
+                args=(self.game_config,),
+                daemon=False
+            )
+            game_thread.start()
     
     def get_config(self) -> Dict[str, Any]:
         """Get the current game configuration."""

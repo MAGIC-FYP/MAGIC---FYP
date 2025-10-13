@@ -47,8 +47,13 @@ def start_game(game_config):
     square_size = CONFIG.get('models', {}).get('chess_board', {}).get('square_size')
     controller = Controller(board_size_cm=board_size, square_size_cm=square_size)
     
-    # Pass LCD manager to board for interrupt checking
-    chess_board = Board(controller, lcd_manager=lcd_manager)
+    # Get shared lgpio handle from navigator for board
+    from src.display_and_input.menu_navigator import MenuNavigator
+    navigator_instance = MenuNavigator.get_instance()
+    shared_lgpio_handle = navigator_instance.lgpio_handle if navigator_instance else None
+    
+    # Initialize board with shared lgpio handle
+    chess_board = Board(controller, lcd_manager=lcd_manager, lgpio_handle=shared_lgpio_handle)
     
     # Enable game mode for interrupt handling
     lcd_manager.set_game_mode(True)
@@ -119,12 +124,22 @@ def start_game(game_config):
             
             if not game_id:
                 print("Failed to create quickmatch")
+                lcd_manager.show_message("Quickmatch failed", "Try again later", 3.0)
+                time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             # Get game information to determine our color
             game_info = lichess_manager.get_game_info(game_id)
             if not game_info:
                 print("Failed to get game information")
+                lcd_manager.show_message("Game info failed", "Try again later", 3.0)
+                time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             print(f"\n{game_info['white']} ({game_info['white_rating']}) vs {game_info['black']} ({game_info['black_rating']})")
@@ -164,16 +179,6 @@ def start_game(game_config):
                 'opponent_name': opponent_name
             })
             
-            # If game already has moves (unlikely for quickmatch), apply them
-            if game_info['moves']:
-                temp_board = chess.Board()
-                for move_uci in game_info['moves']:
-                    temp_board.push_uci(move_uci)
-                chess_board.set_fen(temp_board.fen())
-                # Update last_moves for LichessPlayer
-                lichess_player = white_player if isinstance(white_player, LichessPlayer) else black_player
-                lichess_player.last_moves = game_info['moves']
-            
             # Play the game with Board's online method
             game_completed = chess_board.play_game_online(lichess_manager, game_id, player_colour)
             
@@ -194,7 +199,10 @@ def start_game(game_config):
         finally:
             # Always cleanup GPIO resources
             chess_board.gantry.cleanup()
-            lcd_manager.show_idle()
+            # Return to menu display
+            navigator_instance = MenuNavigator.get_instance()
+            if navigator_instance:
+                navigator_instance.navigate_to_root()
         return
     
     elif game_mode == 'online_friend_challenge':
@@ -207,6 +215,11 @@ def start_game(game_config):
             friend_username = game_config.get('friend_username')
             if not friend_username:
                 print("No friend username provided")
+                lcd_manager.show_message("No friend set", "Check config", 3.0)
+                time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             # Get time control settings
@@ -233,12 +246,20 @@ def start_game(game_config):
                 print("Challenge was declined or timed out")
                 lcd_manager.show_message("Challenge failed", "Not accepted", 3.0)
                 time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             # Get game information to determine our color
             game_info = lichess_manager.get_game_info(game_id)
             if not game_info:
                 print("Failed to get game information")
+                lcd_manager.show_message("Game info failed", "Try again later", 3.0)
+                time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             print(f"\n{game_info['white']} ({game_info['white_rating']}) vs {game_info['black']} ({game_info['black_rating']})")
@@ -246,8 +267,10 @@ def start_game(game_config):
             
             # Determine our color
             our_username = "MAGIC_FYP"
-            
-            if game_info['white'].lower() == our_username.lower():
+
+            print(f"game_info['white']: {game_info['white']}")
+            print(f"our_username: {our_username}")
+            if game_info['white'] == our_username:
                 player_colour = chess.WHITE
                 opponent_name = game_info['black']
             else:
@@ -278,16 +301,6 @@ def start_game(game_config):
                 'opponent_name': opponent_name
             })
             
-            # If game already has moves, apply them
-            if game_info['moves']:
-                temp_board = chess.Board()
-                for move_uci in game_info['moves']:
-                    temp_board.push_uci(move_uci)
-                chess_board.set_fen(temp_board.fen())
-                # Update last_moves for LichessPlayer
-                lichess_player = white_player if isinstance(white_player, LichessPlayer) else black_player
-                lichess_player.last_moves = game_info['moves']
-            
             # Play the game with Board's online method
             game_completed = chess_board.play_game_online(lichess_manager, game_id, player_colour)
             
@@ -308,7 +321,10 @@ def start_game(game_config):
         finally:
             # Always cleanup GPIO resources
             chess_board.gantry.cleanup()
-            lcd_manager.show_idle()
+            # Return to menu display
+            navigator_instance = MenuNavigator.get_instance()
+            if navigator_instance:
+                navigator_instance.navigate_to_root()
         return
     
     elif game_mode == 'archived_game':
@@ -321,11 +337,16 @@ def start_game(game_config):
             if not filename:
                 print("No archived filename provided")
                 chess_board.gantry.cleanup()
+                lcd_manager.show_message("No file", "Select a game", 3.0)
+                time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             # Initialize PGN reader and executor
             pgn_reader = PGNReader()
-            pgn_executor = PGNExecutor(chess_board, controller, chess_board.gantry, chess_board.path_planner_board)
+            pgn_executor = PGNExecutor(chess_board, controller, chess_board.gantry, chess_board.path_planner_board, lcd_manager)
             
             # Load the game
             print(f"Loading archived game: {filename}")
@@ -334,6 +355,11 @@ def start_game(game_config):
             if not game_data:
                 print(f"Failed to load game from {filename}")
                 chess_board.gantry.cleanup()
+                lcd_manager.show_message("Load failed", "Invalid PGN", 3.0)
+                time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             # Display game information
@@ -356,6 +382,11 @@ def start_game(game_config):
             if not pgn_executor.load_game(game_data):
                 print("Failed to load game into executor")
                 chess_board.gantry.cleanup()
+                lcd_manager.show_message("Load failed", "Executor error", 3.0)
+                time.sleep(3)
+                navigator_instance = MenuNavigator.get_instance()
+                if navigator_instance:
+                    navigator_instance.navigate_to_root()
                 return
             
             # Execute the game
@@ -381,7 +412,10 @@ def start_game(game_config):
         finally:
             # Always cleanup GPIO resources
             chess_board.gantry.cleanup()
-            lcd_manager.show_idle()
+            # Return to menu display
+            navigator_instance = MenuNavigator.get_instance()
+            if navigator_instance:
+                navigator_instance.navigate_to_root()
         return
     
     # Start the game (for offline modes)
@@ -408,14 +442,20 @@ def start_game(game_config):
     finally:
         print("Game session ended.")
         # Return to menu display
-        lcd_manager.show_idle()
+        navigator_instance = MenuNavigator.get_instance()
+        if navigator_instance:
+            navigator_instance.navigate_to_root()
         chess_board.gantry.cleanup()
 
 
 def main():
     """Main entry point with menu system."""
     print("Initializing Chess Game Menu System...")
-    print("Press and hold encoder button for 1 second during game to exit to menu")
+    print("Press and hold encoder button for 1 second during game to interrupt")
+    
+    # Initialize lgpio first (shared by button and gantry to avoid conflicts)
+    import lgpio
+    lgpio_handle = lgpio.gpiochip_open(0)
     
     # Start the threaded LCD manager
     start_lcd_manager()
@@ -426,9 +466,9 @@ def main():
     menu_builder.set_start_game_callback(start_game)
     root_menu = menu_builder.build()
     
-    # Create menu navigator with LCD and rotary encoder
+    # Create menu navigator with lgpio button
     try:
-        navigator = MenuNavigator(root_menu, use_threaded_lcd=True)
+        navigator = MenuNavigator(root_menu, use_threaded_lcd=True, enable_button=True, lgpio_handle=lgpio_handle)
         navigator.start()
         
         # Keep the program running

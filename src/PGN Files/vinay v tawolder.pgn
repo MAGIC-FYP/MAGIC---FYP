@@ -1,0 +1,20 @@
+[Event "casual rapid game"]
+[Site "https://lichess.org/2QCpdvtp"]
+[Date "2025.10.10"]
+[White "tawildoer"]
+[Black "MAGIC_FYP"]
+[Result "0-1"]
+[GameId "2QCpdvtp"]
+[UTCDate "2025.10.10"]
+[UTCTime "10:25:31"]
+[WhiteElo "1500"]
+[BlackElo "1500"]
+[Variant "Standard"]
+[TimeControl "600+0"]
+[ECO "A45"]
+[Opening "Indian Defense"]
+[Termination "Normal"]
+
+1. d4 Nf6 2. Na3 g6 3. Bf4 Bg7 4. Bg5 O-O 5. e3 Ne4 6. Qe2 Nxg5 7. h4 Ne4 8. Nc4 d5 9. Ne5 e6 10. Qb5 Nc6 11. Qa4 Nxe5 12. dxe5 Bxe5 13. Nf3 Bxb2 14. Rd1 Nc3 15. Qd4 Nxd1 16. Kxd1 Bxd4 17. exd4 f5 18. Ne5 Qd6 19. Ng4 fxg4 20. Be2 Rxf2 21. Bxg4 Qg3 22. a4 Qxg2 23. Re1 Rxc2 24. Rf1 Qd2# 0-1
+
+

@@ -189,13 +189,16 @@ class PGNExecutor:
     Executes PGN games on the chess board.
     """
     
-    def __init__(self, board, controller, gantry, path_planner_board):
+    def __init__(self, board, controller, gantry, path_planner_board, lcd_manager=None):
         """
         Initialize the PGN executor.
         
         Args:
             board: Chess board instance
             controller: Controller instance for piece movement
+            gantry: Gantry control instance
+            path_planner_board: Path planner instance
+            lcd_manager: LCD manager for interrupt handling
         """
         self.board = board
         self.controller = controller
@@ -205,6 +208,7 @@ class PGNExecutor:
         self.gantry = gantry
         self.path_planner_board = path_planner_board
         self.path_const = (3.5/5)
+        self.lcd_manager = lcd_manager
         
     
     def load_game(self, game_data: Dict) -> bool:
@@ -256,6 +260,13 @@ class PGNExecutor:
         
         try:
             for i, move_data in enumerate(self.current_game['moves']):
+                # Check for interrupt
+                if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                    print("\nArchived game interrupted by user")
+                    self.lcd_manager.acknowledge_interrupt()
+                    self.lcd_manager.clear_game_interrupt()
+                    return False
+                
                 if not self.is_executing:
                     break
                 
@@ -264,20 +275,47 @@ class PGNExecutor:
                 self.path = self.path_planner_board.get_full_path_simpli(move_data['uci'])
                 # Make the move on the board
                 if self.board.make_move(move_data['move']):
-                    print(self.board.board)
+                    #print(self.board.board)
                     move = move_data['uci']
                     
                     print(f"Path: {self.path}")
                     for path in self.path:
-                        self.gantry.move(path[0][0]*self.path_const, path[0][1]*self.path_const, quick_speed)
+                        # Check for interrupt before each path segment
+                        if self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
+                            print("\nArchived game interrupted during gantry movement")
+                            self.lcd_manager.acknowledge_interrupt()
+                            self.lcd_manager.clear_game_interrupt()
+                            self.gantry.electromagnet(False)  # Release piece
+                            return False
+                        
+                        move_result = self.gantry.move(path[0][0]*self.path_const, path[0][1]*self.path_const, quick_speed)
+                        if move_result == False:
+                            print("Gantry movement interrupted")
+                            self.lcd_manager.acknowledge_interrupt()
+                            self.lcd_manager.clear_game_interrupt()
+                            self.gantry.electromagnet(False)
+                            return False
+                        
                         self.gantry.electromagnet(True)
                         time_sleep.sleep(0.3)
 
                         for point in path[:-1]:
+                            move_result = self.gantry.move(point[0]*self.path_const, point[1]*self.path_const, slow_speed)
+                            if move_result == False:
+                                print("Gantry movement interrupted")
+                                self.lcd_manager.acknowledge_interrupt()
+                                self.lcd_manager.clear_game_interrupt()
+                                self.gantry.electromagnet(False)
+                                return False
                             
-                            self.gantry.move(point[0]*self.path_const, point[1]*self.path_const, slow_speed)
-                            
-                        self.gantry.move(path[len(path)-1][0]*self.path_const, path[len(path)-1][1]*self.path_const, slow_speed, drag_compensation=True)
+                        move_result = self.gantry.move(path[len(path)-1][0]*self.path_const, path[len(path)-1][1]*self.path_const, slow_speed, drag_compensation=True)
+                        if move_result == False:
+                            print("Gantry movement interrupted")
+                            self.lcd_manager.acknowledge_interrupt()
+                            self.lcd_manager.clear_game_interrupt()
+                            self.gantry.electromagnet(False)
+                            return False
+                        
                         self.gantry.electromagnet(False)
                         time_sleep.sleep(0.1)
                         self.gantry.electromagnet(True)

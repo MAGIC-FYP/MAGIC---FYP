@@ -5,7 +5,7 @@ import time
 
 
 class GantryControl:
-    def __init__(self, max_x: float, min_x: float, max_y: float, min_y: float, motor_radius: float = 0.95, interrupt_callback=None):
+    def __init__(self, max_x: float, min_x: float, max_y: float, min_y: float, motor_radius: float = 0.95, interrupt_callback=None, lgpio_handle=None):
         # Pin definitions (using BCM numbering)
         self.L_DIR = 9   # Direction
         self.L_STEP = 8  # Step pulse
@@ -18,8 +18,9 @@ class GantryControl:
         self.x_sw = 14
         self.y_sw = 15
         
-        # Initialize GPIO handles to None
-        self.lg = None  # Main GPIO handle
+        # Use provided lgpio handle or create new one
+        self.lg = lgpio_handle  # Shared GPIO handle (or None to create new)
+        self._owns_lgpio_handle = (lgpio_handle is None)  # Track if we created the handle
         
         # Motor control parameters
         self.start_delay = 0.003   # 3ms (gentle start)
@@ -71,8 +72,13 @@ class GantryControl:
         self._should_stop = False
     
     def initialise(self):
-        # Setup
-        self.lg = lgpio.gpiochip_open(0)
+        # Setup - only open new lgpio handle if not already provided
+        if self.lg is None:
+            self.lg = lgpio.gpiochip_open(0)
+            print(f"lg: {self.lg}")
+        else:
+            print(f"lg: {self.lg} (reusing shared handle)")
+        
         #stepper pins
         lgpio.gpio_claim_output(self.lg, self.L_DIR)
         lgpio.gpio_claim_output(self.lg, self.L_STEP)
@@ -95,7 +101,6 @@ class GantryControl:
         lgpio.gpio_write(self.lg, self.E_MAG, 0)
         lgpio.gpio_write(self.lg, self.LED, 0)
 
-        print(f"lg: {self.lg}")
         print("Pins initialized")
         return True
     def s_curve_delays(self,start_delay, end_delay, steps):
@@ -329,15 +334,28 @@ class GantryControl:
         """Clean up GPIO pins"""
         print("Cleaning up GPIO...")
         
-        lgpio.gpio_free(self.lg, self.L_DIR)
-        lgpio.gpio_free(self.lg, self.L_STEP)
-        lgpio.gpio_free(self.lg, self.R_DIR)
-        lgpio.gpio_free(self.lg, self.R_STEP)
-        lgpio.gpio_free(self.lg, self.E_MAG)
-        lgpio.gpio_free(self.lg, self.LED)
-        lgpio.gpio_free(self.lg, self.x_sw)
-        lgpio.gpio_free(self.lg, self.y_sw)
-        lgpio.gpiochip_close(self.lg)
+        try:
+            lgpio.gpio_free(self.lg, self.L_DIR)
+            lgpio.gpio_free(self.lg, self.L_STEP)
+            lgpio.gpio_free(self.lg, self.R_DIR)
+            lgpio.gpio_free(self.lg, self.R_STEP)
+            lgpio.gpio_free(self.lg, self.E_MAG)
+            lgpio.gpio_free(self.lg, self.LED)
+            lgpio.gpio_free(self.lg, self.x_sw)
+            lgpio.gpio_free(self.lg, self.y_sw)
+        except Exception as e:
+            print(f"Error freeing GPIO pins: {e}")
+        
+        # Only close the lgpio handle if we created it ourselves
+        if self._owns_lgpio_handle and self.lg is not None:
+            try:
+                lgpio.gpiochip_close(self.lg)
+                print("GPIO handle closed.")
+            except Exception as e:
+                print(f"Error closing GPIO handle: {e}")
+        else:
+            print("GPIO handle is shared - not closing.")
+        
         print("GPIO cleanup complete.")
 
 
@@ -493,6 +511,7 @@ class GantryControl:
         return True
     
     def center_pieces(self):
+        return True
         sleep_on = 0.1
         sleep_off = 0.05
         speed = 20

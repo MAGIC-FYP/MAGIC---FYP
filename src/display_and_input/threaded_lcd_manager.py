@@ -102,9 +102,11 @@ class ThreadedLCDManager:
         self._display_cache = {'line1': '', 'line2': ''}
         self._previous_mode = None
         
-        # Game interrupt control
+        # Game interrupt control with handshake
         self._game_interrupt_requested = False
+        self._game_interrupt_acknowledged = False
         self._in_game_mode = False
+        self._interrupt_request_count = 0  # Track how many times interrupt was requested
     
     def start(self):
         """Start the LCD display thread."""
@@ -115,7 +117,6 @@ class ThreadedLCDManager:
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._display_loop, daemon=True)
         self._thread.start()
-        print("Threaded LCD manager started")
     
     def stop(self):
         """Stop the LCD display thread."""
@@ -131,10 +132,8 @@ class ThreadedLCDManager:
         # Clear the display
         try:
             self.lcd.clear()
-        except Exception as e:
-            print(f"Error clearing LCD on stop: {e}")
-        
-        print("Threaded LCD manager stopped")
+        except:
+            pass
     
     def set_menu_mode(self, menu: Menu):
         """
@@ -399,23 +398,41 @@ class ThreadedLCDManager:
             return self._current_mode
     
     def request_game_interrupt(self):
-        """Request interruption of current game."""
+        """Request interruption of current game with persistent flag."""
         with self._lock:
             if self._in_game_mode:
-                self._game_interrupt_requested = True
-                print("Game interrupt requested by user")
+                if not self._game_interrupt_requested:
+                    self._game_interrupt_requested = True
+                    self._game_interrupt_acknowledged = False
+                    self._interrupt_request_count = 1
+                    print("Game interrupt requested")
+                else:
+                    self._interrupt_request_count += 1
     
     def is_game_interrupt_requested(self) -> bool:
-        """Check if game interruption has been requested."""
+        """Check if game interruption has been requested (non-destructive check)."""
         with self._lock:
-            return self._game_interrupt_requested
+            if self._game_interrupt_requested and not self._game_interrupt_acknowledged:
+                return True
+            return False
+    
+    def acknowledge_interrupt(self):
+        """Acknowledge that the interrupt was received and processed."""
+        with self._lock:
+            if self._game_interrupt_requested:
+                self._game_interrupt_acknowledged = True
+                return True
+            return False
     
     def set_game_mode(self, active: bool):
         """Set whether currently in game mode."""
         with self._lock:
             self._in_game_mode = active
             if active:
+                # Reset interrupt state when entering game mode
                 self._game_interrupt_requested = False
+                self._game_interrupt_acknowledged = False
+                self._interrupt_request_count = 0
     
     def is_in_game_mode(self) -> bool:
         """Check if currently in game mode."""
@@ -423,9 +440,11 @@ class ThreadedLCDManager:
             return self._in_game_mode
     
     def clear_game_interrupt(self):
-        """Clear the game interrupt flag."""
+        """Clear the game interrupt flag after it's been handled."""
         with self._lock:
             self._game_interrupt_requested = False
+            self._game_interrupt_acknowledged = False
+            self._interrupt_request_count = 0
 
 
 # Global instance for easy access
