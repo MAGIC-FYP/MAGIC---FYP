@@ -211,6 +211,7 @@ class Board:
             print("\n" + "-" * 40)
             print(f"Current player: ({'White' if self.current_player == self.white_player else 'Black'})")
             display.disp_board(self.board, self.graveyard, self.current_player)
+            
 
             self.logger.log(f"board fen:\t{self.board.fen()}")
             if type(self.current_player) == HumanPlayer:
@@ -221,8 +222,12 @@ class Board:
                     display.legal_moves = []
                     display.selected_square = False
                     display.path = []
-                    move = display.get_move_from_surface_gui(self.board, self.Surface, self.gantry, self.graveyard, self.current_player)
-                    if move == False:
+                    self.lcd_manager.show_message(
+    f"{'White' if self.current_player.colour == chess.WHITE else 'Black'}'s Move",
+    "You're in Check!" if self.board.is_check() else ""
+)
+                    move = display.get_move_from_surface_gui(self.board, self.Surface, self.gantry, self.graveyard, self.current_player, self.lcd_manager)
+                    if move == False and self.lcd_manager and self.lcd_manager.is_game_interrupt_requested():
                         # Interrupt detected in get_move_from_surface_gui
                         display.quit_pygame()
                         self.lcd_manager.acknowledge_interrupt()
@@ -230,9 +235,12 @@ class Board:
                         return False
                 
             else:
+                self.lcd_manager.show_message(f"{'White' if self.current_player.colour == chess.WHITE else 'Black'}'s Move", "Thinking...")
                 move = self.current_player.get_move(self.board)
-
+                
             if move:
+                self.lcd_manager.show_message(f"{'White' if self.current_player.colour == chess.WHITE else 'Black'}'s Move", f"Move: {move}")
+                
                 self.logger.log(f"attempted move:\t{move}")
                 self.path_planner_board.place_from_fen(self.board.fen())
                 if self.make_move(move):
@@ -333,14 +341,17 @@ class Board:
             self.logger.log("Game over, result: White wins")
             display.board_message = "White wins!"
             print("White wins!")
+            self.lcd_manager.show_message("Game Finished", "White wins!")
         elif result == "0-1":
             self.logger.log("Game over, result: Black wins")
             display.board_message = "Black wins!"
             print("Black wins!")
+            self.lcd_manager.show_message("Game Finished", "Black wins!")
         elif result == "1/2-1/2":
             self.logger.log("Game over, result: Draw")
             display.board_message = "Draw!"
             print("It's a draw!")
+            self.lcd_manager.show_message("Game Finished", "Draw!")
         
         display.disp_board(self.board, self.graveyard, self.current_player)
         for _ in range(3):
@@ -364,6 +375,8 @@ class Board:
         quick_speed = config['gantry']['quick_speed']
         slow_speed = config['gantry']['slow_speed']
         path_const = (3.5/5)
+
+        opponent_name = lichess_manager.get_game_info(game_id)['opponent_name']
         
         if not self.white_player or not self.black_player:
             print("Players not set up. Please call setup_players() first.")
@@ -407,7 +420,11 @@ class Board:
                             self.lcd_manager.acknowledge_interrupt()
                             self.lcd_manager.clear_game_interrupt()
                             return False
-                        
+                            
+                        self.lcd_manager.show_message(
+    f"{'White' if self.current_player.colour == chess.WHITE else 'Black'}'s Move",
+    "You're in Check!" if self.board.is_check() else ""
+)
                         display.legal_moves = []
                         display.selected_square = False
                         display.path = []
@@ -416,13 +433,18 @@ class Board:
                             self.Surface, 
                             self.gantry, 
                             self.graveyard, 
-                            self.current_player
+                            self.current_player,
+                            self.lcd_manager
                         )
                 else:
                     # Opponent move - get from Lichess stream
+                
+                    self.lcd_manager.show_message(f"{opponent_name}'s Move", "Waiting for move...")
+                
                     move = self.current_player.get_move(self.board)
                 
                 if move:
+                    self.lcd_manager.show_message(f"{opponent_name}'s Move", f"Move: {move}")
                     self.logger.log(f"attempted move:\t{move}")
                     self.path_planner_board.place_from_fen(self.board.fen())
                     
@@ -540,14 +562,17 @@ class Board:
                 self.logger.log("Online game over, result: White wins")
                 display.board_message = "White wins!"
                 print("White wins!")
+                self.lcd_manager.show_message("Game Finished", "White wins!")
             elif result == "0-1":
                 self.logger.log("Online game over, result: Black wins")
                 display.board_message = "Black wins!"
                 print("Black wins!")
+                self.lcd_manager.show_message("Game Finished", "Black wins!")
             elif result == "1/2-1/2":
                 self.logger.log("Online game over, result: Draw")
                 display.board_message = "Draw!"
                 print("It's a draw!")
+                self.lcd_manager.show_message("Game Finished", "Draw!")
             
             display.disp_board(self.board, self.graveyard, self.current_player)
             

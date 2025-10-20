@@ -509,7 +509,77 @@ class GantryControl:
 
         self.move(0, 0, speed)  # Close the shape
         return True
-    
+    def piece_reset_mag_joe(self, lcd_manager=None):
+        coords = {
+            "y": (3.5*0)+1.75,
+            "z": (3.5*1)+1.75,
+            "a": (3.5*2)+1.75,
+            "b": (3.5*3)+1.75,
+            "c": (3.5*4)+1.75,
+            "d": (3.5*5)+1.75,
+            "e": (3.5*6)+1.75,
+            "f": (3.5*7)+1.75,
+            "g": (3.5*8)+1.75,
+            "h": (3.5*9)+1.75,
+            "i": (3.5*10)+1.75,
+            "j": (3.5*11)+1.75,
+            "1": (3.5*0)+1.75,
+            "2": (3.5*1)+1.75,
+            "3": (3.5*2)+1.75,
+            "4": (3.5*3)+1.75,
+            "5": (3.5*4)+1.75,
+            "6": (3.5*5)+1.75,
+            "7": (3.5*6)+1.75,
+            "8": (3.5*7)+1.75,
+            }
+        moves = ["D1g1",
+            "G3g2",
+            "E2e1",
+            "G5g3", "g3h3", "h3h1",
+            "B2f2", "f2f1",
+            "Y6z6", "z6z2", "z2d1",
+            "Y5z5", "z5z2", "z2c1",
+            "Y3b1",
+            "E6d5", "d5d3", "d3a2", "a2a1",
+            "H4h2",
+            "E3f2",
+            "C4e2",
+            "B4d2",
+            "Y7c2",
+            "A3b2",
+            "Y4a2",
+            "F8a8",
+            "J6e8", "e8b8",
+            "B6c7", "c7c8",
+            "J3d3", "d3d8",
+            "E7e8",
+            "J4i4", "i4i6", "i6f8",
+            "F6g8",
+            "H5h8",
+            "C6c7",
+            "e4d7",
+            "f5e7",
+            "G6f7",
+            "J2g7",
+            "J5h7"]
+
+
+        for move in moves:
+            if lcd_manager and lcd_manager.is_game_interrupt_requested():
+                print("Game interrupted by user")
+                lcd_manager.acknowledge_interrupt()
+                lcd_manager.clear_game_interrupt()
+                return False
+            move = move.lower()
+            self.move(coords[move[0]], coords[move[1]], 15)
+            self.electromagnet(True)
+            time.sleep(0.1)
+            self.move(coords[move[2]], coords[move[3]], 10, drag_compensation=True)
+            self.electromagnet(False)
+            time.sleep(0.2)
+            #input("Press enter to continue")
+        return True
+
     def center_pieces(self):
         return True
         sleep_on = 0.1
@@ -609,6 +679,7 @@ class GantryControl:
 # gantry = GantryControl(max_x=36, min_x=1.75, max_y=32, min_y=-1.6)
 # gantry.initialise()
 # gantry.home()
+# gantry.piece_reset_mag_joe()
 # gantry.center_pieces()
 # gantry.move(3.5,0,10)
 # input("Epress enter")

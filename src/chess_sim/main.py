@@ -391,14 +391,21 @@ def start_game(game_config):
             
             # Execute the game
             print("Starting game execution...")
-            success = pgn_executor.execute_game(delay_between_moves=2.0)
+            success = pgn_executor.execute_game(delay_between_moves=1.0, lcd_manager=lcd_manager)
             
             # Disable game mode
             lcd_manager.set_game_mode(False)
             
             if success:
                 print("Archived game execution completed successfully!")
-                lcd_manager.show_message("Game completed!", "Archive replay done", 3.0)
+                if game_data['result'] == "1-0":
+                    lcd_manager.show_message("Game completed!", "White wins!")
+                elif game_data['result'] == "0-1":
+                    lcd_manager.show_message("Game completed!", "Black wins!")
+                elif game_data['result'] == "1/2-1/2":
+                    lcd_manager.show_message("Game completed!", "Draw!")
+            
+
             else:
                 print("Archived game execution failed or was interrupted")
                 lcd_manager.show_message("Game failed!", "Archive replay error", 3.0)
@@ -417,7 +424,61 @@ def start_game(game_config):
             if navigator_instance:
                 navigator_instance.navigate_to_root()
         return
-    
+
+    elif game_mode == 'demo_mode':
+        # Demo mode
+        try:
+            from pgn_reader import PGNReader, PGNExecutor
+            # Initialize PGN reader and executor
+            while True:
+
+                filename = "Carlsen vs Ibarra Jerez 2025.pgn"
+                pgn_reader = PGNReader()
+                pgn_executor = PGNExecutor(chess_board, controller, chess_board.gantry, chess_board.path_planner_board, lcd_manager)
+                
+                game_data = pgn_reader.read_pgn_file(filename)
+                # Load the game
+                print(f"Loading demo game: {filename}")
+                if not pgn_executor.load_game(game_data):
+                    print("Failed to load game into executor")
+                    chess_board.gantry.cleanup()
+                    lcd_manager.show_message("Load failed", "Executor error", 3.0)
+                    time.sleep(3)
+                    navigator_instance = MenuNavigator.get_instance()
+                    if navigator_instance:
+                        navigator_instance.navigate_to_root()
+                    return
+                success = pgn_executor.execute_game(delay_between_moves=1.0, lcd_manager=lcd_manager)
+                
+                # Disable game mode
+                lcd_manager.set_game_mode(False)
+                
+                if success:
+                    chess_board.gantry.chime()
+                    chess_board.gantry.chime()
+                    chess_board.gantry.chime()
+                    print("Archived game execution completed successfully!")
+                    if game_data['result'] == "1-0":
+                        lcd_manager.show_message("Game completed!", "White wins!")
+                    elif game_data['result'] == "0-1":
+                        lcd_manager.show_message("Game completed!", "Black wins!")
+                    elif game_data['result'] == "1/2-1/2":
+                        lcd_manager.show_message("Game completed!", "Draw!")
+                    chess_board.gantry.piece_reset_mag_joe()
+                    chess.board.reset()
+                    chess_board.gantry.chime()
+        except Exception as e:
+            print(f"Error in archived game: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # Always cleanup GPIO resources
+            chess_board.gantry.cleanup()
+            # Return to menu display
+            navigator_instance = MenuNavigator.get_instance()
+            if navigator_instance:
+                navigator_instance.navigate_to_root()
+        return
     # Start the game (for offline modes)
     try:
         game_completed = chess_board.play_game_gui()
@@ -427,6 +488,7 @@ def start_game(game_config):
         
         if game_completed:
             print("Game completed successfully!")
+
         else:
             print("Game was interrupted")
             lcd_manager.show_message("Game ended", "Returning to menu", 2.0)

@@ -390,7 +390,7 @@ class Display:
                 
                 self.disp_board(board, graveyard, current_player)
 
-    def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, gantry: GantryControl, graveyard: Graveyard ,current_player):
+    def get_move_from_surface_gui(self, board: chess.Board, Surface: TileSensor, gantry: GantryControl, graveyard: Graveyard ,current_player, lcd_manager):
         self.selected_square = False
         self.legal_moves = []
         self.disp_board(board, graveyard, current_player)
@@ -399,6 +399,7 @@ class Display:
             slow_speed = config['gantry']['slow_speed']
             path_const = (3.5/5)
             prev_bitmap = np.zeros((8, 8))
+            
             for rank_idx in range(8): # Iterate through ranks (rows) from 0 to 7
                 for file_idx in range(8): # Iterate through files (columns) from 0 to 7                
                     square_index = rank_idx * 8 + file_idx
@@ -428,7 +429,7 @@ class Display:
                     # i = board.piece_at(from_square)
                     # j = current_player.colour
                         print(f"picked up {'White' if board.piece_at(from_square).color else 'Black'} {board.piece_at(from_square).symbol()} from: {chess.square_name(from_square)}")
-                        
+                        lcd_manager.show_message(f"{'white' if current_player.colour == chess.WHITE else 'black'}'s Move", f"Got {'Wht' if board.piece_at(from_square).color else 'Blk'} {board.piece_at(from_square).symbol()} at {chess.square_name(from_square)}")
                         if board.piece_at(from_square).color != current_player.colour:
                             self.selected_square = from_square
                             self.legal_moves = []
@@ -461,7 +462,9 @@ class Display:
                 if piece.color == current_player.colour:
                     self.legal_moves = [move.to_square for move in board.legal_moves if move.from_square == from_square]
                     self.disp_board(board, graveyard, current_player)
-            prev_bitmap = cur_bitmap
+            #print(f"{from_square % 8},{from_square // 8}")
+            prev_bitmap[from_square // 8][from_square % 8] = 0
+            
 
             timer = 0
             change = 0

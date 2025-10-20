@@ -228,7 +228,7 @@ class PGNExecutor:
         self.current_move_index = 0
         return True
     
-    def execute_game(self, delay_between_moves: float = 2.0) -> bool:
+    def execute_game(self, delay_between_moves: float = 2.0, lcd_manager=None) -> bool:
         """
         Execute the loaded game on the chess board.
         
@@ -241,6 +241,8 @@ class PGNExecutor:
         quick_speed = config['gantry']['quick_speed']
         slow_speed = config['gantry']['slow_speed']
 
+        total_moves = self.current_game['move_count']
+        current_move = 1
         if not self.current_game:
             print("No game loaded for execution")
             return False
@@ -248,10 +250,6 @@ class PGNExecutor:
         print(f"\nExecuting game: {self.current_game['white']} vs {self.current_game['black']}")
         print(f"Total moves: {self.current_game['move_count']}")
         print("=" * 50)
-        
-        # Center all pieces first
-        print("Centering pieces...")
-        #self.board.gantry.center_pieces()
         
         # Reset board to starting position
         #self.board.board.reset()
@@ -269,7 +267,11 @@ class PGNExecutor:
                 
                 if not self.is_executing:
                     break
-                
+                if lcd_manager:
+                    # Get current player name (before the move is made, so it's the player making the move)
+                    current_player_name = self.current_game['white'] if self.board.board.turn == chess.WHITE else self.current_game['black']
+                    #print(f"Name: {current_player_name}")
+                    lcd_manager.show_message(f"Move {current_move}/{total_moves}", f"{current_player_name[:10]}: {move_data['uci']}")
                 print(f"\nMove {move_data['uci']}: {move_data['san']}")
                 self.path_planner_board.place_from_fen(self.board.board.fen())
                 self.path = self.path_planner_board.get_full_path_simpli(move_data['uci'])
@@ -332,6 +334,7 @@ class PGNExecutor:
                     # Wait before next move
                     import time
                     time.sleep(delay_between_moves)
+                    current_move += 1
                 else:
                     print(f"Failed to execute move: {move_data['san']}")
                     return False

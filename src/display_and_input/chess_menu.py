@@ -10,6 +10,7 @@ Creates a hierarchical menu for chess game configuration:
   - Robot 1 Difficulty
   - Robot 2 Difficulty
   - Start Game
+- Demo Mode
 """
 
 from typing import Dict, Any, Callable, Optional
@@ -29,11 +30,12 @@ class ChessMenuBuilder:
     
     # Configure your Lichess friends list here
     LICHESS_FRIENDS = [
-        'tawildoer',
         'sploging',
+        'tawildoer',
         'v0za',
         'D_U_C_K_O',
-        'tdnathan'
+        'nathanfiddes',
+        'finleyp'
         # Add more friends here as needed
         # Example: 'username1', 'username2', etc.
     ]
@@ -41,7 +43,7 @@ class ChessMenuBuilder:
     def __init__(self):
         """Initialize the chess menu builder."""
         self.game_config: Dict[str, Any] = {
-            'game_mode': None,  # 'player_vs_robot', 'robot_vs_robot', 'online_quickmatch', or 'online_friend_challenge'
+            'game_mode': None,  # 'player_vs_robot', 'robot_vs_robot', 'online_quickmatch', 'online_friend_challenge', or 'demo_mode'
             'player_colour': chess.WHITE,  # WHITE or BLACK
             'robot_level': 1,  # 1-20
             'robot1_level': 1,  # For robot vs robot
@@ -88,6 +90,9 @@ class ChessMenuBuilder:
         # Create Archived Games submenu
         archived_menu = self._build_archived_games_menu()
         root_menu.add(archived_menu)
+
+        # Add Demo Mode option
+        root_menu.add(MenuItem("Demo Mode", lambda: self._start_demo_mode()))
         
         return root_menu
     
@@ -365,7 +370,50 @@ class ChessMenuBuilder:
                 daemon=False
             )
             game_thread.start()
+
+    def _start_demo_mode(self):
+        """Start a game in demo mode."""
+        self.game_config['game_mode'] = 'demo_mode'
+        print("\n" + "="*50)
+        print("Starting Demo Mode...")
+        print("="*50 + "\n")
+
+        if self.start_game_callback:
+            import threading
+            game_thread = threading.Thread(
+                target=self.start_game_callback,
+                args=(self.game_config,),
+                daemon=False
+            )
+            game_thread.start()
     
     def get_config(self) -> Dict[str, Any]:
         """Get the current game configuration."""
         return self.game_config.copy()
+
+    def _get_promotion_menu(self) -> Menu:
+        """Create a menu for selecting a promotion piece."""
+        promotion_menu = Menu("Promote Pawn")
+
+        promotion_menu.add(MenuItem("Queen", lambda: self._set_promotion_choice('q')))
+        promotion_menu.add(MenuItem("Rook", lambda: self._set_promotion_choice('r')))
+        promotion_menu.add(MenuItem("Bishop", lambda: self._set_promotion_choice('b')))
+        promotion_menu.add(MenuItem("Knight", lambda: self._set_promotion_choice('n')))
+        
+        # A promotion is a forced choice, so a 'Back' item is typically not included.
+        # The game logic will wait for a selection to proceed.
+        
+        return promotion_menu
+
+    def _set_promotion_choice(self, piece_type: str):
+        """Set the selected promotion piece in game_config and navigate back."""
+        self.game_config['promotion_choice'] = piece_type
+        print(f"Promotion piece selected: {piece_type}")
+        
+        # After selection, the menu should ideally close or navigate back
+        # to allow the game to continue.
+        # Assuming MenuNavigator is available globally or via a singleton pattern.
+        # (Import statement for MenuNavigator is omitted as per instructions.)
+        navigator_instance = MenuNavigator.get_instance()
+        if navigator_instance:
+            navigator_instance.navigate_back()

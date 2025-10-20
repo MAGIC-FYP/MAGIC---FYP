@@ -170,6 +170,7 @@ class ThreadedLCDManager:
             line2: Second line of the message
             duration: How long to display the message (seconds)
         """
+        self.lcd.clear()
         message = LCDMessage(
             DisplayMode.MESSAGE,
             {'line1': line1, 'line2': line2},

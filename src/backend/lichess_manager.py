@@ -24,6 +24,7 @@ class LichessGameManager:
         self.client = berserk.Client(session=self.session)
         self.event_stream = None
         self.game_id = None
+        self.opponent_name = None
         
     def get_authenticated_username(self) -> Optional[str]:
         """
@@ -109,6 +110,7 @@ class LichessGameManager:
                 
                 if event['type'] == 'gameStart':
                     game_id = event['game']['id']
+                    self.opponent_name = event['game']['opponent']['name']
                     print(f"DEBUG: gameStart detected, game_id: {game_id}")
                     
                     # Only accept this game if our seek was created
@@ -198,11 +200,16 @@ class LichessGameManager:
             if first_event['type'] == 'gameFull':
                 white_player = first_event.get('white', {})
                 black_player = first_event.get('black', {})
-                
+                if white_player.get('name', white_player.get('id', 'White')) == self.get_authenticated_username():
+                    opponent_name = black_player.get('name', black_player.get('id', 'Black'))
+                else:
+                    opponent_name = white_player.get('name', white_player.get('id', 'White'))
+            
                 return {
                     'game_id': game_id,
                     'white': white_player.get('name', white_player.get('id', 'White')),
                     'black': black_player.get('name', black_player.get('id', 'Black')),
+                    'opponent_name': opponent_name,
                     'white_rating': white_player.get('rating', '?'),
                     'black_rating': black_player.get('rating', '?'),
                     'rated': first_event.get('rated', False),
@@ -266,7 +273,7 @@ class LichessGameManager:
             start_time = time.time()
             
             for event in event_stream:
-                print(f"DEBUG: Challenge event received: {event.get('type')}")
+                #print(f"DEBUG: Challenge event received: {event.get('type')}")
                 
                 if time.time() - start_time > timeout:
                     print("Challenge timed out (no response)")
@@ -286,7 +293,8 @@ class LichessGameManager:
                 
                 if event['type'] == 'gameStart':
                     game_id = event['game']['id']
-                    print(f"DEBUG: gameStart detected, game_id: {game_id}")
+                    self.opponent_name = self.get_game_info(game_id)['opponent_name']
+                    #print(f"DEBUG: gameStart detected, game_id: {game_id}")
                     
                     # Only accept this game if we have a challenge ID (meaning we sent a challenge recently)
                     # This prevents picking up old/existing games
@@ -294,9 +302,7 @@ class LichessGameManager:
                         self.game_id = game_id
                         print(f"Challenge accepted! Game ID: {game_id}")
                         return game_id
-                    else:
-                        print(f"DEBUG: Ignoring gameStart (no active challenge from us)")
-                        
+                    
                 elif event['type'] == 'challengeDeclined':
                     print(f"Challenge declined by {username}")
                     return None
@@ -324,7 +330,7 @@ class LichessGameManager:
                 clock_increment=increment_seconds,
                 color='random'  # Let Lichess decide colors
             )
-            print(f"DEBUG: Challenge created: {result}")
+            #print(f"DEBUG: Challenge created: {result}")
         except Exception as e:
             # Berserk library has compatibility issues with Python 3.11+
             # Try direct API call as fallback
@@ -342,9 +348,7 @@ class LichessGameManager:
                         'color': 'random'
                     }
                 )
-                if response.status_code == 200:
-                    print(f"DEBUG: Challenge created via direct API")
-                else:
-                    print(f"Direct API challenge failed: {response.status_code} - {response.text}")
+                
+                print(f"Direct API challenge failed: {response.status_code} - {response.text}")
             except Exception as e2:
                 print(f"Fallback challenge creation also failed: {e2}")
