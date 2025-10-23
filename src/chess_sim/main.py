@@ -73,6 +73,9 @@ def start_game(game_config):
             white_player = Stockfish(chess.WHITE, robot_level)
             black_player = HumanPlayer(chess.BLACK)
         
+        # Center pieces
+        chess_board.gantry.center_pieces()
+        
         chess_board.setup_players(white_player, black_player)
         
         # Update LCD with game setup
@@ -82,6 +85,26 @@ def start_game(game_config):
             'move_count': 0,
             'opponent_name': f'Robot L{robot_level}'
         })
+
+    elif game_mode == 'player_vs_player':
+        # Player vs Player mode
+        
+        white_player = HumanPlayer(chess.WHITE)
+        black_player = HumanPlayer(chess.BLACK)
+        chess_board.setup_players(white_player, black_player)
+
+        # Center pieces
+        chess_board.gantry.center_pieces()
+        
+        # Update LCD with game setup
+        lcd_manager.set_game_status_mode({
+            'game_status': 'player_vs_player',
+            'current_player': 'White',
+            'move_count': 0,
+            'opponent_name': 'Black'
+        })
+    
+    
         
     elif game_mode == 'robot_vs_robot':
         # Robot vs Robot mode
@@ -431,6 +454,9 @@ def start_game(game_config):
             from pgn_reader import PGNReader, PGNExecutor
             # Initialize PGN reader and executor
             while True:
+                # Re-enable game mode for each demo cycle to allow interrupts
+                lcd_manager.set_game_mode(True)
+                print(f"DEBUG: Game mode enabled for demo cycle. In game mode: {lcd_manager.is_in_game_mode()}")
 
                 filename = "Carlsen vs Ibarra Jerez 2025.pgn"
                 pgn_reader = PGNReader()
@@ -450,13 +476,13 @@ def start_game(game_config):
                     return
                 success = pgn_executor.execute_game(delay_between_moves=1.0, lcd_manager=lcd_manager)
                 
-                # Disable game mode
-                lcd_manager.set_game_mode(False)
-                
                 if success:
                     chess_board.gantry.chime()
+                    time.sleep(0.1)
                     chess_board.gantry.chime()
+                    time.sleep(0.1)
                     chess_board.gantry.chime()
+                    time.sleep(3)
                     print("Archived game execution completed successfully!")
                     if game_data['result'] == "1-0":
                         lcd_manager.show_message("Game completed!", "White wins!")
@@ -464,9 +490,33 @@ def start_game(game_config):
                         lcd_manager.show_message("Game completed!", "Black wins!")
                     elif game_data['result'] == "1/2-1/2":
                         lcd_manager.show_message("Game completed!", "Draw!")
-                    chess_board.gantry.piece_reset_mag_joe()
-                    chess.board.reset()
-                    chess_board.gantry.chime()
+                    time.sleep(1)
+                    lcd_manager.show_message("Magnus Car wins!", "Reseting Pieces")
+                    piece_reset_success = chess_board.gantry.piece_reset_mag_joe(lcd_manager=lcd_manager)
+                    if not piece_reset_success:
+                        print("Piece reset interupted")
+                        navigator_instance = MenuNavigator.get_instance()
+                        if navigator_instance:
+                            navigator_instance.navigate_to_root()
+                        return
+                    chess_board.board.reset()
+                    chess_board.gantry.move(5,5,20)
+                    chess_board.gantry.home()
+                    
+                    # Disable game mode only after all operations are complete
+                    lcd_manager.set_game_mode(False)
+                else:
+                    print("Archived game execution failed or was interrupted")
+                    lcd_manager.show_message("Game interrupted!", "Archive replay error", 3.0)
+                    # Disable game mode when interrupted
+                    lcd_manager.set_game_mode(False)
+                    break
+            chess_board.gantry.cleanup()
+            # Return to menu display
+            navigator_instance = MenuNavigator.get_instance()
+            if navigator_instance:
+                navigator_instance.navigate_to_root()
+            return
         except Exception as e:
             print(f"Error in archived game: {e}")
             import traceback

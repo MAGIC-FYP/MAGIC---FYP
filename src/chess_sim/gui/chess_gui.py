@@ -593,7 +593,8 @@ class Display:
                 (piece.color == chess.BLACK and to_square < 8)
             ):
                 # Display promotion box for user to select piece
-                promotion = self.display_promotion_box(current_player, piece, to_square)
+                #promotion = self.display_promotion_box(current_player, piece, to_square)
+                promotion = self.lcd_manager.get_promotion_choice()
                 promotion = chess.Piece.from_symbol(promotion).piece_type
 
             move = chess.Move(from_square=from_square, to_square=to_square, promotion=promotion)

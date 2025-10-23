@@ -147,6 +147,12 @@ class Graveyard():
     def pos_to_gy_coord(self, pos):
         
         return [(pos[0][0]*5)-2.5, (pos[0][1]*5)-2.5]
+    
+    def find_piece(self, piece: chess.Piece):
+        for sq, piece in self.occupied_position.items():
+            if piece == piece:
+                return sq
+        return None
 
 
 def generate_graveyard_coordinates():

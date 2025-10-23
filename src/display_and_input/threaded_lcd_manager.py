@@ -401,6 +401,7 @@ class ThreadedLCDManager:
     def request_game_interrupt(self):
         """Request interruption of current game with persistent flag."""
         with self._lock:
+            print(f"DEBUG: Interrupt requested. In game mode: {self._in_game_mode}, Already requested: {self._game_interrupt_requested}")
             if self._in_game_mode:
                 if not self._game_interrupt_requested:
                     self._game_interrupt_requested = True
@@ -409,6 +410,8 @@ class ThreadedLCDManager:
                     print("Game interrupt requested")
                 else:
                     self._interrupt_request_count += 1
+            else:
+                print("DEBUG: Interrupt ignored - not in game mode")
     
     def is_game_interrupt_requested(self) -> bool:
         """Check if game interruption has been requested (non-destructive check)."""
@@ -446,6 +449,88 @@ class ThreadedLCDManager:
             self._game_interrupt_requested = False
             self._game_interrupt_acknowledged = False
             self._interrupt_request_count = 0
+    
+    def get_promotion_choice(self) -> str:
+        """
+        Display a menu for selecting a promotion piece and wait for user selection.
+        
+        Returns:
+            Single character representing the piece: 'q', 'r', 'b', or 'n'
+        """
+        try:
+            from .menu import SubMenu, MenuItem
+            from .menu_navigator import MenuNavigator
+        except ImportError:
+            from menu import SubMenu, MenuItem
+            from menu_navigator import MenuNavigator
+        
+        # Create promotion menu
+        promotion_menu = SubMenu("Promote Pawn")
+        
+        # Store selection
+        selection = {'piece': None}
+        
+        def select_piece(piece_symbol):
+            selection['piece'] = piece_symbol
+        
+        promotion_menu.add(MenuItem("Queen", lambda: select_piece('q'), auto_back=True))
+        promotion_menu.add(MenuItem("Rook", lambda: select_piece('r'), auto_back=True))
+        promotion_menu.add(MenuItem("Bishop", lambda: select_piece('b'), auto_back=True))
+        promotion_menu.add(MenuItem("Knight", lambda: select_piece('n'), auto_back=True))
+        
+        # Get the navigator instance and temporarily switch to promotion menu
+        navigator = MenuNavigator.get_instance()
+        if not navigator:
+            # Fallback to queen if no navigator available
+            print("Warning: No MenuNavigator found, defaulting to Queen promotion")
+            return 'q'
+        
+        # Save current state
+        original_menu = navigator.current_menu
+        original_index = original_menu.current_index if hasattr(original_menu, 'current_index') else 0
+        was_in_game_mode = self.is_in_game_mode()
+        
+        # Temporarily disable game mode so button works for menu selection
+        if was_in_game_mode:
+            self.set_game_mode(False)
+        
+        # Navigate to promotion menu
+        navigator.current_menu = promotion_menu
+        promotion_menu.current_index = 0
+        
+        # Update display with promotion menu
+        self.set_menu_mode(promotion_menu)
+        
+        print("Promotion menu displayed. Use encoder to select piece and press button to confirm.")
+        
+        # Wait for selection (blocking)
+        import time
+        timeout = 30  # 30 second timeout
+        start_time = time.time()
+        
+        while selection['piece'] is None:
+            time.sleep(0.05)  # Check more frequently
+            if time.time() - start_time > timeout:
+                # Timeout - default to queen
+                print("Promotion selection timed out, defaulting to Queen")
+                selection['piece'] = 'q'
+                break
+        
+        print(f"Promotion piece selected: {selection['piece']}")
+        
+        # Restore original state
+        navigator.current_menu = original_menu
+        if hasattr(original_menu, 'current_index'):
+            original_menu.current_index = original_index
+        
+        # Restore game mode if it was active
+        if was_in_game_mode:
+            self.set_game_mode(True)
+            # Don't show menu, let game continue
+        elif original_menu:
+            self.set_menu_mode(original_menu)
+        
+        return selection['piece']
 
 
 # Global instance for easy access

@@ -209,12 +209,28 @@ class LichessPlayer(BasePlayer):
                     # First event - contains full game state
                     state = event['state']
                     moves_str = state.get('moves', '')
+                    current_moves = moves_str.split() if moves_str else []
                     print(f"DEBUG: gameFull event - moves: {moves_str}")
-                    if moves_str:
-                        self.last_moves = moves_str.split()
-                    print(f"DEBUG: Updated last_moves to: {self.last_moves}")
-                    # Continue to wait for actual new moves
-                    continue
+                    print(f"DEBUG: Current moves in gameFull: {current_moves}, Last known: {self.last_moves}")
+                    
+                    # Check if there are new moves in gameFull
+                    if len(current_moves) > len(self.last_moves):
+                        # There are new moves we haven't processed yet
+                        new_move_uci = current_moves[-1]
+                        self.last_moves = current_moves
+                        
+                        try:
+                            move = chess.Move.from_uci(new_move_uci)
+                            print(f"{self.opponent_name} played: {new_move_uci}")
+                            return move
+                        except ValueError:
+                            print(f"Invalid move from Lichess: {new_move_uci}")
+                            continue
+                    else:
+                        # No new moves yet, just update our state and continue
+                        self.last_moves = current_moves
+                        print(f"DEBUG: Updated last_moves to: {self.last_moves}, waiting for new move...")
+                        continue
                     
                 elif event['type'] == 'gameState':
                     # Game state update - check for new moves

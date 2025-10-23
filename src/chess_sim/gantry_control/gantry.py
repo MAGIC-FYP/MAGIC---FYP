@@ -532,56 +532,69 @@ class GantryControl:
             "7": (3.5*6)+1.75,
             "8": (3.5*7)+1.75,
             }
-        moves = ["D1g1",
-            "G3g2",
-            "E2e1",
-            "G5g3", "g3h3", "h3h1",
-            "B2f2", "f2f1",
-            "Y6z6", "z6z2", "z2d1",
-            "Y5z5", "z5z2", "z2c1",
-            "Y3b1",
-            "E6d5", "d5d3", "d3a2", "a2a1",
-            "H4h2",
-            "E3f2",
-            "C4e2",
-            "B4d2",
-            "Y7c2",
-            "A3b2",
-            "Y4a2",
-            "F8a8",
-            "J6e8", "e8b8",
-            "B6c7", "c7c8",
-            "J3d3", "d3d8",
-            "E7e8",
-            "J4i4", "i4i6", "i6f8",
-            "F6g8",
-            "H5h8",
-            "C6c7",
-            "e4d7",
-            "f5e7",
-            "G6f7",
-            "J2g7",
-            "J5h7"]
+        moves = [["D1h1"],
+            ["G5f3", "f3g1"],
+            ["E2e1"],
+            ["B2f2", "f2f1"],
+            ["Y6z6", "z6z2", "z2d1"],
+            ["Y5z5", "z5z2", "z2c1"],
+            ["Y3b1"],
+            ["E6d5", "d5d3", "d3a2", "a2a1"],
+            ["H4h2"],
+            ["G3g2"],
+            ["E3f2"],
+            ["C4e2"],
+            ["B4d2"],
+            ["Y7c2"],
+            ["A3b2"],
+            ["Y4a2"],
+            ["F8a8"],
+            ["J6e8", "e8b8"],
+            ["B6c7", "c7c8"],
+            ["J3d3", "d3d8"],
+            ["E7e8"],
+            ["J4i4", "i4i6", "i6f8"],
+            ["F6g8"],
+            ["H5h8"],
+            ["C6c7"],
+            ["e4d7"],
+            ["f5e7"],
+            ["G6f7"],
+            ["J2g7"],
+            ["J5h7"]]
 
 
-        for move in moves:
+        for path in moves:
+            #print(f"DEBUG: Piece reset - checking interrupt. LCD manager: {lcd_manager is not None}")
             if lcd_manager and lcd_manager.is_game_interrupt_requested():
                 print("Game interrupted by user")
                 lcd_manager.acknowledge_interrupt()
                 lcd_manager.clear_game_interrupt()
                 return False
-            move = move.lower()
-            self.move(coords[move[0]], coords[move[1]], 15)
+            
+            self.move(coords[path[0][0].lower()], coords[path[0][1].lower()], 20)
             self.electromagnet(True)
             time.sleep(0.1)
-            self.move(coords[move[2]], coords[move[3]], 10, drag_compensation=True)
+            for move in path[1:-1]:
+                if lcd_manager and lcd_manager.is_game_interrupt_requested():
+                    break
+                move = move.lower()
+                self.move(coords[move[0]], coords[move[1]], 10)
+            if lcd_manager and lcd_manager.is_game_interrupt_requested():
+                print("Game interrupted by user")
+                lcd_manager.acknowledge_interrupt()
+                lcd_manager.clear_game_interrupt()
+                return False
+            path_end = path[-1]
+            self.move(coords[path_end[0].lower()], coords[path_end[1].lower()], 10)
+            
+            self.move(coords[path_end[2].lower()], coords[path_end[3].lower()], 10, drag_compensation=True)
             self.electromagnet(False)
             time.sleep(0.2)
             #input("Press enter to continue")
         return True
 
     def center_pieces(self):
-        return True
         sleep_on = 0.1
         sleep_off = 0.05
         speed = 20

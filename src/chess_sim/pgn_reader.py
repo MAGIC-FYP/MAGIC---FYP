@@ -263,6 +263,7 @@ class PGNExecutor:
                     print("\nArchived game interrupted by user")
                     self.lcd_manager.acknowledge_interrupt()
                     self.lcd_manager.clear_game_interrupt()
+                    self.stop_execution()
                     return False
                 
                 if not self.is_executing:

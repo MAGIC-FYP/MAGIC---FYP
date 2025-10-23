@@ -2,6 +2,8 @@
 Chess game menu structure builder.
 
 Creates a hierarchical menu for chess game configuration:
+- Player vs Player
+  - Start Game
 - Player vs Robot
   - Player Colour
   - Robot Level
@@ -43,8 +45,8 @@ class ChessMenuBuilder:
     def __init__(self):
         """Initialize the chess menu builder."""
         self.game_config: Dict[str, Any] = {
-            'game_mode': None,  # 'player_vs_robot', 'robot_vs_robot', 'online_quickmatch', 'online_friend_challenge', or 'demo_mode'
-            'player_colour': chess.WHITE,  # WHITE or BLACK
+            'game_mode': None,  # 'player_vs_player', 'player_vs_robot', 'robot_vs_robot', 'online_quickmatch', 'online_friend_challenge', or 'demo_mode'
+            'player_colour': chess.WHITE,  # WHITE or BLACK (for Player 1 in PvP, or the single player in PvR)
             'robot_level': 1,  # 1-20
             'robot1_level': 1,  # For robot vs robot
             'robot2_level': 1,  # For robot vs robot
@@ -75,6 +77,10 @@ class ChessMenuBuilder:
         # Create root menu
         root_menu = SubMenu("Main Menu")
         
+        # Create Player vs Player submenu
+        pvp_menu = self._build_player_vs_player_menu()
+        root_menu.add(pvp_menu)
+
         # Create Player vs Robot submenu
         pvr_menu = self._build_player_vs_robot_menu()
         root_menu.add(pvr_menu)
@@ -96,6 +102,18 @@ class ChessMenuBuilder:
         
         return root_menu
     
+    def _build_player_vs_player_menu(self) -> SubMenu:
+        """Build the Player vs Player submenu."""
+        pvp_menu = SubMenu("Plyr v Plyr")
+
+        # Start Game (no auto_back - stays on current menu or exits)
+        pvp_menu.add(MenuItem("Start Game", lambda: self._start_player_vs_player()))
+        
+        # Back to main menu
+        pvp_menu.add(BackMenuItem())
+        
+        return pvp_menu
+
     def _build_player_vs_robot_menu(self) -> SubMenu:
         """Build the Player vs Robot submenu."""
         pvr_menu = SubMenu("Plyr v Bot")
@@ -149,7 +167,7 @@ class ChessMenuBuilder:
         return rvr_menu
     
     def _set_player_colour(self, colour: chess.Color):
-        """Set the player's colour."""
+        """Set the player's colour (for Player 1 in PvP or the single player in PvR)."""
         self.game_config['player_colour'] = colour
         colour_name = "White" if colour == chess.WHITE else "Black"
         print(f"Player colour set to: {colour_name}")
@@ -169,6 +187,23 @@ class ChessMenuBuilder:
         self.game_config['robot2_level'] = level
         print(f"Robot 2 level set to: {level}")
     
+    def _start_player_vs_player(self):
+        """Start a Player vs Player game."""
+        self.game_config['game_mode'] = 'player_vs_player'
+        print("\n" + "="*50)
+        print("Starting Player vs Player game...")
+        print(f"Player 1 colour: {'White' if self.game_config['player_colour'] == chess.WHITE else 'Black'}")
+        print("="*50 + "\n")
+
+        if self.start_game_callback:
+            import threading
+            game_thread = threading.Thread(
+                target=self.start_game_callback, 
+                args=(self.game_config,),
+                daemon=False
+            )
+            game_thread.start()
+
     def _start_player_vs_robot(self):
         """Start a Player vs Robot game."""
         self.game_config['game_mode'] = 'player_vs_robot'
@@ -391,9 +426,9 @@ class ChessMenuBuilder:
         """Get the current game configuration."""
         return self.game_config.copy()
 
-    def _get_promotion_menu(self) -> Menu:
+    def _get_promotion_menu(self) -> SubMenu:
         """Create a menu for selecting a promotion piece."""
-        promotion_menu = Menu("Promote Pawn")
+        promotion_menu = SubMenu("Promote Pawn")
 
         promotion_menu.add(MenuItem("Queen", lambda: self._set_promotion_choice('q')))
         promotion_menu.add(MenuItem("Rook", lambda: self._set_promotion_choice('r')))

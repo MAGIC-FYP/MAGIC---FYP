@@ -69,10 +69,16 @@ class Board:
                 self.next_graveyard = self.graveyard.get_lowest_available(piece)
                 self.graveyard.place_piece(piece)
                 self.is_capture = True
-                
+            
             else:
                 self.next_graveyard = None
                 self.is_capture = False
+                
+            if move.promotion is not None:
+                self.graveyard.find_piece(move.promotion)
+                
+                self.is_capture = False
+            
             self.board.push(move)
             self.move_history.append(move)
             
