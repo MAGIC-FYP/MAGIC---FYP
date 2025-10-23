@@ -26,6 +26,11 @@ class LichessGameManager:
         self.game_id = None
         self.opponent_name = None
         
+        # State tracking for challenges
+        self._challenge_lock = threading.Lock()
+        self._active_challenge_id = None
+        self._challenge_in_progress = False
+        
     def get_authenticated_username(self) -> Optional[str]:
         """
         Return the username of the authenticated account associated with the API token.
@@ -251,6 +256,16 @@ class LichessGameManager:
         Returns:
             game_id when challenge is accepted, None on error or decline
         """
+        # Check if there's already a challenge in progress
+        with self._challenge_lock:
+            if self._challenge_in_progress:
+                print("A challenge is already in progress. Please wait for it to complete.")
+                return None
+            
+            # Mark that we're starting a challenge
+            self._challenge_in_progress = True
+            self._active_challenge_id = None
+        
         try:
             print(f"Challenging {username} to a game: {time_minutes}+{increment_seconds}")
             
@@ -277,6 +292,7 @@ class LichessGameManager:
                 
                 if time.time() - start_time > timeout:
                     print("Challenge timed out (no response)")
+                    self._cleanup_challenge_state()
                     return None
                 
                 # Track when our challenge is created (we sent it, so destUser matches our target)
@@ -288,6 +304,8 @@ class LichessGameManager:
                     # Check if this challenge is to the user we're challenging
                     if dest_username and dest_username.lower() == username.lower():
                         challenge_info['challenge_id'] = challenge_data['id']
+                        with self._challenge_lock:
+                            self._active_challenge_id = challenge_data['id']
                         print(f"Challenge sent! Challenge ID: {challenge_info['challenge_id']}")
                         print(f"Waiting for {username} to accept...")
                 
@@ -301,20 +319,52 @@ class LichessGameManager:
                     if challenge_info['challenge_id'] is not None:
                         self.game_id = game_id
                         print(f"Challenge accepted! Game ID: {game_id}")
+                        self._cleanup_challenge_state()
                         return game_id
                     
                 elif event['type'] == 'challengeDeclined':
                     print(f"Challenge declined by {username}")
+                    self._cleanup_challenge_state()
                     return None
                 elif event['type'] == 'challengeCanceled':
                     print("Challenge was canceled")
+                    self._cleanup_challenge_state()
                     return None
                     
         except Exception as e:
             print(f"Error challenging user: {e}")
             import traceback
             traceback.print_exc()
+            self._cleanup_challenge_state()
             return None
+    
+    def _cleanup_challenge_state(self):
+        """
+        Clean up challenge state after completion, timeout, or error.
+        """
+        with self._challenge_lock:
+            self._challenge_in_progress = False
+            self._active_challenge_id = None
+    
+    def is_challenge_in_progress(self) -> bool:
+        """
+        Check if there's currently a challenge in progress.
+        
+        Returns:
+            True if a challenge is active, False otherwise
+        """
+        with self._challenge_lock:
+            return self._challenge_in_progress
+    
+    def get_active_challenge_id(self) -> Optional[str]:
+        """
+        Get the ID of the currently active challenge.
+        
+        Returns:
+            Challenge ID if active, None otherwise
+        """
+        with self._challenge_lock:
+            return self._active_challenge_id
     
     def _create_challenge_blocking(self, username: str, time_minutes: int, 
                                    increment_seconds: int, rated: bool, challenge_info: dict):

@@ -188,6 +188,7 @@ class LichessPlayer(BasePlayer):
         self.opponent_name = "Lichess Opponent"
         self.last_moves = []
         self.lcd_manager = lcd_manager
+        self.game_status = None  # Track game status (resign, abort, etc.)
         
     def get_move(self, board: chess.Board) -> Optional[chess.Move]:
         """Wait for opponent's move from Lichess stream."""
@@ -259,6 +260,7 @@ class LichessPlayer(BasePlayer):
                     status = event.get('status')
                     if status in ['mate', 'resign', 'stalemate', 'timeout', 'draw', 'outoftime', 'cheat', 'noStart', 'unknownFinish', 'variantEnd']:
                         print(f"Game ended on Lichess. Status: {status}")
+                        self.game_status = status  # Store the game status
                         return None
                         
         except Exception as e:
@@ -268,6 +270,15 @@ class LichessPlayer(BasePlayer):
             return None
             
         return None
+    
+    def get_game_status(self) -> Optional[str]:
+        """
+        Get the current game status from Lichess.
+        
+        Returns:
+            Game status string (resign, abort, mate, etc.) or None if game is ongoing
+        """
+        return self.game_status
     
     def set_opponent_name(self, name: str):
         """Set the opponent's name for display purposes."""

@@ -555,6 +555,31 @@ class Board:
                         self.lcd_manager.acknowledge_interrupt()
                         self.lcd_manager.clear_game_interrupt()
                         return False
+                    elif isinstance(self.current_player, LichessPlayer):
+                        # Check if the opponent resigned or aborted
+                        game_status = self.current_player.get_game_status()
+                        if game_status in ['resign', 'abort', 'timeout', 'outoftime']:
+                            print(f"\nOpponent ended the game. Status: {game_status}")
+                            self.logger.log(f"Opponent ended the game. Status: {game_status}")
+                            
+                            # Display appropriate message based on game status
+                            if game_status == 'resign':
+                                self.lcd_manager.show_message("Game Finished", f"{opponent_name} resigned!")
+                                print(f"{opponent_name} resigned! You win!")
+                            elif game_status == 'abort':
+                                self.lcd_manager.show_message("Game Aborted", f"{opponent_name} aborted the game")
+                                print(f"{opponent_name} aborted the game")
+                            elif game_status in ['timeout', 'outoftime']:
+                                self.lcd_manager.show_message("Game Finished", f"{opponent_name} ran out of time!")
+                                print(f"{opponent_name} ran out of time! You win!")
+                            
+                            # End the game gracefully
+                            display.quit_pygame()
+                            return True  # Game ended normally due to opponent action
+                        else:
+                            # Game ended for other reasons (mate, stalemate, draw, etc.)
+                            print(f"Game ended. Status: {game_status}")
+                            break
                     else:
                         # Game ended normally or error occurred
                         print("No move available or game ended.")
